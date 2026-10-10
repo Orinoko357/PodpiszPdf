@@ -1,6 +1,6 @@
 name: Pomiar rozmiaru i startu
 
-# Tymczasowy (końcowy pomiar): porównanie wariantów publikacji (rozmiar PodpisPdf.exe, pierwszy i kolejny start).
+# Tymczasowy (pomiar): porównanie wariantów publikacji (rozmiar PodpisPdf.exe, pierwszy i kolejny start).
 on:
   push:
     paths:

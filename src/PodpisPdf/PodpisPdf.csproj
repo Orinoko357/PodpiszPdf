@@ -66,15 +66,20 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
   </ItemGroup>
 
-  <!-- Moduły Windows App SDK, z których program nie korzysta: AI, uczenie maszynowe (onnxruntime, DirectML —
-       ok. 40 MB) i widżety. Pakiet zbiorczy Microsoft.WindowsAppSDK zostaje (zależą od niego H.NotifyIcon
-       i Community Toolkit), a ich pliki usuwamy z listy składników tuż przed skopiowaniem do programu. -->
-  <Target Name="PomijajZbedneSkladnikiWindowsAppSdk" BeforeTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromComponents">
+  <!-- Moduły Windows App SDK, z których program nie korzysta: AI i uczenie maszynowe (onnxruntime, DirectML —
+       ok. 40 MB), widżety. Pakiet zbiorczy Microsoft.WindowsAppSDK zostaje (zależą od niego H.NotifyIcon
+       i Community Toolkit); pliki tych modułów wyłączamy z kopiowania do programu — zarówno z paczki MSIX
+       środowiska (Microsoft.WindowsAppSDK.Runtime), jak i z pakietów składników. -->
+  <Target Name="PomijajZbedneSkladnikiWindowsAppSdk"
+          BeforeTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromMsix;AddMicrosoftWindowsAppSDKPayloadFilesFromComponents"
+          DependsOnTargets="ExtractMicrosoftWindowsAppSDKMsixFiles">
     <ItemGroup>
+      <_ZbedneSkladniki Include="onnxruntime*.dll;DirectML.dll;Microsoft.Windows.AI.*.dll;Microsoft.Windows.Widgets.dll;Microsoft.Windows.Workloads*.dll;workloads*.json" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\**\%(_ZbedneSkladniki.Identity)" Condition="'$(MicrosoftWindowsAppSDKMsixContent)' != ''" />
       <WindowsAppSdkComponentPackages Remove="@(WindowsAppSdkComponentPackages)"
         Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', 'microsoft\.windowsappsdk\.(ai|ml|widgets)[\\/.]', System.Text.RegularExpressions.RegexOptions.IgnoreCase))" />
     </ItemGroup>
-    <Message Importance="high" Text="Składniki Windows App SDK w programie: @(WindowsAppSdkComponentPackages->'%(Identity)', ', ')" />
+    <Message Importance="high" Text="Pominięte pliki Windows App SDK: @(MicrosoftWindowsAppSDKFilesExcluded->'%(Filename)%(Extension)', ', ')" />
   </Target>
 
   <ItemGroup>
