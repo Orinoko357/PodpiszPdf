@@ -64,7 +64,7 @@ Prostokąt na stronie dokumentu, który zawiera:
 
 | Element | Źródło | Obowiązkowy |
 |---|---|---|
-| **Nagłówek „Podpisano elektronicznie przez”** | Stały tekst na samej górze, przed imieniem i nazwiskiem | tak |
+| **Nagłówek „Podpisano elektronicznie przez:”** | Stały tekst na samej górze, przed imieniem i nazwiskiem | tak |
 | **Imię i nazwisko** | Z certyfikatu (pola *GivenName* i *Surname*; jeśli ich brak, pole *CN*) | tak |
 | **Stanowisko** | Wpisane w ustawieniach programu | nie |
 | **Logo** | Plik PNG lub JPG wskazany w ustawieniach | nie |

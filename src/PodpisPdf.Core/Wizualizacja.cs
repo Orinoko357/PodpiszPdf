@@ -28,7 +28,7 @@ internal static class Wizualizacja
     private const float SkalaNazwiska = 1.15f;
     private const float SkalaNaglowka = 0.85f;
 
-    internal const string Naglowek = "Podpisano elektronicznie przez";
+    internal const string Naglowek = "Podpisano elektronicznie przez:";
     // Zapas na zaokrąglenia układu, żeby wiersz nie zawinął się „na styk”.
     private const float ZapasSzerokosci = 0.96f;
 
