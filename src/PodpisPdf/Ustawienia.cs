@@ -33,6 +33,9 @@ internal sealed class Ustawienia
     /// <summary>Minimalizacja chowa okno do zasobnika systemowego (obok zegara).</summary>
     public bool MinimalizujDoZasobnika { get; set; } = true;
 
+    /// <summary>Uruchamianie przy logowaniu do Windows (z kopii programu w %APPDATA%\PodpisPdf).</summary>
+    public bool Autostart { get; set; }
+
     /// <summary>Pozycja „Podpisz w PodpisPdf” w menu kontekstowym plików PDF.</summary>
     public bool MenuKontekstowe { get; set; } = true;
 

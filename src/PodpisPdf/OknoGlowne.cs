@@ -22,7 +22,7 @@ internal sealed class OknoGlowne : Form
     private bool _trwaPodpisywanie;
     private bool _pokazanoDymek;
 
-    public OknoGlowne(string? plikStartowy)
+    public OknoGlowne(string? plikStartowy, bool autostart = false)
     {
         _ustawienia = Ustawienia.Wczytaj();
         _ustawienia.PrzeniesLogoDoFolderuUstawien();
@@ -135,6 +135,10 @@ internal sealed class OknoGlowne : Form
 
         Shown += (_, _) =>
         {
+            // Uruchomienie przy logowaniu do Windows: program czeka w zasobniku.
+            if (autostart && _ustawienia.MinimalizujDoZasobnika && string.IsNullOrEmpty(plikStartowy))
+                Hide();
+            OdswiezInstalacje();
             OdswiezMenuKontekstowe(cicho: true);
             WczytajCertyfikaty();
             if (!string.IsNullOrEmpty(plikStartowy))
@@ -146,14 +150,48 @@ internal sealed class OknoGlowne : Form
     }
 
     /// <summary>
-    /// Wywoływane (w wątku tła), gdy program uruchomiono ponownie, np. z menu kontekstowego pliku PDF.
-    /// Pusty tekst oznacza „pokaż okno”.
+    /// Polecenie od kolejnego uruchomienia programu (np. z menu kontekstowego pliku PDF albo nowszej wersji).
+    /// Wywoływane w wątku tła; zwraca odpowiedź dla tamtej kopii.
     /// </summary>
-    public void PrzyjmijZInnejKopii(string plik)
+    public string PrzyjmijPolecenie(string polecenie)
     {
-        _zlecenia.Enqueue(plik);
+        if (polecenie == JednaInstancja.Wersja)
+            return Instalacja.BiezacaWersja.ToString();
+
+        if (polecenie == JednaInstancja.Zakoncz)
+        {
+            // Nie przerywamy podpisywania ani otwartego okna (podgląd, ustawienia).
+            if (!IsHandleCreated || (bool)Invoke(() => _trwaPodpisywanie || Application.OpenForms.Count > 1))
+                return JednaInstancja.Zajety;
+            BeginInvoke(Close);
+            return JednaInstancja.Ok;
+        }
+
+        _zlecenia.Enqueue(polecenie.StartsWith(JednaInstancja.PrefiksPliku, StringComparison.Ordinal)
+            ? polecenie[JednaInstancja.PrefiksPliku.Length..]
+            : "");
         if (IsHandleCreated)
             BeginInvoke(PrzetworzZlecenia);
+        return JednaInstancja.Ok;
+    }
+
+    /// <summary>
+    /// Kopia programu w %APPDATA%: aktualizacja, gdy uruchomiono nowszą wersję, oraz autostart.
+    /// </summary>
+    private void OdswiezInstalacje()
+    {
+        try
+        {
+            var wynik = Instalacja.Aktualizuj(instalujGdyBrak: _ustawienia.Autostart);
+            if (_ustawienia.Autostart)
+                Instalacja.UstawAutostart(true);
+            if (wynik == Instalacja.Wynik.Zaktualizowano)
+                UstawStatus($"Zaktualizowano program w {Ustawienia.Folder} do wersji {Instalacja.BiezacaWersja}.");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            UstawStatus("Nie udało się zaktualizować kopii programu w AppData: " + e.Message);
+        }
     }
 
     private void PrzetworzZlecenia()
@@ -392,6 +430,14 @@ internal sealed class OknoGlowne : Form
             Blad("Nie udało się zapisać ustawień.\n\n" + KomunikatyBledow.Opisz(e));
         }
         _zasobnik.Visible = _ustawienia.MinimalizujDoZasobnika;
+        try
+        {
+            Instalacja.UstawAutostart(_ustawienia.Autostart);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            Blad("Nie udało się zmienić autostartu.\n\n" + e.Message);
+        }
         OdswiezMenuKontekstowe(cicho: false);
     }
 

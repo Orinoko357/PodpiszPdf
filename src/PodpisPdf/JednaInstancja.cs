@@ -5,47 +5,77 @@ namespace PodpisPdf;
 
 /// <summary>
 /// Pilnuje, żeby działała jedna kopia programu na użytkownika. Kolejne uruchomienia (np. z menu
-/// kontekstowego, gdy program jest w zasobniku) przekazują ścieżkę pliku do działającej kopii.
+/// kontekstowego, gdy program jest w zasobniku) rozmawiają z działającą kopią przez nazwany potok:
+/// pytają o jej wersję, przekazują plik albo proszą o zamknięcie (aktualizacja).
 /// </summary>
 internal sealed class JednaInstancja : IDisposable
 {
-    private static readonly string Nazwa =
-        "PodpisPdf-" + (WindowsIdentity.GetCurrent().User?.Value ?? Environment.UserName);
+    public const string Pokaz = "POKAZ";
+    public const string Wersja = "WERSJA";
+    public const string Zakoncz = "ZAKONCZ";
+    public const string PrefiksPliku = "PLIK\t";
+    public const string Ok = "OK";
+    public const string Zajety = "ZAJETY";
+
+    private static readonly string Uzytkownik = WindowsIdentity.GetCurrent().User?.Value ?? Environment.UserName;
+    // Nazwa blokady wspólna dla wszystkich wersji programu.
+    private static readonly string NazwaBlokady = @"Local\PodpisPdf-" + Uzytkownik;
+    // Potok w wersji 2 (żądanie i odpowiedź). Wersja 1.0.0.1 miała potok bez odpowiedzi pod inną nazwą.
+    private static readonly string NazwaPotoku = "PodpisPdf2-" + Uzytkownik;
 
     private readonly Mutex _mutex;
     private readonly CancellationTokenSource _koniec = new();
 
     private JednaInstancja(Mutex mutex) => _mutex = mutex;
 
-    /// <summary>Zwraca obiekt dla pierwszej kopii albo null, gdy program już działa.</summary>
-    public static JednaInstancja? Przejmij()
+    /// <summary>
+    /// Zwraca obiekt dla jedynej działającej kopii albo null, gdy działa inna kopia
+    /// (po odczekaniu <paramref name="oczekiwanie"/> na jej zamknięcie).
+    /// </summary>
+    public static JednaInstancja? Przejmij(TimeSpan oczekiwanie = default)
     {
-        var mutex = new Mutex(initiallyOwned: true, @"Local\" + Nazwa, out var utworzony);
-        if (utworzony)
+        var mutex = new Mutex(initiallyOwned: false, NazwaBlokady);
+        try
+        {
+            if (mutex.WaitOne(oczekiwanie))
+                return new JednaInstancja(mutex);
+        }
+        catch (AbandonedMutexException)
+        {
+            // Poprzednia kopia zakończyła się bez zwolnienia blokady — blokada jest teraz nasza.
             return new JednaInstancja(mutex);
+        }
         mutex.Dispose();
         return null;
     }
 
-    /// <summary>Przekazuje ścieżkę (lub pusty tekst = „pokaż okno”) do działającej kopii.</summary>
-    public static bool Przekaz(string? plik)
+    /// <summary>
+    /// Wysyła polecenie do działającej kopii i zwraca jej odpowiedź; null, gdy nie odpowiada
+    /// (np. działa wersja 1.0.0.1, która nie zna tego sposobu komunikacji).
+    /// </summary>
+    public static string? Wyslij(string polecenie, int limitMs = 3000)
     {
         try
         {
-            using var klient = new NamedPipeClientStream(".", Nazwa, PipeDirection.Out, PipeOptions.CurrentUserOnly);
-            klient.Connect(5000);
-            using var pisarz = new StreamWriter(klient);
-            pisarz.WriteLine(plik ?? "");
-            return true;
+            using var klient = new NamedPipeClientStream(".", NazwaPotoku, PipeDirection.InOut, PipeOptions.CurrentUserOnly);
+            klient.Connect(limitMs);
+            using var pisarz = new StreamWriter(klient, leaveOpen: true) { AutoFlush = true };
+            using var czytnik = new StreamReader(klient, leaveOpen: true);
+            pisarz.WriteLine(polecenie);
+            var odpowiedz = czytnik.ReadLineAsync().WaitAsync(TimeSpan.FromMilliseconds(limitMs)).GetAwaiter().GetResult();
+            return odpowiedz;
         }
         catch (Exception e) when (e is TimeoutException or IOException or UnauthorizedAccessException)
         {
-            return false;
+            return null;
         }
     }
 
-    /// <summary>Nasłuchuje kolejnych uruchomień; <paramref name="obsluz"/> jest wywoływane w wątku tła.</summary>
-    public void Nasluchuj(Action<string> obsluz)
+    /// <summary>
+    /// Obsługuje polecenia od kolejnych uruchomień. <paramref name="obsluz"/> jest wywoływane
+    /// w wątku tła i zwraca odpowiedź.
+    /// </summary>
+    public void Nasluchuj(Func<string, string> obsluz)
     {
         Task.Run(async () =>
         {
@@ -53,12 +83,13 @@ internal sealed class JednaInstancja : IDisposable
             {
                 try
                 {
-                    await using var serwer = new NamedPipeServerStream(Nazwa, PipeDirection.In, 1,
+                    await using var serwer = new NamedPipeServerStream(NazwaPotoku, PipeDirection.InOut, 1,
                         PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
                     await serwer.WaitForConnectionAsync(_koniec.Token);
-                    using var czytnik = new StreamReader(serwer);
-                    var linia = await czytnik.ReadLineAsync(_koniec.Token);
-                    obsluz(linia?.Trim() ?? "");
+                    using var czytnik = new StreamReader(serwer, leaveOpen: true);
+                    await using var pisarz = new StreamWriter(serwer, leaveOpen: true) { AutoFlush = true };
+                    var polecenie = await czytnik.ReadLineAsync(_koniec.Token);
+                    await pisarz.WriteLineAsync(obsluz(polecenie?.Trim() ?? Pokaz));
                 }
                 catch (OperationCanceledException)
                 {
@@ -75,7 +106,14 @@ internal sealed class JednaInstancja : IDisposable
     public void Dispose()
     {
         _koniec.Cancel();
-        _mutex.ReleaseMutex();
+        try
+        {
+            _mutex.ReleaseMutex();
+        }
+        catch (ApplicationException)
+        {
+            // Blokada nie należała już do tego wątku.
+        }
         _mutex.Dispose();
     }
 }

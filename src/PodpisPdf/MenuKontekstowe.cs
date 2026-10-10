@@ -14,7 +14,7 @@ internal static class MenuKontekstowe
 
     public static void Zarejestruj()
     {
-        var exe = Environment.ProcessPath ?? Application.ExecutablePath;
+        var exe = Instalacja.SciezkaProgramu;
         using (var klucz = Registry.CurrentUser.CreateSubKey(Klucz))
         {
             klucz.SetValue("", Etykieta);
@@ -38,7 +38,7 @@ internal static class MenuKontekstowe
     public static bool JestAktualne()
     {
         using var polecenie = Registry.CurrentUser.OpenSubKey(Klucz + @"\command");
-        var exe = Environment.ProcessPath ?? Application.ExecutablePath;
+        var exe = Instalacja.SciezkaProgramu;
         return polecenie?.GetValue("") is string wartosc &&
                string.Equals(wartosc, $"\"{exe}\" \"%1\"", StringComparison.OrdinalIgnoreCase);
     }

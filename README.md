@@ -44,6 +44,7 @@ Okno **Ustawienia…**; zapis w `%APPDATA%\PodpisPdf\config.json`:
 | PAdES B-LT (dołączenie OCSP/CRL do pliku) | wyłączone |
 | Przyrostek nazwy pliku wynikowego | `_podpisany` |
 | Minimalizacja do zasobnika systemowego | włączona |
+| Uruchamianie przy logowaniu do Windows (autostart) | wyłączone |
 | „Podpisz w PodpisPdf” w menu kontekstowym plików PDF | włączone |
 
 Wizualizacja ma stały rozmiar **75 × 22 mm**, bez ramki i z przezroczystym tłem (nie zasłania formularza).
@@ -52,6 +53,13 @@ powiększeniu. Napisy w SVG najlepiej zamienić na krzywe (w SVG bez osadzonych 
 Logo PNG/JPG jest osadzane w oryginalnej rozdzielczości, bez stratnej kompresji. Białe lub przezroczyste marginesy
 w pliku logo są pomijane (przycięcie w PDF, obraz pozostaje nienaruszony), więc logo zajmuje całe dostępne miejsce.
 Stanowisko można podzielić na wiersze klawiszem Enter; bez tego zawija się samo.
+
+**Autostart i kopia programu w AppData.** Po włączeniu autostartu program kopiuje się do
+`%APPDATA%\PodpisPdf\PodpisPdf.exe` i stamtąd uruchamia przy logowaniu do Windows (wpis
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`), czekając w zasobniku. Z tej kopii korzysta też menu
+kontekstowe. Uruchomienie nowszej wersji (np. pobranej z *Releases*) nadpisuje kopię w AppData; starsza wersja
+nie nadpisuje nowszej. Jeśli program już działa w innej wersji, pojawia się ostrzeżenie — przy nowszej wersji
+można od razu zamknąć działający program i zastąpić go nową wersją.
 
 Menu kontekstowe jest rejestrowane dla bieżącego użytkownika (`HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\PodpisPdf`),
 bez uprawnień administratora. Po przeniesieniu `PodpisPdf.exe` w inne miejsce wpis odświeża się przy następnym uruchomieniu.

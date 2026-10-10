@@ -34,7 +34,18 @@ Przed testem:
 - [ ] Dwuklik na ikonie w zasobniku przywraca okno; *Zakończ* w menu ikony zamyka program.
 - [ ] Wyłączenie opcji menu kontekstowego w ustawieniach usuwa pozycję z menu.
 
-## 4. Błędy
+## 4. Autostart i aktualizacja
+
+- [ ] W *Ustawieniach* zaznacz „Uruchamiaj przy logowaniu do Windows” → OK. W `%APPDATA%\PodpisPdf` jest
+      `PodpisPdf.exe`; w *Menedżerze zadań → Autostart* jest PodpisPdf.
+- [ ] Wyloguj się i zaloguj — program działa w zasobniku (bez okna). Menu kontekstowe pliku PDF otwiera go.
+- [ ] Gdy program działa w zasobniku, uruchom pobrany plik **nowszej** wersji — pojawia się ostrzeżenie
+      z pytaniem o zamknięcie działającego programu. *Tak* → otwiera się nowa wersja (numer w tytule okna),
+      a plik w `%APPDATA%\PodpisPdf` ma nową wersję (*Właściwości → Szczegóły*).
+- [ ] Uruchom **starszą** wersję, gdy działa nowsza — ostrzeżenie, że działa nowsza wersja; plik w AppData się nie zmienia.
+- [ ] Odznacz autostart → wpis znika z *Menedżera zadań → Autostart*.
+
+## 5. Błędy
 
 - [ ] Zły PIN → komunikat „Nieprawidłowy PIN…” (nie wpisuj złego PIN-u więcej niż raz — grozi blokadą karty).
 - [ ] *Anuluj* w oknie PIN-u → „Podpisywanie zostało anulowane”.
@@ -42,7 +53,7 @@ Przed testem:
 - [ ] Wyłączona sieć (lub zły adres TSA) → komunikat o niedostępnym serwerze znacznika czasu; plik `_podpisany.pdf` nie powstaje.
 - [ ] Plik wynikowy otwarty w Adobe Reader podczas ponownego podpisu → komunikat, że plik jest otwarty w innym programie.
 
-## 5. Weryfikacja podpisanego pliku
+## 6. Weryfikacja podpisanego pliku
 
 - [ ] **Adobe Acrobat Reader**: panel *Podpisy* — „Podpis jest ważny”, „Podpis zawiera osadzony znacznik czasu”.
       (Jeśli Reader pisze, że tożsamość jest nieznana: *Edycja → Preferencje → Podpisy → Weryfikacja → Więcej…* →

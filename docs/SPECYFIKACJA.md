@@ -86,6 +86,7 @@ Zapisywane w pliku `%APPDATA%\PodpisPdf\config.json` i edytowane w oknie „Usta
 - logo (SVG, PDF, PNG lub JPG, opcjonalne) — kopia pliku zapisywana jako `%APPDATA%\PodpisPdf\logo.*`,
 - adres serwera znacznika czasu oraz opcjonalnie login i hasło,
 - położenie początkowe wizualizacji na podglądzie: strona (pierwsza, ostatnia albo numer), narożnik i odległość od krawędzi,
+- uruchamianie przy logowaniu do Windows (kopia programu w `%APPDATA%\PodpisPdf`, aktualizowana przez nowszą wersję),
 - minimalizacja do zasobnika systemowego, pozycja „Podpisz w PodpisPdf” w menu kontekstowym plików PDF,
 - przyrostek nazwy pliku wynikowego (domyślnie `_podpisany`).
 

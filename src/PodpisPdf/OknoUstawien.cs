@@ -43,6 +43,11 @@ internal sealed class OknoUstawien : Form
         Text = "Minimalizuj do zasobnika systemowego (ikona obok zegara)",
         AutoSize = true,
     };
+    private readonly CheckBox _autostart = new()
+    {
+        Text = "Uruchamiaj przy logowaniu do Windows (program kopiowany do %APPDATA%\\PodpisPdf)",
+        AutoSize = true,
+    };
     private readonly CheckBox _menuKontekstowe = new()
     {
         Text = $"Pokaż „{MenuKontekstowe.Etykieta}” w menu plików PDF (prawy przycisk myszy)",
@@ -115,6 +120,7 @@ internal sealed class OknoUstawien : Form
         Wiersz(uklad, "", _poziomLT);
 
         Naglowek(uklad, "Program");
+        Wiersz(uklad, "", _autostart);
         Wiersz(uklad, "", _zasobnik);
         Wiersz(uklad, "", _menuKontekstowe);
 
@@ -165,6 +171,7 @@ internal sealed class OknoUstawien : Form
         _przyrostek.Text = u.Przyrostek;
         _poziomLT.Checked = u.PoziomLT;
         _zasobnik.Checked = u.MinimalizujDoZasobnika;
+        _autostart.Checked = u.Autostart;
         _menuKontekstowe.Checked = u.MenuKontekstowe;
     }
 
@@ -245,6 +252,7 @@ internal sealed class OknoUstawien : Form
         u.Przyrostek = przyrostek;
         u.PoziomLT = _poziomLT.Checked;
         u.MinimalizujDoZasobnika = _zasobnik.Checked;
+        u.Autostart = _autostart.Checked;
         u.MenuKontekstowe = _menuKontekstowe.Checked;
         return true;
     }
