@@ -45,6 +45,12 @@ jobs:
 
           Start-Proba '1 zwykły start z Pobranych'
 
+          $env:PODPISPDF_JEZYK = 'pl-PL'
+          Start-Proba '1a język interfejsu pl-PL'
+          Set-WinUserLanguageList -LanguageList pl-PL -Force
+          Start-Proba '1b lista języków użytkownika pl-PL'
+          Remove-Item Env:PODPISPDF_JEZYK
+
           # Znacznik „pobrane z internetu” (Mark of the Web), jak po pobraniu przeglądarką.
           Set-Content -Path $exe -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3`r`nHostUrl=https://github.com/"
           Start-Proba '2 plik z Internetu (MOTW)'

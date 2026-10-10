@@ -28,6 +28,10 @@ public static class Program
 
         WinRT.ComWrappersSupport.InitializeComWrappers();
 
+        // Diagnostyka (GitHub Actions): język interfejsu jak u użytkownika, bez pakietu językowego Windows.
+        if (Environment.GetEnvironmentVariable("PODPISPDF_JEZYK") is { Length: > 0 } jezyk)
+            Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = jezyk;
+
         Autostart = args.Any(a => string.Equals(a, Instalacja.ParametrAutostartu, StringComparison.OrdinalIgnoreCase));
         PoAktualizacji = args.Contains(ParametrPoAktualizacji);
         PlikStartowy = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal));
