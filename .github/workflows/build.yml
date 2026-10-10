@@ -44,6 +44,25 @@ jobs:
           }
           "Rozmiar: $([math]::Round((Get-Item publish/PodpisPdf.exe).Length / 1MB, 1)) MB"
 
+      - name: Zrzuty ekranu okien (jasny i ciemny motyw)
+        shell: pwsh
+        run: |
+          $p = Start-Process publish/PodpisPdf.exe -ArgumentList '--zrzuty', "$PWD/zrzuty" -Wait -PassThru
+          if (Test-Path zrzuty/blad.txt) { Get-Content zrzuty/blad.txt }
+          if ($p.ExitCode -ne 0) { throw "Zrzuty ekranu: kod $($p.ExitCode)" }
+          # Obrazy w logu (base64), żeby można je było obejrzeć bez pobierania artefaktu.
+          foreach ($plik in Get-ChildItem zrzuty -Filter *.png | Sort-Object Name) {
+            $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($plik.FullName))
+            for ($i = 0; $i -lt $b64.Length; $i += 3000) {
+              "ZRZUT $($plik.Name) " + $b64.Substring($i, [Math]::Min(3000, $b64.Length - $i))
+            }
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Zrzuty-ekranu
+          path: zrzuty/*.png
+
       - uses: actions/upload-artifact@v4
         with:
           name: PodpisPdf

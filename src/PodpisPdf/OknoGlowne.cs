@@ -2,18 +2,29 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using PodpisPdf.Core;
+using PodpisPdf.Fluent;
 
 namespace PodpisPdf;
 
 internal sealed class OknoGlowne : Form
 {
-    private readonly Label _strefaPliku;
-    private readonly Button _przyciskWybierz;
-    private readonly ListView _listaCertyfikatow;
-    private readonly Button _przyciskOdswiez;
-    private readonly Button _przyciskUstawienia;
-    private readonly Button _przyciskPodpisz;
-    private readonly Label _status;
+    // Karta „Dokument”: stan pusty (miejsce na plik) i stan z wybranym plikiem.
+    private readonly FluentKarta _kartaDokumentu;
+    private readonly Panel _bezPliku;
+    private readonly Panel _zPlikiem;
+    private readonly PictureBox _miniatura;
+    private readonly FluentEtykieta _nazwaPliku;
+    private readonly FluentEtykieta _opisPliku;
+    private readonly FluentPrzycisk _przyciskWybierz;
+    private readonly FluentPrzycisk _przyciskZmien;
+    private readonly FluentPrzycisk _przyciskUsun;
+
+    private readonly ListaCertyfikatow _listaCertyfikatow;
+    private readonly FluentEtykieta _przyciskOdswiez;
+    private readonly FluentEtykieta _informacja;
+    private readonly FluentPrzycisk _przyciskUstawienia;
+    private readonly FluentPrzycisk _przyciskPodpisz;
+    private readonly FluentEtykieta _status;
     private readonly NotifyIcon _zasobnik;
     private readonly ConcurrentQueue<string> _zlecenia = new();
 
@@ -21,115 +32,112 @@ internal sealed class OknoGlowne : Form
     private string? _plik;
     private bool _trwaPodpisywanie;
     private bool _pokazanoDymek;
+    private int _numerMiniatury;
 
     public OknoGlowne(string? plikStartowy, bool autostart = false)
     {
         _ustawienia = Ustawienia.Wczytaj();
         _ustawienia.PrzeniesLogoDoFolderuUstawien();
 
-        Text = $"PodpisPdf {Application.ProductVersion.Split('+')[0]} — podpis kwalifikowany PDF";
+        SuspendLayout();
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        AutoScaleMode = AutoScaleMode.Dpi;
+        Text = $"PodpisPdf {Application.ProductVersion.Split('+')[0]}";
         Icon = Ustawienia.Ikona();
-        Font = SystemFonts.MessageBoxFont ?? Font;
-        AutoScaleMode = AutoScaleMode.Font;
+        Font = Motyw.Czcionka(10);
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(720, 480);
-        MinimumSize = new Size(560, 420);
+        ClientSize = new Size(860, 660);
+        MinimumSize = new Size(680, 600);
         AllowDrop = true;
 
-        var uklad = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            Padding = new Padding(12),
-            ColumnCount = 2,
-            RowCount = 6,
-        };
-        uklad.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        uklad.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        uklad.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));  // strefa pliku
-        uklad.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // etykieta certyfikatu
-        uklad.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // lista certyfikatów
-        uklad.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // przyciski
-        uklad.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // status
-        Controls.Add(uklad);
-
-        _strefaPliku = new Label
-        {
-            Dock = DockStyle.Fill,
-            BorderStyle = BorderStyle.FixedSingle,
-            TextAlign = ContentAlignment.MiddleCenter,
-            BackColor = SystemColors.Window,
-            AllowDrop = true,
-            Margin = new Padding(0, 0, 8, 8),
-            Cursor = Cursors.Hand,
-        };
-        _strefaPliku.Click += (_, _) => WybierzPlik();
-        uklad.Controls.Add(_strefaPliku, 0, 0);
-
-        _przyciskWybierz = new Button { Text = "Wybierz plik…", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Right, Padding = new Padding(8, 4, 8, 4) };
-        _przyciskWybierz.Click += (_, _) => WybierzPlik();
-        uklad.Controls.Add(_przyciskWybierz, 1, 0);
-
-        uklad.Controls.Add(new Label
-        {
-            Text = "Certyfikat do podpisu (★ — certyfikat kwalifikowany):",
-            AutoSize = true,
-            Margin = new Padding(0, 4, 0, 4),
-        }, 0, 1);
-
-        _listaCertyfikatow = new ListView
-        {
-            Dock = DockStyle.Fill,
-            View = View.Details,
-            FullRowSelect = true,
-            MultiSelect = false,
-            HideSelection = false,
-            HeaderStyle = ColumnHeaderStyle.Nonclickable,
-            Margin = new Padding(0, 0, 8, 8),
-        };
-        _listaCertyfikatow.Columns.Add("", 28);
-        _listaCertyfikatow.Columns.Add("Imię i nazwisko", 220);
-        _listaCertyfikatow.Columns.Add("Wystawca", 230);
-        _listaCertyfikatow.Columns.Add("Ważny do", 100);
-        _listaCertyfikatow.SelectedIndexChanged += (_, _) => OdswiezStan();
-        _listaCertyfikatow.DoubleClick += (_, _) => Podpisz();
-        uklad.Controls.Add(_listaCertyfikatow, 0, 2);
-
-        _przyciskOdswiez = new Button { Text = "Odśwież listę", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Right, Padding = new Padding(8, 4, 8, 4) };
-        _przyciskOdswiez.Click += async (_, _) => await WczytajCertyfikaty();
-        uklad.Controls.Add(_przyciskOdswiez, 1, 2);
-
-        var przyciski = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            AutoSize = true,
-            FlowDirection = FlowDirection.RightToLeft,
-            Margin = new Padding(0),
-        };
-        _przyciskPodpisz = new Button
-        {
-            Text = "Podpisz",
-            AutoSize = true,
-            Padding = new Padding(24, 6, 24, 6),
-            Font = new Font(Font.FontFamily, Font.Size * 1.15f, FontStyle.Bold),
-        };
-        _przyciskPodpisz.Click += (_, _) => Podpisz();
-        _przyciskUstawienia = new Button { Text = "Ustawienia…", AutoSize = true, Padding = new Padding(8, 6, 8, 6) };
+        // ---- stopka: stan i przyciski ----
+        var stopka = new FluentKarta { Rodzaj = RodzajKarty.Warstwa, Obramowanie = false, Promien = 0, Dock = DockStyle.Bottom, Height = 68, Padding = new Padding(28, 0, 28, 0) };
+        var ukladStopki = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1 };
+        ukladStopki.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        ukladStopki.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        ukladStopki.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        ukladStopki.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        _status = new FluentEtykieta("", StylEtykiety.Drugi) { Anchor = AnchorStyles.Left, AutoEllipsis = true, AutoSize = false, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
+        _przyciskUstawienia = new FluentPrzycisk { Text = "Ustawienia", Ikona = "\uE713", AutoSize = true, Anchor = AnchorStyles.None, Margin = new Padding(12, 0, 0, 0) };
         _przyciskUstawienia.Click += (_, _) => OtworzUstawienia();
-        przyciski.Controls.Add(_przyciskPodpisz);
-        przyciski.Controls.Add(_przyciskUstawienia);
-        uklad.Controls.Add(przyciski, 0, 3);
-        uklad.SetColumnSpan(przyciski, 2);
+        _przyciskPodpisz = new FluentPrzycisk { Text = "Podpisz…", Akcent = true, AutoSize = true, MinimumSize = new Size(150, 34), Anchor = AnchorStyles.None, Margin = new Padding(10, 0, 0, 0) };
+        _przyciskPodpisz.Click += (_, _) => Podpisz();
+        ukladStopki.Controls.Add(_status, 0, 0);
+        ukladStopki.Controls.Add(_przyciskUstawienia, 1, 0);
+        ukladStopki.Controls.Add(_przyciskPodpisz, 2, 0);
+        stopka.Controls.Add(ukladStopki);
 
-        _status = new Label { AutoSize = true, Dock = DockStyle.Fill, Margin = new Padding(0, 8, 0, 0), ForeColor = SystemColors.GrayText };
-        uklad.Controls.Add(_status, 0, 4);
-        uklad.SetColumnSpan(_status, 2);
+        // ---- treść ----
+        var uklad = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, Padding = new Padding(28, 14, 28, 16) };
+        uklad.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        uklad.RowStyles.Add(new RowStyle(SizeType.AutoSize));       // tytuł
+        uklad.RowStyles.Add(new RowStyle(SizeType.AutoSize));       // podtytuł
+        uklad.RowStyles.Add(new RowStyle(SizeType.Absolute, 118));  // dokument
+        uklad.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // certyfikaty
+        uklad.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));   // informacja
 
+        uklad.Controls.Add(new FluentEtykieta("Podpisz dokument", StylEtykiety.Tytul) { Margin = new Padding(0, 0, 0, 2) }, 0, 0);
+        uklad.Controls.Add(new FluentEtykieta("Kwalifikowany podpis elektroniczny PAdES ze znacznikiem czasu", StylEtykiety.Drugi) { Margin = new Padding(0, 0, 0, 16) }, 0, 1);
+
+        // karta: dokument
+        _kartaDokumentu = new FluentKarta { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 14), Padding = new Padding(20, 14, 20, 14), AllowDrop = true };
+        _bezPliku = new Panel { Dock = DockStyle.Fill, Cursor = Cursors.Hand };
+        var ikonaPliku = new FluentEtykieta("\uE8E5", StylEtykiety.IkonaAkcent) { Font = Motyw.Ikony(22), Location = new Point(4, 24) };
+        var tekstPusty = new FluentEtykieta("Przeciągnij tutaj plik PDF", StylEtykiety.Pogrubiony) { Location = new Point(56, 18) };
+        var tekstPusty2 = new FluentEtykieta("albo wybierz go z dysku. Plik można też otworzyć z menu pod prawym przyciskiem myszy.", StylEtykiety.Drugi) { Location = new Point(56, 44) };
+        _przyciskWybierz = new FluentPrzycisk { Text = "Wybierz plik…", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Right };
+        _przyciskWybierz.Click += (_, _) => WybierzPlik();
+        _bezPliku.Controls.AddRange(new Control[] { ikonaPliku, tekstPusty, tekstPusty2, _przyciskWybierz });
+        _bezPliku.Resize += (_, _) => _przyciskWybierz.Location = new Point(_bezPliku.Width - _przyciskWybierz.Width, (_bezPliku.Height - _przyciskWybierz.Height) / 2);
+        foreach (Control k in new Control[] { _bezPliku, ikonaPliku, tekstPusty, tekstPusty2 })
+            k.Click += (_, _) => WybierzPlik();
+
+        _zPlikiem = new Panel { Dock = DockStyle.Fill, Visible = false };
+        var sekcjaDok = new FluentEtykieta("DOKUMENT", StylEtykiety.Sekcja) { Location = new Point(0, 0) };
+        _miniatura = new PictureBox { Location = new Point(0, 22), Size = new Size(48, 64), SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
+        _nazwaPliku = new FluentEtykieta("", StylEtykiety.Pogrubiony) { Location = new Point(64, 32), AutoEllipsis = true, AutoSize = false, Height = 24 };
+        _opisPliku = new FluentEtykieta("", StylEtykiety.Drugi) { Location = new Point(64, 58), AutoEllipsis = true, AutoSize = false, Height = 22 };
+        _przyciskZmien = new FluentPrzycisk { Text = "Zmień plik…", AutoSize = true };
+        _przyciskZmien.Click += (_, _) => WybierzPlik();
+        _przyciskUsun = new FluentPrzycisk { Text = "", Ikona = "\uE711", Size = new Size(40, 34), AccessibleName = "Usuń plik" };
+        _przyciskUsun.Click += (_, _) => UstawPlik(null);
+        _zPlikiem.Controls.AddRange(new Control[] { sekcjaDok, _miniatura, _nazwaPliku, _opisPliku, _przyciskZmien, _przyciskUsun });
+        _zPlikiem.Resize += (_, _) => UlozKarteDokumentu();
+        _kartaDokumentu.Controls.Add(_bezPliku);
+        _kartaDokumentu.Controls.Add(_zPlikiem);
+        uklad.Controls.Add(_kartaDokumentu, 0, 2);
+
+        // karta: certyfikat
+        var kartaCert = new FluentKarta { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 14), Padding = new Padding(16, 12, 16, 12) };
+        var naglowekCert = new Panel { Dock = DockStyle.Top, Height = 30 };
+        naglowekCert.Controls.Add(new FluentEtykieta("CERTYFIKAT", StylEtykiety.Sekcja) { Location = new Point(4, 4) });
+        _przyciskOdswiez = new FluentEtykieta("Odśwież", StylEtykiety.Link) { Anchor = AnchorStyles.Top | AnchorStyles.Right, TabStop = true };
+        _przyciskOdswiez.Click += async (_, _) => { if (_przyciskOdswiez.Enabled) await WczytajCertyfikaty(); };
+        naglowekCert.Controls.Add(_przyciskOdswiez);
+        naglowekCert.Resize += (_, _) => _przyciskOdswiez.Location = new Point(naglowekCert.Width - _przyciskOdswiez.Width - 4, 2);
+        _listaCertyfikatow = new ListaCertyfikatow { Dock = DockStyle.Fill };
+        _listaCertyfikatow.ZmianaWyboru += (_, _) => OdswiezStan();
+        _listaCertyfikatow.Zatwierdzono += (_, _) => Podpisz();
+        kartaCert.Controls.Add(_listaCertyfikatow);
+        kartaCert.Controls.Add(naglowekCert);
+        uklad.Controls.Add(kartaCert, 0, 3);
+
+        // pasek informacyjny
+        var pasek = new FluentKarta { Rodzaj = RodzajKarty.Informacja, Dock = DockStyle.Fill, Padding = new Padding(14, 0, 14, 0), Margin = new Padding(0) };
+        var tarcza = new FluentEtykieta("\uEA18", StylEtykiety.IkonaAkcent) { Dock = DockStyle.Left, AutoSize = false, Width = 30, TextAlign = ContentAlignment.MiddleLeft };
+        _informacja = new FluentEtykieta("", StylEtykiety.Zwykly) { Dock = DockStyle.Fill, AutoSize = false, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleLeft };
+        pasek.Controls.Add(_informacja);
+        pasek.Controls.Add(tarcza);
+        uklad.Controls.Add(pasek, 0, 4);
+
+        Controls.Add(uklad);
+        Controls.Add(stopka);
         AcceptButton = _przyciskPodpisz;
 
         DragEnter += PrzyPrzeciaganiu;
         DragDrop += PrzyUpuszczeniu;
-        _strefaPliku.DragEnter += PrzyPrzeciaganiu;
-        _strefaPliku.DragDrop += PrzyUpuszczeniu;
+        _kartaDokumentu.DragEnter += PrzyPrzeciaganiu;
+        _kartaDokumentu.DragDrop += PrzyUpuszczeniu;
 
         _zasobnik = UtworzIkoneZasobnika();
 
@@ -139,7 +147,48 @@ internal sealed class OknoGlowne : Form
             _zasobnik.Visible = true;
         _plikStartowy = plikStartowy;
 
+        ResumeLayout(false);
+        PerformLayout();
+
+        Motyw.Zastosuj(this);
+        Motyw.Zmieniono += PrzyZmianieMotywu;
         UstawPlik(null);
+        OdswiezInformacje();
+    }
+
+    /// <summary>Zrzuty ekranu: przykładowy plik i certyfikaty zamiast prawdziwych.</summary>
+    internal void PokazDanePrzykladowe(string? plik, IReadOnlyList<CertyfikatInfo> certyfikaty)
+    {
+        _listaCertyfikatow.Ustaw(certyfikaty, null, "");
+        UstawPlik(plik);
+        UstawStatus("Gotowy. Program zapamięta wybrany certyfikat.");
+    }
+
+    private void PrzyZmianieMotywu()
+    {
+        if (IsHandleCreated)
+            BeginInvoke(() => Motyw.Zastosuj(this));
+    }
+
+    /// <summary>Opis tego, co się stanie przy podpisie: format, serwer znacznika czasu, wizualizacja.</summary>
+    private void OdswiezInformacje()
+    {
+        var u = _ustawienia;
+        var serwer = Uri.TryCreate(u.AdresTsa, UriKind.Absolute, out var uri) ? uri.Host : u.AdresTsa;
+        var skala = u.SkalaPodpisu;
+        var rozmiar = $"{Wizualizacja.SzerokoscMm * skala:0} × {Wizualizacja.WysokoscMm * skala:0} mm";
+        _informacja.Text = $"PAdES {(u.PoziomLT ? "B-LT" : "B-T")}  ·  znacznik czasu: {serwer}  ·  wizualizacja {rozmiar}" +
+                           (string.IsNullOrEmpty(u.SciezkaLogo) ? "" : " z logo");
+    }
+
+    private void UlozKarteDokumentu()
+    {
+        var w = _zPlikiem.Width;
+        _przyciskUsun.Location = new Point(w - _przyciskUsun.Width, 34);
+        _przyciskZmien.Location = new Point(_przyciskUsun.Left - _przyciskZmien.Width - 8, 34);
+        var szer = Math.Max(50, _przyciskZmien.Left - _nazwaPliku.Left - 16);
+        _nazwaPliku.Width = szer;
+        _opisPliku.Width = szer;
     }
 
     private readonly bool _startWZasobniku;
@@ -174,6 +223,8 @@ internal sealed class OknoGlowne : Form
         if (_zainicjalizowano)
             return;
         _zainicjalizowano = true;
+        if (Zrzuty.Aktywne)
+            return; // zrzuty ekranu: bez magazynu certyfikatów, rejestru i kopii programu
 
         var ustawienia = _ustawienia;
         var instalacja = Task.Run(() =>
@@ -313,6 +364,7 @@ internal sealed class OknoGlowne : Form
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
+        Motyw.Zmieniono -= PrzyZmianieMotywu;
         _zasobnik.Visible = false;
         _zasobnik.Dispose();
         base.OnFormClosed(e);
@@ -351,8 +403,7 @@ internal sealed class OknoGlowne : Form
         }
     }
 
-    private CertyfikatInfo? WybranyCertyfikat =>
-        _listaCertyfikatow.SelectedItems.Count == 1 ? _listaCertyfikatow.SelectedItems[0].Tag as CertyfikatInfo : null;
+    private CertyfikatInfo? WybranyCertyfikat => _listaCertyfikatow.Wybrany;
 
     private bool _wczytywanieCertyfikatow;
 
@@ -380,48 +431,9 @@ internal sealed class OknoGlowne : Form
             _wczytywanieCertyfikatow = false;
         }
 
-        _listaCertyfikatow.BeginUpdate();
-        _listaCertyfikatow.Items.Clear();
-        var pogrubiona = new Font(_listaCertyfikatow.Font, FontStyle.Bold);
-        foreach (var c in certyfikaty)
-        {
-            var pozycja = new ListViewItem(new[]
-            {
-                c.Kwalifikowany ? "★" : "",
-                c.ImieNazwisko,
-                c.Wystawca,
-                c.WaznyDo.ToString("yyyy-MM-dd"),
-            })
-            {
-                Tag = c,
-                ToolTipText = c.Kwalifikowany ? "Certyfikat kwalifikowany" : "Certyfikat niekwalifikowany",
-            };
-            if (c.Kwalifikowany)
-                pozycja.Font = pogrubiona;
-            _listaCertyfikatow.Items.Add(pozycja);
-        }
-        _listaCertyfikatow.ShowItemToolTips = true;
-
-        var doZaznaczenia = _listaCertyfikatow.Items.Cast<ListViewItem>()
-            .FirstOrDefault(i => string.Equals(((CertyfikatInfo)i.Tag!).Odcisk, poprzedni, StringComparison.OrdinalIgnoreCase))
-            ?? (_listaCertyfikatow.Items.Count > 0 ? _listaCertyfikatow.Items[0] : null);
-        if (doZaznaczenia != null)
-        {
-            doZaznaczenia.Selected = true;
-            doZaznaczenia.Focused = true;
-            doZaznaczenia.EnsureVisible();
-        }
-        _listaCertyfikatow.EndUpdate();
-
-        if (certyfikaty.Count == 0)
-        {
-            UstawStatus("Nie znaleziono certyfikatu do podpisu. Włóż kartę do czytnika (lub zaloguj się w SimplySign Desktop) " +
-                        "i kliknij „Odśwież listę”.");
-        }
-        else
-        {
-            UstawStatus("");
-        }
+        _listaCertyfikatow.Ustaw(certyfikaty, poprzedni,
+            "Nie znaleziono certyfikatu do podpisu.\nWłóż kartę do czytnika (lub zaloguj się w SimplySign Desktop) i kliknij „Odśwież”.");
+        UstawStatus(certyfikaty.Count == 0 ? "Brak certyfikatu do podpisu." : "Gotowy. Program zapamięta wybrany certyfikat.");
         OdswiezStan();
     }
 
@@ -448,11 +460,48 @@ internal sealed class OknoGlowne : Form
             sciezka = null;
         }
         _plik = sciezka;
-        _strefaPliku.Text = _plik == null
-            ? "Przeciągnij tutaj plik PDF\nalbo kliknij, aby go wybrać"
-            : $"{Path.GetFileName(_plik)}\n{Path.GetDirectoryName(_plik)}";
-        _strefaPliku.Font = _plik == null ? Font : new Font(Font, FontStyle.Bold);
+        _bezPliku.Visible = _plik == null;
+        _zPlikiem.Visible = _plik != null;
+        var stara = _miniatura.Image;
+        _miniatura.Image = null;
+        stara?.Dispose();
+        if (_plik != null)
+        {
+            _nazwaPliku.Text = Path.GetFileName(_plik);
+            var rozmiar = Obrazy.Rozmiar(new FileInfo(_plik).Length);
+            var folder = Path.GetDirectoryName(_plik);
+            _opisPliku.Text = $"{rozmiar}  ·  {folder}";
+            UlozKarteDokumentu();
+            _ = WczytajMiniature(_plik, rozmiar, folder);
+        }
         OdswiezStan();
+    }
+
+    /// <summary>Miniatura pierwszej strony i liczba stron — w tle, żeby okno nie czekało.</summary>
+    private async Task WczytajMiniature(string plik, string rozmiar, string? folder)
+    {
+        var numer = ++_numerMiniatury;
+        try
+        {
+            var wysokosc = _miniatura.Height;
+            var (bitmapa, strony) = await Task.Run(() =>
+            {
+                var s = DokumentPdf.Strony(plik);
+                var skala = wysokosc * 2.0 / Math.Max(1, s[0].Wysokosc);
+                return (Obrazy.NaBitmape(DokumentPdf.Renderuj(File.ReadAllBytes(plik), 0, skala)), s.Count);
+            });
+            if (numer != _numerMiniatury || _plik != plik)
+            {
+                bitmapa.Dispose();
+                return;
+            }
+            _miniatura.Image = bitmapa;
+            _opisPliku.Text = $"{Obrazy.LiczbaStron(strony)}  ·  {rozmiar}  ·  {folder}";
+        }
+        catch (Exception)
+        {
+            // Miniatura jest tylko pomocą — błąd pliku wyjdzie przy podglądzie.
+        }
     }
 
     private static string? PlikZPrzeciagania(DragEventArgs e)
@@ -500,6 +549,7 @@ internal sealed class OknoGlowne : Form
             Blad("Nie udało się zmienić autostartu.\n\n" + e.Message);
         }
         OdswiezMenuKontekstowe(cicho: false);
+        OdswiezInformacje();
     }
 
     private async void Podpisz()
@@ -550,6 +600,7 @@ internal sealed class OknoGlowne : Form
                 // Narysowany rozmiar staje się rozmiarem domyślnym przy następnym podpisie.
                 ustawienia.SkalaPodpisu = opcje.Miejsce.Skala;
                 try { ustawienia.Zapisz(); } catch (Exception) { /* zapamiętanie rozmiaru nie jest krytyczne */ }
+                OdswiezInformacje();
             }
 
             UstawStatus("Podpisywanie… Sterownik karty może poprosić o PIN.");
@@ -630,6 +681,8 @@ internal sealed class OknoGlowne : Form
     {
         _przyciskPodpisz.Enabled = !_trwaPodpisywanie && _plik != null && WybranyCertyfikat != null;
         _przyciskWybierz.Enabled = !_trwaPodpisywanie;
+        _przyciskZmien.Enabled = !_trwaPodpisywanie;
+        _przyciskUsun.Enabled = !_trwaPodpisywanie;
         _przyciskOdswiez.Enabled = !_trwaPodpisywanie && !_wczytywanieCertyfikatow;
         _przyciskUstawienia.Enabled = !_trwaPodpisywanie;
         _listaCertyfikatow.Enabled = !_trwaPodpisywanie;

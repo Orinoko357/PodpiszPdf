@@ -9,6 +9,20 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
 
+        if (args.Length >= 2 && args[0] == "--zrzuty")
+        {
+            try
+            {
+                Zrzuty.Wykonaj(args[1]);
+            }
+            catch (Exception e)
+            {
+                File.WriteAllText(Path.Combine(args[1], "blad.txt"), e.ToString());
+                Environment.ExitCode = 1;
+            }
+            return;
+        }
+
         if (args.Contains("--sprawdz"))
         {
             Sprawdz();
