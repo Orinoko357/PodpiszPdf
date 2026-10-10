@@ -84,7 +84,7 @@ jobs:
             }
             "Uruchomienie $proba`: $([math]::Round($czas.TotalSeconds, 2)) s"
           }
-          "Rozmiar: $([math]::Round((Get-Item publish/PodpisPdf.exe).Length / 1MB, 1)) MB"
+          "Folder programu: $([math]::Round((Get-ChildItem publish -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 1)) MB"
 
       # Windows App Runtime zainstalowany w systemie (jak na wielu komputerach z Windows 11) — program musi
       # mimo to używać własnych bibliotek z pliku exe.
@@ -117,7 +117,7 @@ jobs:
         run: |
           $folder = Join-Path $env:RUNNER_TEMP 'PodpisPdf-pakiet'
           New-Item -ItemType Directory -Force $folder | Out-Null
-          Copy-Item publish/PodpisPdf.exe $folder
+          Copy-Item publish/* $folder -Recurse
           $zrodlo = if (Test-Path pakiet/wynik/PodpisPdf.msix) { 'pakiet/wynik' } else { 'pakiet/test' }
           certutil -addstore TrustedPeople "$zrodlo/PodpisPdf.cer" | Out-Null
           Add-AppxPackage -Path "$zrodlo/PodpisPdf.msix" -ExternalLocation $folder
@@ -133,6 +133,9 @@ jobs:
           [Runtime.InteropServices.Marshal]::ReleaseComObject($obiekt) | Out-Null
           Get-Process PodpisPdf -ErrorAction SilentlyContinue | Stop-Process -Force
           Get-AppxPackage PodpisPdf | Remove-AppxPackage
+          # Certyfikat usuwamy, żeby test instalatora sprawdził, że to instalator go dodaje.
+          $odcisk = ([Security.Cryptography.X509Certificates.X509Certificate2]::new((Resolve-Path "$zrodlo/PodpisPdf.cer").Path)).Thumbprint
+          certutil -delstore TrustedPeople $odcisk | Out-Null
 
       - name: Zrzuty ekranu (jasny i ciemny motyw)
         shell: pwsh
@@ -167,19 +170,68 @@ jobs:
           name: Zrzuty-ekranu
           path: zrzuty/*.png
 
+      # Instalator MSI (WiX 5) z folderu programu. Wersja MSI ma trzy liczby: 3.1.0.2 → 3.1.2
+      # (Windows porównuje przy aktualizacji tylko trzy pierwsze części numeru).
+      - name: Instalator MSI
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add --global WixToolset.Iis.wixext/5.0.2
+          $v = [version](([xml](Get-Content src/PodpisPdf/PodpisPdf.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
+          $wersjaMsi = "$($v.Major).$($v.Minor).$($v.Build * 1000 + $v.Revision)"
+          $cer = if (Test-Path pakiet/wynik/PodpisPdf.cer) { 'pakiet/wynik/PodpisPdf.cer' } else { 'pakiet/test/PodpisPdf.cer' }
+          New-Item -ItemType Directory -Force wynik | Out-Null
+          wix build instalator/PodpisPdf.wxs -arch x64 -ext WixToolset.Iis.wixext `
+            -d Wersja=$wersjaMsi -d "Zrodlo=$((Resolve-Path publish).Path)" -d "Certyfikat=$((Resolve-Path $cer).Path)" `
+            -o wynik/PodpisPdf.msi
+          if ($LASTEXITCODE -ne 0) { throw "wix build: $LASTEXITCODE" }
+          "Instalator: $([math]::Round((Get-Item wynik/PodpisPdf.msi).Length / 1MB, 1)) MB, wersja MSI $wersjaMsi"
+
+      - name: Test instalatora (instalacja, start, certyfikat, odinstalowanie)
+        shell: pwsh
+        run: |
+          $p = Start-Process msiexec.exe -ArgumentList '/i', "`"$((Resolve-Path wynik/PodpisPdf.msi).Path)`"", '/qn', '/l*v', "`"$env:RUNNER_TEMP\instalacja.log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\instalacja.log" -Tail 60; throw "Instalacja MSI: kod $($p.ExitCode)" }
+          $exe = Join-Path $env:ProgramFiles 'PodpisPdf\PodpisPdf.exe'
+          if (-not (Test-Path $exe)) { throw "Brak $exe po instalacji" }
+          $cer = if (Test-Path pakiet/wynik/PodpisPdf.cer) { 'pakiet/wynik/PodpisPdf.cer' } else { 'pakiet/test/PodpisPdf.cer' }
+          $odcisk = ([Security.Cryptography.X509Certificates.X509Certificate2]::new((Resolve-Path $cer).Path)).Thumbprint
+          if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople | Where-Object Thumbprint -eq $odcisk)) { throw "Instalator nie dodał certyfikatu" }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'PodpisPdf.lnk'))) { throw "Brak skrótu w menu Start" }
+          $s = Start-Process $exe -ArgumentList '--sprawdz' -PassThru
+          if (-not $s.WaitForExit(180000)) { $s.Kill(); throw "Zainstalowany program: brak zakończenia" }
+          if ($s.ExitCode -ne 0) { Get-Content "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue; throw "Zainstalowany program: kod $($s.ExitCode)" }
+          Get-Content "$env:TEMP/PodpisPdf-sprawdz.txt" -ErrorAction SilentlyContinue
+          Remove-Item "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue
+          $z = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 15
+          $blad = Get-Content "$env:TEMP/PodpisPdf-blad.txt" -Raw -ErrorAction SilentlyContinue
+          $dziala = -not $z.HasExited
+          Get-Process PodpisPdf -ErrorAction SilentlyContinue | Stop-Process -Force
+          if ($blad) { "::error title=Zainstalowany program::$($blad -replace "`r?`n", ' | ')"; throw "Błąd zwykłego startu zainstalowanego programu" }
+          if (-not $dziala) { throw "Zainstalowany program zakończył się przy starcie" }
+          Get-AppxPackage PodpisPdf | Format-List Name, Version
+          Get-AppxPackage PodpisPdf | Remove-AppxPackage
+          Start-Sleep -Seconds 2
+          $u = Start-Process msiexec.exe -ArgumentList '/x', "`"$((Resolve-Path wynik/PodpisPdf.msi).Path)`"", '/qn' -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "Odinstalowanie: kod $($u.ExitCode)" }
+          if (Test-Path $exe) { throw "Program został po odinstalowaniu" }
+          if (Get-ChildItem Cert:\LocalMachine\TrustedPeople | Where-Object Thumbprint -eq $odcisk) { throw "Certyfikat został po odinstalowaniu" }
+          "Instalator: instalacja, start, certyfikat i odinstalowanie działają"
+
       - name: Suma kontrolna SHA-256
         shell: pwsh
         run: |
-          $suma = (Get-FileHash publish/PodpisPdf.exe -Algorithm SHA256).Hash.ToLowerInvariant()
-          Set-Content publish/PodpisPdf.exe.sha256 "$suma  PodpisPdf.exe" -NoNewline -Encoding ascii
+          $suma = (Get-FileHash wynik/PodpisPdf.msi -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content wynik/PodpisPdf.msi.sha256 "$suma  PodpisPdf.msi" -NoNewline -Encoding ascii
           "SHA-256: $suma"
 
       - uses: actions/upload-artifact@v6
         with:
           name: PodpisPdf
           path: |
-            publish/PodpisPdf.exe
-            publish/PodpisPdf.exe.sha256
+            wynik/PodpisPdf.msi
+            wynik/PodpisPdf.msi.sha256
 
       # Wydanie (Release) z plikiem PodpisPdf.exe: po wypchnięciu znacznika vX.Y.Z.W
       # albo po ręcznym uruchomieniu workflow z podanym numerem wersji (znacznik powstaje wtedy automatycznie).
@@ -191,8 +243,8 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: PodpisPdf ${{ inputs.wersja != '' && format('v{0}', inputs.wersja) || github.ref_name }}
           files: |
-            publish/PodpisPdf.exe
-            publish/PodpisPdf.exe.sha256
+            wynik/PodpisPdf.msi
+            wynik/PodpisPdf.msi.sha256
             pakiet/wynik/PodpisPdf.cer
           fail_on_unmatched_files: false
           generate_release_notes: true
@@ -208,12 +260,13 @@ jobs:
           tag_name: ${{ inputs.wersja != '' && format('v{0}', inputs.wersja) || github.ref_name }}
           name: PodpisPdf ${{ inputs.wersja != '' && format('v{0}', inputs.wersja) || github.ref_name }}
           body: |
-            Kwalifikowany podpis elektroniczny PAdES plików PDF. Pobierz **PodpisPdf.exe** i uruchom
-            (Windows 10/11, 64-bit). Zainstalowany program aktualizuje się sam.
+            Kwalifikowany podpis elektroniczny PAdES plików PDF. Pobierz i uruchom instalator **PodpisPdf.msi**
+            (Windows 10/11, 64-bit, instalacja dla całego komputera). Zainstalowany program aktualizuje się sam.
+            Cicha instalacja: `msiexec /i PodpisPdf.msi /qn`.
 
             Certyfikat **PodpisPdf.cer** jest potrzebny tylko do pozycji w nowym menu kontekstowym Windows 11.
           files: |
-            publish/PodpisPdf.exe
-            publish/PodpisPdf.exe.sha256
+            wynik/PodpisPdf.msi
+            wynik/PodpisPdf.msi.sha256
             pakiet/wynik/PodpisPdf.cer
           fail_on_unmatched_files: false

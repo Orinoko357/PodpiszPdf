@@ -8,8 +8,8 @@ Specyfikacja: [docs/SPECYFIKACJA.md](docs/SPECYFIKACJA.md).
 
 ## Jak używać
 
-1. Uruchom `PodpisPdf.exe` i przeciągnij plik PDF do okna (albo kliknij **Wybierz plik…**).
-   Plik można też przeciągnąć na ikonę `PodpisPdf.exe`.
+1. Zainstaluj program instalatorem `PodpisPdf.msi` (z zakładki *Releases*; dla całego komputera, do
+   `C:\Program Files\PodpisPdf`, skrót w menu Start). Uruchom PodpisPdf i przeciągnij plik PDF do okna (albo kliknij **Wybierz plik…**).
 2. Wybierz certyfikat z listy (★ — certyfikat kwalifikowany).
 3. Kliknij **Podpisz**. Otworzy się podgląd wszystkich stron dokumentu — **kliknij miejsce**, w którym ma
    się znaleźć podpis, albo **przeciągnij myszą**, aby narysować go w wybranym rozmiarze (proporcje są zawsze
@@ -77,15 +77,14 @@ Logo PNG/JPG jest osadzane w oryginalnej rozdzielczości, bez stratnej kompresji
 w pliku logo są pomijane (przycięcie w PDF, obraz pozostaje nienaruszony), więc logo zajmuje całe dostępne miejsce.
 Stanowisko można podzielić na wiersze klawiszem Enter; bez tego zawija się samo.
 
-**Autostart i kopia programu w AppData.** Po włączeniu autostartu program kopiuje się do
-`%APPDATA%\PodpisPdf\PodpisPdf.exe` i stamtąd uruchamia przy logowaniu do Windows (wpis
-`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`) — od razu zminimalizowany do zasobnika, bez pokazywania okna. Z tej kopii korzysta też menu
-kontekstowe. Uruchomienie nowszej wersji (np. pobranej z *Releases*) nadpisuje kopię w AppData; starsza wersja
-nie nadpisuje nowszej. Jeśli program już działa w innej wersji, pojawia się ostrzeżenie — przy nowszej wersji
-można od razu zamknąć działający program i zastąpić go nową wersją.
+**Instalacja i autostart.** Instalator MSI (dla całego komputera) umieszcza program w `C:\Program Files\PodpisPdf`,
+dodaje skrót w menu Start i certyfikat PodpisPdf do magazynu *Zaufane osoby* komputera (dla nowego menu Windows 11).
+Cicha instalacja, np. przez zasady grupy: `msiexec /i PodpisPdf.msi /qn`; odinstalowanie w *Ustawieniach Windows → Aplikacje*.
+Autostart to wpis `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` — program startuje zminimalizowany do zasobnika.
+Kopia programu ze starszych wersji (`%APPDATA%\PodpisPdf\PodpisPdf.exe`) jest przy starcie usuwana.
 
 Menu kontekstowe jest rejestrowane dla bieżącego użytkownika (`HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\PodpisPdf`),
-bez uprawnień administratora. Po przeniesieniu `PodpisPdf.exe` w inne miejsce wpis odświeża się przy następnym uruchomieniu.
+bez uprawnień administratora; wpis wskazuje na zainstalowany program.
 
 Hasło do TSA jest szyfrowane mechanizmem Windows DPAPI — odczyta je tylko ten sam użytkownik Windows.
 
@@ -103,10 +102,9 @@ dotnet test tests/PodpisPdf.Tests
 dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64 -o publish
 ```
 
-Wynik: `publish\PodpisPdf.exe` — jeden plik, nie wymaga instalacji .NET ani Windows App SDK (Windows 10 1809+/11, 64-bit).
-Przy pierwszym uruchomieniu plik wypakowuje biblioteki WinUI do folderu tymczasowego, więc start trwa wtedy dłużej.
-Publikacja pomija nieużywane moduły Windows App SDK (AI/ML, widżety).
-GitHub Actions buduje ten plik przy każdym pushu (artefakt **PodpisPdf** w zakładce *Actions*).
+Wynik: folder `publish` z programem (nie wymaga instalacji .NET ani Windows App SDK; Windows 10 1809+/11, 64-bit).
+GitHub Actions buduje z niego instalator `PodpisPdf.msi` (WiX 5, `instalator/PodpisPdf.wxs`) przy każdym pushu
+(artefakt **PodpisPdf** w zakładce *Actions*). Publikacja pomija nieużywane moduły Windows App SDK (AI/ML, widżety).
 
 ## Struktura
 
@@ -139,7 +137,7 @@ dotnet run --project tools/PodpisTestowy -- podpisz wniosek.pdf test.pfx haslo
 
 ## Wydania
 
-Plik `PodpisPdf.exe` do pobrania jest w zakładce **Releases** repozytorium. Nowe wydanie powstaje:
+Instalator `PodpisPdf.msi` do pobrania jest w zakładce **Releases** repozytorium. Nowe wydanie powstaje:
 
 - ręcznie: *Actions → Build → Run workflow*, wybrać gałąź i wpisać numer wersji (np. `1.0.0.2`), albo
 - po wypchnięciu znacznika wersji, np.:
@@ -158,4 +156,4 @@ Sekrety repozytorium (*Settings → Secrets and variables → Actions*), z któr
 | `CERTYFIKAT_PFX` | Certyfikat CN=PodpisPdf (PFX w Base64, hasło `PodpisPdf`) do podpisu pakietu menu Windows 11. Bez niego wydanie nie zawiera pakietu menu. |
 | `TOKEN_WYDANIA` | Token z prawem zapisu (*Contents: Read and write*) do `Orinoko357/PodpisPdf-wydania`. Bez niego wydanie nie trafia do repozytorium aktualizacji. |
 
-Każde wydanie zawiera `PodpisPdf.exe`, `PodpisPdf.exe.sha256` (suma sprawdzana przez aktualizację) i `PodpisPdf.cer`.
+Każde wydanie zawiera `PodpisPdf.msi`, `PodpisPdf.msi.sha256` (suma sprawdzana przez aktualizację) i `PodpisPdf.cer`.

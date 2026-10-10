@@ -70,7 +70,6 @@ public sealed partial class StronaGlowna : Page
         {
             var komunikat = OdswiezInstalacje(ustawienia);
             OdswiezMenuKontekstowe(ustawienia);
-            AktualizacjaProgramu.UsunPoprzedniaWersje();
             try
             {
                 // Program przeniesiony lub zaktualizowany: wpisy w rejestrze i pakiet muszą wskazywać na ten plik.
@@ -169,9 +168,9 @@ public sealed partial class StronaGlowna : Page
         {
             var postep = new Progress<double>(p => UstawStatus($"Pobieranie wersji {aktualizacja.Wersja}… {p:P0}"));
             UstawStatus($"Pobieranie wersji {aktualizacja.Wersja}…");
-            await AktualizacjaProgramu.PobierzIZainstalujAsync(aktualizacja, postep);
-            UstawStatus("Uruchamianie nowej wersji…");
-            AktualizacjaProgramu.UruchomNowaWersje();
+            var instalator = await AktualizacjaProgramu.PobierzAsync(aktualizacja, postep);
+            UstawStatus("Instalowanie nowej wersji… Windows poprosi o zgodę administratora.");
+            AktualizacjaProgramu.ZainstalujIUruchom(instalator);
             Okno.ZamknijProgram();
         }
         catch (Exception ex)
@@ -226,23 +225,21 @@ public sealed partial class StronaGlowna : Page
     // ---- Instalacja i menu kontekstowe ----
 
     /// <summary>
-    /// Kopia programu w %APPDATA%: aktualizacja, gdy uruchomiono nowszą wersję, oraz autostart.
+    /// Sprzątanie po wersjach sprzed instalatora MSI i autostart wskazujący na zainstalowany program.
     /// Wywoływane w tle; zwraca komunikat do paska stanu albo null.
     /// </summary>
     private static string? OdswiezInstalacje(Ustawienia ustawienia)
     {
         try
         {
-            var wynik = Instalacja.Aktualizuj(instalujGdyBrak: ustawienia.Autostart);
+            var komunikat = Instalacja.PosprzatajStaraKopie();
             if (ustawienia.Autostart)
                 Instalacja.UstawAutostart(true);
-            return wynik == Instalacja.Wynik.Zaktualizowano
-                ? $"Zaktualizowano program w {Ustawienia.Folder} do wersji {Instalacja.BiezacaWersja}."
-                : null;
+            return komunikat;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
-            return "Nie udało się zaktualizować kopii programu w AppData: " + e.Message;
+            return "Nie udało się uporządkować instalacji: " + e.Message;
         }
     }
 
@@ -274,7 +271,7 @@ public sealed partial class StronaGlowna : Page
         nowe.OstatniCertyfikat = Ustawienia.OstatniCertyfikat;
         nowe.OstatnieSprawdzenieAktualizacji = Ustawienia.OstatnieSprawdzenieAktualizacji;
         nowe.PoprzedniaAplikacjaPdf = Ustawienia.PoprzedniaAplikacjaPdf;
-        nowe.MenuWindows11 = Ustawienia.MenuWindows11;
+        nowe.PozycjaMenuWindows11 = Ustawienia.PozycjaMenuWindows11;
         nowe.SkalaPodpisu = Ustawienia.SkalaPodpisu;
         Okno.Ustawienia = nowe;
         OdswiezInformacje();

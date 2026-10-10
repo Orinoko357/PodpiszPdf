@@ -162,7 +162,7 @@
 
                         <!-- Program -->
                         <StackPanel x:Name="SekcjaProgramu" Style="{StaticResource SekcjaUstawienStyl}" Visibility="Collapsed">
-                            <ctk:SettingsCard Header="Uruchamiaj przy logowaniu do Windows" Description="Program czeka w zasobniku; kopia programu w %APPDATA%\PodpisPdf">
+                            <ctk:SettingsCard Header="Uruchamiaj przy logowaniu do Windows" Description="Program czeka w zasobniku obok zegara">
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE7E8;" />
                                 </ctk:SettingsCard.HeaderIcon>
@@ -236,7 +236,7 @@
                                 </ctk:SettingsCard.HeaderIcon>
                                 <ToggleSwitch x:Name="SprawdzajAktualizacje" OnContent="Włączone" OffContent="Wyłączone" />
                             </ctk:SettingsCard>
-                            <ctk:SettingsCard x:Name="KartaFolderu" Header="Ustawienia i kopia programu">
+                            <ctk:SettingsCard x:Name="KartaFolderu" Header="Folder ustawień">
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE8B7;" />
                                 </ctk:SettingsCard.HeaderIcon>

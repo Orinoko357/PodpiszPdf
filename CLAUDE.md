@@ -14,9 +14,9 @@ w GitHub **Releases** — bez pytania użytkownika:
 2. Uruchom testy (`dotnet test tests/PodpisPdf.Tests`), zatwierdź i wypchnij zmiany na gałąź roboczą.
 3. Opublikuj wydanie: uruchom workflow `build.yml` (`workflow_dispatch`) na tej gałęzi z wejściem
    `wersja` = nowy numer (bez „v”). Workflow buduje na Windows, uruchamia testy, tworzy znacznik `v<wersja>`
-   i wydanie z plikiem `PodpisPdf.exe`. (Wypychanie znaczników z sesji Claude Code bywa zablokowane —
+   i wydanie z instalatorem `PodpisPdf.msi`. (Wypychanie znaczników z sesji Claude Code bywa zablokowane —
    dlatego wydanie tworzy GitHub Actions.)
-4. Sprawdź, że wydanie istnieje i ma plik `PodpisPdf.exe`, i podaj użytkownikowi link.
+4. Sprawdź, że wydanie istnieje i ma plik `PodpisPdf.msi`, i podaj użytkownikowi link.
 
 Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagają wydania.
 
@@ -26,16 +26,21 @@ Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagaj�
   z lokalnym serwerem znacznika czasu, renderowanie przez PDFium.
 - `src/PodpisPdf` (WinUI 3, XAML) kompiluje się tylko na Windows (kompilator XAML) — sprawdzenie w GitHub Actions.
   Jedno okno (`OknoGlowne`) z ramką stron: `StronaGlowna`, `StronaPodgladu`, `StronaUstawien`.
-- Publikacja: `dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64` → jeden plik `PodpisPdf.exe`.
+- Publikacja: `dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64` → folder programu; z niego
+  CI buduje instalator MSI (WiX 5, `instalator/PodpisPdf.wxs`, dla całego komputera, Program Files, certyfikat
+  menu Windows 11 do „Zaufanych osób”). Nie wracać do trybu „jeden plik exe” — na części komputerów WinUI
+  nie znajdowało wtedy zasobów („XAML parsing failed”). Wersja MSI: X.Y.(Z*1000+W).
+- CI testuje instalator (instalacja, `--sprawdz`, zwykły start, certyfikat, odinstalowanie) i zwykły start
+  z zainstalowanym w systemie Windows App Runtime.
 - CI uruchamia `PodpisPdf.exe --sprawdz` (test startu) i `--zrzuty <folder>` (zrzuty stron w obu motywach);
   zrzuty trafiają na gałąź `zrzuty-ekranu` (pobranie: `git fetch origin zrzuty-ekranu`).
 
 ## Integracja z Windows (3.0)
 
 - Aktualizacje: `PodpisPdf.Core/Aktualizacje.cs` czyta `releases/latest` publicznego repo `Orinoko357/PodpisPdf-wydania`
-  (wymaga `PodpisPdf.exe` i `PodpisPdf.exe.sha256` w wydaniu); workflow publikuje tam z sekretem `TOKEN_WYDANIA`.
+  (wymaga `PodpisPdf.msi` i `PodpisPdf.msi.sha256` w wydaniu; aktualizacja uruchamia msiexec); workflow publikuje tam z sekretem `TOKEN_WYDANIA`.
 - Menu Windows 11: pakiet `pakiet/AppxManifest.xml` (sparse, podpis sekretem `CERTYFIKAT_PFX`, CN=PodpisPdf) osadzany
-  w exe; serwer COM `-Embedding` (`SerwerMenu.cs`). Okno WinUI **nie może** mieć tożsamości pakietu (nie znajduje
+  w programie, rejestrowany automatycznie przy starcie z zewnętrzną lokalizacją = folder programu; serwer COM `-Embedding` (`SerwerMenu.cs`). Okno WinUI **nie może** mieć tożsamości pakietu (nie znajduje
   wtedy zasobów) — dlatego `app.manifest` nie ma elementu `<msix>`, a serwer menu uruchamia program przez Eksplorator.
 - Bez PublishTrimmed: przycinanie zepsuło zwykły start (XAML parsing failed). CI testuje zwykły start, nie tylko `--sprawdz`.
 - PDFium wywoływane bezpośrednio (`DokumentPdf.Pdfium`), na jednym wątku; Docnet.Core tylko dostarcza bibliotekę natywną.

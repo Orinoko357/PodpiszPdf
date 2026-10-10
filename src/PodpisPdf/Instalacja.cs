@@ -4,8 +4,9 @@ using Microsoft.Win32;
 namespace PodpisPdf;
 
 /// <summary>
-/// Kopia programu w %APPDATA%\PodpisPdf\PodpisPdf.exe (stąd uruchamia go autostart i menu kontekstowe)
-/// oraz wpis autostartu w rejestrze bieżącego użytkownika.
+/// Program instalowany instalatorem MSI w C:\Program Files\PodpisPdf (dla całego komputera). Autostart
+/// to wpis w rejestrze bieżącego użytkownika. Wersje 1.x–3.0 kopiowały się do %APPDATA%\PodpisPdf —
+/// taka kopia jest przy starcie usuwana, a wpisy w rejestrze przestawiane na zainstalowany program.
 /// </summary>
 internal static class Instalacja
 {
@@ -13,22 +14,69 @@ internal static class Instalacja
     private const string KluczAutostartu = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string NazwaWpisu = "PodpisPdf";
 
-    public enum Wynik { BezZmian, Zainstalowano, Zaktualizowano }
-
-    public static string SciezkaDocelowa => Path.Combine(Ustawienia.Folder, "PodpisPdf.exe");
-
     public static string BiezacyPlik => Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "PodpisPdf.exe");
+
+    /// <summary>Folder programu (zewnętrzna lokalizacja pakietu menu Windows 11).</summary>
+    public static string FolderProgramu => Path.GetDirectoryName(BiezacyPlik) ?? AppContext.BaseDirectory;
 
     public static Version BiezacaWersja => typeof(Instalacja).Assembly.GetName().Version ?? new Version(0, 0);
 
-    public static bool JestZainstalowany => File.Exists(SciezkaDocelowa);
-
-    public static bool UruchomionyZInstalacji =>
-        string.Equals(Path.GetFullPath(BiezacyPlik), SciezkaDocelowa, StringComparison.OrdinalIgnoreCase);
-
     /// <summary>Plik, który mają uruchamiać autostart i menu kontekstowe.</summary>
-    public static string SciezkaProgramu => JestZainstalowany ? SciezkaDocelowa : BiezacyPlik;
+    public static string SciezkaProgramu => BiezacyPlik;
 
+    /// <summary>Kopia programu z wersji 1.x–3.0 (przed instalatorem MSI).</summary>
+    private static string StaraKopia => Path.Combine(Ustawienia.Folder, "PodpisPdf.exe");
+
+    /// <summary>
+    /// Usuwa kopię programu ze starszych wersji (%APPDATA%\PodpisPdf\PodpisPdf.exe i pliki pomocnicze).
+    /// Wywoływane w tle przy starcie; zwraca komunikat do paska stanu albo null.
+    /// </summary>
+    public static string? PosprzatajStaraKopie()
+    {
+        if (string.Equals(Path.GetFullPath(BiezacyPlik), StaraKopia, StringComparison.OrdinalIgnoreCase))
+            return null; // uruchomiono starą kopię — nie usuwamy samego siebie
+        var usunieto = false;
+        foreach (var plik in new[] { StaraKopia, StaraKopia + ".stary", StaraKopia + ".pobrany", StaraKopia + ".nowy" })
+        {
+            try
+            {
+                if (File.Exists(plik))
+                {
+                    File.Delete(plik);
+                    usunieto |= plik == StaraKopia;
+                }
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // Stara wersja może jeszcze działać — usuniemy ją przy następnym starcie.
+            }
+        }
+        return usunieto ? "Usunięto starą kopię programu z folderu AppData — używany jest zainstalowany PodpisPdf." : null;
+    }
+
+    public static bool AutostartWlaczony()
+    {
+        using var klucz = Registry.CurrentUser.OpenSubKey(KluczAutostartu);
+        return klucz?.GetValue(NazwaWpisu) is string;
+    }
+
+    /// <summary>Włącza autostart zainstalowanego programu albo go wyłącza.</summary>
+    public static void UstawAutostart(bool wlacz)
+    {
+        using var klucz = Registry.CurrentUser.CreateSubKey(KluczAutostartu);
+        if (wlacz)
+        {
+            var polecenie = $"\"{BiezacyPlik}\" {ParametrAutostartu}";
+            if (!string.Equals(klucz.GetValue(NazwaWpisu) as string, polecenie, StringComparison.OrdinalIgnoreCase))
+                klucz.SetValue(NazwaWpisu, polecenie);
+        }
+        else
+        {
+            klucz.DeleteValue(NazwaWpisu, throwOnMissingValue: false);
+        }
+    }
+
+    /// <summary>Wersja pliku programu (do porównań z działającą kopią).</summary>
     public static Version? WersjaPliku(string sciezka)
     {
         try
@@ -39,71 +87,6 @@ internal static class Instalacja
         catch (FileNotFoundException)
         {
             return null;
-        }
-    }
-
-    /// <summary>
-    /// Kopiuje uruchomiony plik do %APPDATA%, gdy jest tam starsza wersja (aktualizacja)
-    /// albo gdy kopii nie ma, a <paramref name="instalujGdyBrak"/>. Starszy plik nie nadpisuje nowszego.
-    /// </summary>
-    public static Wynik Aktualizuj(bool instalujGdyBrak)
-    {
-        if (UruchomionyZInstalacji)
-            return Wynik.BezZmian;
-        if (!JestZainstalowany)
-        {
-            if (!instalujGdyBrak)
-                return Wynik.BezZmian;
-            Kopiuj();
-            return Wynik.Zainstalowano;
-        }
-        var zainstalowana = WersjaPliku(SciezkaDocelowa);
-        if (zainstalowana != null && BiezacaWersja <= zainstalowana)
-            return Wynik.BezZmian;
-        Kopiuj();
-        return Wynik.Zaktualizowano;
-    }
-
-    private static void Kopiuj()
-    {
-        Directory.CreateDirectory(Ustawienia.Folder);
-        var tymczasowy = SciezkaDocelowa + ".nowy";
-        File.Copy(BiezacyPlik, tymczasowy, overwrite: true);
-        // Zamknięta przed chwilą kopia programu może jeszcze przez moment blokować plik.
-        for (var proba = 1; ; proba++)
-        {
-            try
-            {
-                File.Move(tymczasowy, SciezkaDocelowa, overwrite: true);
-                return;
-            }
-            catch (Exception e) when ((e is IOException or UnauthorizedAccessException) && proba < 10)
-            {
-                Thread.Sleep(500);
-            }
-        }
-    }
-
-    public static bool AutostartWlaczony()
-    {
-        using var klucz = Registry.CurrentUser.OpenSubKey(KluczAutostartu);
-        return klucz?.GetValue(NazwaWpisu) is string;
-    }
-
-    /// <summary>Włącza autostart (z kopią programu w %APPDATA%) albo go wyłącza.</summary>
-    public static void UstawAutostart(bool wlacz)
-    {
-        using var klucz = Registry.CurrentUser.CreateSubKey(KluczAutostartu);
-        if (wlacz)
-        {
-            Aktualizuj(instalujGdyBrak: true);
-            var polecenie = $"\"{SciezkaDocelowa}\" {ParametrAutostartu}";
-            if (!string.Equals(klucz.GetValue(NazwaWpisu) as string, polecenie, StringComparison.OrdinalIgnoreCase))
-                klucz.SetValue(NazwaWpisu, polecenie);
-        }
-        else
-        {
-            klucz.DeleteValue(NazwaWpisu, throwOnMissingValue: false);
         }
     }
 }

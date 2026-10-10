@@ -26,14 +26,14 @@ public class AktualizacjeTesty
 
     private static HttpClient Klient(string znacznik, bool zSuma = true, string? suma = null, byte[]? plik = null)
     {
-        var zalaczniki = "[{\"name\":\"PodpisPdf.exe\",\"browser_download_url\":\"https://example.org/PodpisPdf.exe\"}" +
-                         (zSuma ? ",{\"name\":\"PodpisPdf.exe.sha256\",\"browser_download_url\":\"https://example.org/PodpisPdf.exe.sha256\"}" : "") + "]";
+        var zalaczniki = "[{\"name\":\"PodpisPdf.msi\",\"browser_download_url\":\"https://example.org/PodpisPdf.msi\"}" +
+                         (zSuma ? ",{\"name\":\"PodpisPdf.msi.sha256\",\"browser_download_url\":\"https://example.org/PodpisPdf.msi.sha256\"}" : "") + "]";
         var wydanie = $"{{\"tag_name\":\"{znacznik}\",\"html_url\":\"https://github.com/x/releases/tag/{znacznik}\",\"body\":\"Opis zmian\",\"assets\":{zalaczniki}}}";
         return Aktualizacje.UtworzKlienta(new Serwer(new()
         {
             [Aktualizacje.AdresNajnowszego.ToString()] = () => Tekst(wydanie),
-            ["https://example.org/PodpisPdf.exe.sha256"] = () => Tekst($"{suma ?? Suma}  PodpisPdf.exe\n"),
-            ["https://example.org/PodpisPdf.exe"] = () => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(plik ?? NowyProgram) },
+            ["https://example.org/PodpisPdf.msi.sha256"] = () => Tekst($"{suma ?? Suma}  PodpisPdf.msi\n"),
+            ["https://example.org/PodpisPdf.msi"] = () => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(plik ?? NowyProgram) },
         }));
     }
 
@@ -87,7 +87,7 @@ public class AktualizacjeTesty
         var folder = PlikiTestowe.Folder();
         using var klient = Klient("v3.1");
         var a = (await Aktualizacje.SprawdzAsync(klient, new Version(3, 0)))!;
-        var cel = Path.Combine(folder, "PodpisPdf.exe.nowy");
+        var cel = Path.Combine(folder, "PodpisPdf.msi.nowy");
         var postep = new List<double>();
         await Aktualizacje.PobierzAsync(klient, a, cel, new Progress<double>(postep.Add));
         Assert.Equal(NowyProgram, File.ReadAllBytes(cel));
@@ -99,16 +99,16 @@ public class AktualizacjeTesty
         var folder = PlikiTestowe.Folder();
         using var klient = Klient("v3.1", plik: Encoding.UTF8.GetBytes("podmieniony plik"));
         var a = (await Aktualizacje.SprawdzAsync(klient, new Version(3, 0)))!;
-        var cel = Path.Combine(folder, "PodpisPdf.exe.nowy");
+        var cel = Path.Combine(folder, "PodpisPdf.msi.nowy");
         await Assert.ThrowsAsync<InvalidDataException>(() => Aktualizacje.PobierzAsync(klient, a, cel));
         Assert.False(File.Exists(cel));
         Assert.Empty(Directory.GetFiles(folder, "*.pobieranie"));
     }
 
     [Theory]
-    [InlineData("ABCDEF0123456789abcdef0123456789ABCDEF0123456789abcdef0123456789  PodpisPdf.exe", true)]
+    [InlineData("ABCDEF0123456789abcdef0123456789ABCDEF0123456789abcdef0123456789  PodpisPdf.msi", true)]
     [InlineData("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", true)]
-    [InlineData("xyz  PodpisPdf.exe", false)]
+    [InlineData("xyz  PodpisPdf.msi", false)]
     [InlineData("", false)]
     public void OdczytSumy(string tekst, bool poprawna) =>
         Assert.Equal(poprawna, Aktualizacje.OdczytajSume(tekst) != null);

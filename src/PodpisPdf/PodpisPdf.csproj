@@ -16,29 +16,26 @@
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <Product>PodpisPdf</Product>
-    <Version>3.0.0.4</Version>
+    <Version>3.1.0.0</Version>
     <Description>Kwalifikowany podpis elektroniczny PAdES dla plików PDF</Description>
 
     <!-- Aplikacja bez pakietu MSIX, z własnym środowiskiem Windows App SDK (nie wymaga instalacji). -->
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-    <!-- Wbudowany resources.pri w jednym pliku exe. -->
+    <!-- Plik resources.pri programu (zasoby XAML). -->
     <EnableMsixTooling>true</EnableMsixTooling>
-    <!-- Rejestracja klas WinRT z bibliotek programu (wymagane przy jednym pliku exe, zob. Program.Main). -->
+    <!-- Rejestracja klas WinRT z bibliotek w folderze programu (zob. też Program.Main). -->
     <WindowsAppSdkUndockedRegFreeWinRTInitialize>true</WindowsAppSdkUndockedRegFreeWinRTInitialize>
     <!-- Własna metoda Main: jedna kopia programu i obsługa parametrów przed startem interfejsu. -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
-  <!-- dotnet publish -c Release -r win-x64  →  jeden plik PodpisPdf.exe (przy pierwszym uruchomieniu wypakowuje pliki WinUI) -->
+  <!-- dotnet publish -c Release -r win-x64 -p:Platform=x64  →  folder programu (z niego GitHub Actions buduje
+       instalator MSI, katalog instalator/). Bez trybu „jeden plik exe”: WinUI wypakowywane przy każdym starcie
+       nie znajdowało na części komputerów swoich zasobów („XAML parsing failed”). -->
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
     <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <PublishReadyToRun>true</PublishReadyToRun>
-    <!-- Bez przycinania (PublishTrimmed): w 3.0.0.2 usunęło kod potrzebny przy zwykłym starcie programu
-         („XAML parsing failed”), czego test w trybie sprawdzania nie wykrył. -->
     <DebugType>none</DebugType>
   </PropertyGroup>
 

@@ -110,7 +110,7 @@ public static class Program
 
     /// <summary>
     /// Program już działa. Ta sama wersja — przekazujemy jej plik. Inna wersja — ostrzeżenie;
-    /// przy nowszej wersji można zamknąć działającą i przejąć jej miejsce (aktualizacja kopii w %APPDATA%).
+    /// przy nowszej wersji można zamknąć działającą i przejąć jej miejsce (np. po instalacji nowszej wersji).
     /// </summary>
     private static JednaInstancja? ObsluzDzialajacaKopie(string? plik, bool autostart)
     {
@@ -139,7 +139,7 @@ public static class Program
         var opis = dzialajaca != null ? $"w wersji {dzialajaca}" : "w starszej wersji";
         var odpowiedz = Win32.Komunikat(
             $"PodpisPdf {opis} jest już uruchomiony (np. ikona obok zegara).\n\n" +
-            $"Aby uruchomić wersję {biezaca} i zaktualizować kopię programu w %APPDATA%\\PodpisPdf, " +
+            $"Aby uruchomić wersję {biezaca}, " +
             "działający program trzeba zamknąć.\n\nZamknąć go teraz?", Win32.Ostrzezenie, Win32.TakNie);
         if (odpowiedz != Win32.Tak)
             return null;

@@ -237,7 +237,7 @@ public sealed partial class StronaUstawien : Page
         }
         if (!MenuWindows11.MaPakiet)
         {
-            KartaMenu11.Description = "Ta kopia programu nie zawiera podpisanego pakietu menu (pobierz wydanie z GitHub).";
+            KartaMenu11.Description = "Ta kopia programu nie zawiera podpisanego pakietu menu (zainstaluj PodpisPdf instalatorem MSI z GitHub).";
             PrzyciskMenu11.IsEnabled = false;
             return;
         }
@@ -309,8 +309,8 @@ public sealed partial class StronaUstawien : Page
             else
                 await MenuWindows11.WyrejestrujAsync();
             // Zmiana działa od razu — zapisujemy ją niezależnie od przycisku „Zapisz”.
-            _ustawienia.MenuWindows11 = dodaj;
-            Okno.Ustawienia.MenuWindows11 = dodaj;
+            _ustawienia.PozycjaMenuWindows11 = dodaj;
+            Okno.Ustawienia.PozycjaMenuWindows11 = dodaj;
             Okno.Ustawienia.Zapisz();
             if (dodaj)
                 await Dialogi.PokazAsync(XamlRoot, "Gotowe",

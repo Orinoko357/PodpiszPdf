@@ -5,10 +5,9 @@ using Windows.Management.Deployment;
 namespace PodpisPdf;
 
 /// <summary>
-/// Nowe menu kontekstowe Windows 11 wymaga tożsamości pakietu: rejestrujemy mały pakiet MSIX
-/// („z zawartością zewnętrzną”), który wskazuje na kopię programu w %APPDATA%\PodpisPdf.
-/// Pakiet jest podpisany certyfikatem PodpisPdf — Windows zainstaluje go tylko wtedy, gdy ten certyfikat
-/// jest zaufany na komputerze (jednorazowo, z uprawnieniami administratora).
+/// Nowe menu kontekstowe Windows 11 wymaga tożsamości pakietu: rejestrujemy (dla użytkownika) mały pakiet
+/// MSIX „z zawartością zewnętrzną”, który wskazuje na zainstalowany program w Program Files.
+/// Pakiet jest podpisany certyfikatem PodpisPdf — instalator MSI dodaje go do zaufanych na komputerze.
 /// </summary>
 internal static class MenuWindows11
 {
@@ -86,11 +85,10 @@ internal static class MenuWindows11
     {
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
             throw new PlatformNotSupportedException("Menu wymaga Windows 11.");
-        Instalacja.Aktualizuj(instalujGdyBrak: true);
         WypakujZasoby();
         var opcje = new AddPackageOptions
         {
-            ExternalLocationUri = new Uri(Ustawienia.Folder + Path.DirectorySeparatorChar),
+            ExternalLocationUri = new Uri(Instalacja.FolderProgramu.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar),
             ForceUpdateFromAnyVersion = true,
         };
         var wynik = await new PackageManager().AddPackageByUriAsync(new Uri(SciezkaPakietu), opcje);
@@ -111,10 +109,13 @@ internal static class MenuWindows11
         }
     }
 
-    /// <summary>Po aktualizacji programu: nowsza wersja pakietu (wywoływane w tle, błędy pomijane).</summary>
+    /// <summary>
+    /// Przy starcie: rejestracja pakietu (pierwsze uruchomienie po instalacji) albo jego nowsza wersja po
+    /// aktualizacji. Certyfikat dodaje instalator MSI, więc nie trzeba zgody administratora.
+    /// </summary>
     public static async Task OdswiezAsync(Ustawienia ustawienia)
     {
-        if (!ustawienia.MenuWindows11 || !JestWindows11 || !MaPakiet || !Instalacja.UruchomionyZInstalacji)
+        if (!ustawienia.PozycjaMenuWindows11 || !JestWindows11 || !MaPakiet)
             return;
         var zarejestrowana = ZarejestrowanaWersja();
         if (zarejestrowana != null && zarejestrowana >= Instalacja.BiezacaWersja)

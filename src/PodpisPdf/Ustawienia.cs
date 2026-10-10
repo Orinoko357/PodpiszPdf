@@ -59,8 +59,11 @@ internal sealed class Ustawienia
 
     public DateTimeOffset? OstatnieSprawdzenieAktualizacji { get; set; }
 
-    /// <summary>Pozycja w nowym menu kontekstowym Windows 11 (pakiet z tożsamością).</summary>
-    public bool MenuWindows11 { get; set; }
+    /// <summary>
+    /// Pozycja w nowym menu kontekstowym Windows 11 (pakiet z tożsamością). Od wersji 3.1 domyślnie włączona —
+    /// instalator MSI dodaje certyfikat pakietu do zaufanych.
+    /// </summary>
+    public bool PozycjaMenuWindows11 { get; set; } = true;
 
     public static string Folder =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PodpisPdf");

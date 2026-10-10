@@ -10,13 +10,13 @@ public sealed record DostepnaAktualizacja(Version Wersja, Uri AdresPliku, string
 
 /// <summary>
 /// Sprawdzanie i pobieranie aktualizacji z wydań GitHub (publiczne repozytorium tylko z plikami programu).
-/// Każde wydanie zawiera <c>PodpisPdf.exe</c> i <c>PodpisPdf.exe.sha256</c> — pobrany plik musi mieć tę sumę.
+/// Każde wydanie zawiera instalator <c>PodpisPdf.msi</c> i <c>PodpisPdf.msi.sha256</c> — pobrany plik musi mieć tę sumę.
 /// </summary>
 public static class Aktualizacje
 {
     public const string Repozytorium = "Orinoko357/PodpisPdf-wydania";
-    public const string NazwaPliku = "PodpisPdf.exe";
-    public const string NazwaSumy = "PodpisPdf.exe.sha256";
+    public const string NazwaPliku = "PodpisPdf.msi";
+    public const string NazwaSumy = "PodpisPdf.msi.sha256";
 
     public static Uri AdresNajnowszego => new($"https://api.github.com/repos/{Repozytorium}/releases/latest");
 

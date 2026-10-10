@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Instalator PodpisPdf (MSI, dla całego komputera): program w C:\Program Files\PodpisPdf, skrót w menu Start,
+  certyfikat pakietu menu Windows 11 w magazynie „Zaufane osoby” komputera.
+  Zmienne z GitHub Actions: Wersja (np. 3.1.0), Zrodlo (folder publikacji), Certyfikat (plik .cer).
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:iis="http://wixtoolset.org/schemas/v4/wxs/iis">
+  <Package Name="PodpisPdf"
+           Manufacturer="PodpisPdf"
+           Version="$(var.Wersja)"
+           UpgradeCode="7875bc60-c4ff-4080-a502-632deaa875fb"
+           Scope="perMachine"
+           Language="1045"
+           Codepage="1250">
+
+    <SummaryInformation Description="PodpisPdf — kwalifikowany podpis elektroniczny PAdES plików PDF" Manufacturer="PodpisPdf" />
+
+    <!-- Nowsza wersja zastępuje starszą; starsza nie instaluje się na nowszej. -->
+    <MajorUpgrade DowngradeErrorMessage="Zainstalowana jest nowsza wersja PodpisPdf." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="IkonaPodpisPdf" SourceFile="..\src\PodpisPdf\PodpisPdf.ico" />
+    <Property Id="ARPPRODUCTICON" Value="IkonaPodpisPdf" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/Orinoko357/PodpisPdf-wydania" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="PodpisPdf" />
+    </StandardDirectory>
+
+    <ComponentGroup Id="PlikiProgramu" Directory="INSTALLFOLDER">
+      <Files Include="$(var.Zrodlo)\**" />
+    </ComponentGroup>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="SkrotMenuStart">
+        <Shortcut Id="SkrotPodpisPdf" Name="PodpisPdf" Description="Kwalifikowany podpis elektroniczny plików PDF"
+                  Target="[INSTALLFOLDER]PodpisPdf.exe" WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKLM" Key="Software\PodpisPdf" Name="SkrotMenuStart" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <!-- Certyfikat CN=PodpisPdf — Windows ufa wtedy pakietowi menu kontekstowego Windows 11. -->
+    <Binary Id="CertyfikatPodpisPdf" SourceFile="$(var.Certyfikat)" />
+    <Component Id="CertyfikatZaufany" Directory="INSTALLFOLDER" Guid="43b07e0a-826a-410d-8eea-40fc3bddbf7f">
+      <iis:Certificate Id="CertyfikatPodpisPdfZaufany" Name="PodpisPdf" StoreLocation="localMachine" StoreName="trustedPeople"
+                       BinaryRef="CertyfikatPodpisPdf" Request="no" Overwrite="yes" />
+      <RegistryValue Root="HKLM" Key="Software\PodpisPdf" Name="Certyfikat" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <Component Id="FolderInstalacji" Directory="INSTALLFOLDER" Guid="9c1f4b2e-6a7d-4e83-b5f0-2d8e7a61c934">
+      <RegistryValue Root="HKLM" Key="Software\PodpisPdf" Name="Folder" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+    </Component>
+
+    <Feature Id="PodpisPdf" Title="PodpisPdf">
+      <ComponentGroupRef Id="PlikiProgramu" />
+      <ComponentRef Id="SkrotMenuStart" />
+      <ComponentRef Id="CertyfikatZaufany" />
+      <ComponentRef Id="FolderInstalacji" />
+    </Feature>
+  </Package>
+</Wix>
