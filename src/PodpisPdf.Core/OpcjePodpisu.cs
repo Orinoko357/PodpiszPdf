@@ -42,7 +42,7 @@ public sealed class OpcjePodpisu
     /// <summary>Stanowisko pokazywane na wizualizacji (opcjonalne).</summary>
     public string? Stanowisko { get; set; }
 
-    /// <summary>Ścieżka do logo PNG/JPG (opcjonalna).</summary>
+    /// <summary>Ścieżka do logo SVG/PDF (wektorowe) albo PNG/JPG (opcjonalna).</summary>
     public string? SciezkaLogo { get; set; }
 
     /// <summary>Położenie domyślne (z ustawień), używane gdy nie wskazano <see cref="Miejsce"/>.</summary>

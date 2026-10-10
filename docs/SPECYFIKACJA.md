@@ -67,7 +67,7 @@ Prostokąt o stałym rozmiarze (75 × 22 mm), bez ramki i z przezroczystym tłem
 | **Nagłówek „Podpisano elektronicznie przez:”** | Stały tekst na samej górze, przed imieniem i nazwiskiem | tak |
 | **Imię i nazwisko** (zawsze pogrubione) | Z certyfikatu (pola *GivenName* i *Surname*; jeśli ich brak, pole *CN*) | tak |
 | **Stanowisko** | Wpisane w ustawieniach programu; Enter wymusza podział wiersza, bez tego zawija się samo do dwóch wierszy | nie |
-| **Logo** | Plik PNG lub JPG wskazany w ustawieniach; zawsze w oryginalnej rozdzielczości, puste marginesy pomijane | nie |
+| **Logo** | Plik SVG lub PDF (wektorowe) albo PNG/JPG wskazany w ustawieniach; kopia zapisywana w folderze ustawień; grafika wektorowa pozostaje wektorowa, rastrowa w oryginalnej rozdzielczości; puste marginesy pomijane | nie |
 | **Data i godzina** | Czas złożenia podpisu bez sekund (RRRR-MM-DD GG:MM), patrz uwaga niżej | tak |
 
 Pusty element (np. brak logo) znika, a układ dopasowuje się do reszty. Czcionka obsługuje polskie znaki.
@@ -83,7 +83,7 @@ Pusty element (np. brak logo) znika, a układ dopasowuje się do reszty. Czcionk
 Zapisywane w pliku `%APPDATA%\PodpisPdf\config.json` i edytowane w oknie „Ustawienia”:
 
 - stanowisko (tekst, opcjonalny),
-- logo (ścieżka do pliku, opcjonalna),
+- logo (SVG, PDF, PNG lub JPG, opcjonalne) — kopia pliku zapisywana jako `%APPDATA%\PodpisPdf\logo.*`,
 - adres serwera znacznika czasu oraz opcjonalnie login i hasło,
 - położenie początkowe wizualizacji na podglądzie: strona (pierwsza, ostatnia albo numer), narożnik i odległość od krawędzi,
 - minimalizacja do zasobnika systemowego, pozycja „Podpisz w PodpisPdf” w menu kontekstowym plików PDF,

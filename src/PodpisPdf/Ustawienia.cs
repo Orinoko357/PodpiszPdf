@@ -108,6 +108,52 @@ internal sealed class Ustawienia
     public KlientZnacznikaCzasu UtworzKlientaTsa() =>
         KlientZnacznikaCzasu.DlaAdresu(AdresTsa, LoginTsa, HasloTsa);
 
+    /// <summary>
+    /// Zapisuje kopię logo w folderze ustawień (%APPDATA%\PodpisPdf\logo.*), żeby podpis działał także
+    /// po przeniesieniu lub usunięciu oryginalnego pliku. Zwraca ścieżkę kopii (null — bez logo).
+    /// </summary>
+    public static string? ZachowajKopieLogo(string? zrodlo)
+    {
+        Directory.CreateDirectory(Folder);
+        string? cel = null;
+        if (!string.IsNullOrWhiteSpace(zrodlo))
+        {
+            var pelna = Path.GetFullPath(zrodlo);
+            cel = Path.Combine(Folder, "logo" + Path.GetExtension(pelna).ToLowerInvariant());
+            if (!string.Equals(pelna, cel, StringComparison.OrdinalIgnoreCase))
+            {
+                var tymczasowy = cel + ".tmp";
+                File.Copy(pelna, tymczasowy, overwrite: true);
+                File.Move(tymczasowy, cel, overwrite: true);
+            }
+        }
+
+        // Poprzednie logo w innym formacie nie jest już potrzebne.
+        foreach (var stary in Directory.GetFiles(Folder, "logo.*"))
+        {
+            if (!string.Equals(stary, cel, StringComparison.OrdinalIgnoreCase))
+                File.Delete(stary);
+        }
+        return cel;
+    }
+
+    /// <summary>Ustawienia ze starszej wersji wskazywały oryginalny plik logo — przenosimy je na kopię.</summary>
+    public void PrzeniesLogoDoFolderuUstawien()
+    {
+        if (string.IsNullOrEmpty(SciezkaLogo) || !File.Exists(SciezkaLogo) ||
+            string.Equals(Path.GetDirectoryName(Path.GetFullPath(SciezkaLogo)), Folder, StringComparison.OrdinalIgnoreCase))
+            return;
+        try
+        {
+            SciezkaLogo = ZachowajKopieLogo(SciezkaLogo);
+            Zapisz();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Zostaje oryginalna ścieżka — logo nadal działa, dopóki plik istnieje.
+        }
+    }
+
     public static Icon Ikona()
     {
         using var strumien = typeof(Ustawienia).Assembly.GetManifestResourceStream("PodpisPdf.ico")!;

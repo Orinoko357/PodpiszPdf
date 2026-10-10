@@ -38,7 +38,7 @@ Okno **Ustawienia…**; zapis w `%APPDATA%\PodpisPdf\config.json`:
 | Ustawienie | Domyślnie |
 |---|---|
 | Stanowisko (na wizualizacji) | brak |
-| Logo PNG/JPG (na wizualizacji) | brak |
+| Logo SVG/PDF (wektorowe) albo PNG/JPG (na wizualizacji); kopia zapisywana w `%APPDATA%\PodpisPdf\logo.*` | brak |
 | Położenie początkowe na podglądzie: strona (pierwsza / ostatnia / numer), narożnik, odległość od krawędzi [mm] | ostatnia strona, prawy dolny róg, 15 × 15 mm |
 | Serwer znacznika czasu (TSA), login, hasło | `http://time.certum.pl`, bez logowania |
 | PAdES B-LT (dołączenie OCSP/CRL do pliku) | wyłączone |
@@ -47,7 +47,9 @@ Okno **Ustawienia…**; zapis w `%APPDATA%\PodpisPdf\config.json`:
 | „Podpisz w PodpisPdf” w menu kontekstowym plików PDF | włączone |
 
 Wizualizacja ma stały rozmiar **75 × 22 mm**, bez ramki i z przezroczystym tłem (nie zasłania formularza).
-Logo jest osadzane w oryginalnej rozdzielczości, bez stratnej kompresji; białe lub przezroczyste marginesy
+Logo wektorowe (SVG lub PDF — pierwsza strona) trafia do podpisu jako grafika wektorowa, ostra przy każdym
+powiększeniu. Napisy w SVG najlepiej zamienić na krzywe (w SVG bez osadzonych czcionek użyta zostanie czcionka zastępcza).
+Logo PNG/JPG jest osadzane w oryginalnej rozdzielczości, bez stratnej kompresji. Białe lub przezroczyste marginesy
 w pliku logo są pomijane (przycięcie w PDF, obraz pozostaje nienaruszony), więc logo zajmuje całe dostępne miejsce.
 Stanowisko można podzielić na wiersze klawiszem Enter; bez tego zawija się samo.
 
@@ -100,3 +102,15 @@ dotnet run --project tools/PodpisTestowy -- podpisz wniosek.pdf test.pfx haslo
 - iText 9 — AGPL. Użytek wewnętrzny albo udostępnienie kodu źródłowego nie stanowi problemu.
 - Docnet.Core (MIT) z silnikiem PDFium (BSD/Apache 2.0) — podgląd stron.
 - Czcionka DejaVu Sans (wbudowana, obsługa polskich znaków) — licencja Bitstream Vera, zob. `src/PodpisPdf.Core/Zasoby/DejaVu-LICENSE.txt`.
+
+## Wydania
+
+Plik `PodpisPdf.exe` do pobrania jest w zakładce **Releases** repozytorium. Nowe wydanie powstaje
+automatycznie po wypchnięciu znacznika wersji, np.:
+
+```
+git tag v1.0.0.2
+git push origin v1.0.0.2
+```
+
+Numer wersji programu ustawia się w `src/PodpisPdf/PodpisPdf.csproj` (`<Version>`).

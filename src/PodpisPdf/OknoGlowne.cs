@@ -25,8 +25,9 @@ internal sealed class OknoGlowne : Form
     public OknoGlowne(string? plikStartowy)
     {
         _ustawienia = Ustawienia.Wczytaj();
+        _ustawienia.PrzeniesLogoDoFolderuUstawien();
 
-        Text = "PodpisPdf — podpis kwalifikowany PDF";
+        Text = $"PodpisPdf {Application.ProductVersion.Split('+')[0]} — podpis kwalifikowany PDF";
         Icon = Ustawienia.Ikona();
         Font = SystemFonts.MessageBoxFont ?? Font;
         AutoScaleMode = AutoScaleMode.Font;

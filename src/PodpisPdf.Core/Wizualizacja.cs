@@ -21,6 +21,9 @@ public sealed record DaneWizualizacji(string ImieNazwisko, string? Stanowisko, s
 /// <summary>Budowa widocznej wizualizacji podpisu: imię i nazwisko, stanowisko, logo, data i godzina.</summary>
 public static class Wizualizacja
 {
+    /// <summary>Obsługiwane formaty logo: wektorowe (SVG, PDF) i rastrowe (PNG, JPG).</summary>
+    public static IReadOnlyList<string> RozszerzeniaLogo => Logo.Rozszerzenia;
+
     /// <summary>Stały rozmiar wizualizacji.</summary>
     public const float SzerokoscMm = 75;
     public const float WysokoscMm = 22;
@@ -352,14 +355,11 @@ public static class Wizualizacja
             throw new BladPodpisu($"Nie znaleziono pliku logo: {sciezka}. Popraw ścieżkę w ustawieniach lub usuń logo.");
         try
         {
-            var obraz = ImageDataFactory.Create(File.ReadAllBytes(sciezka));
-            if (obraz.GetWidth() <= 0 || obraz.GetHeight() <= 0)
-                throw new InvalidDataException("obraz o zerowym rozmiarze");
-            return Logo.Przygotuj(obraz);
+            return Logo.Wczytaj(sciezka);
         }
         catch (Exception e) when (e is not BladPodpisu)
         {
-            throw new BladPodpisu($"Nie można odczytać pliku logo ({Path.GetFileName(sciezka)}). Użyj pliku PNG lub JPG.", e);
+            throw new BladPodpisu($"Nie można odczytać pliku logo ({Path.GetFileName(sciezka)}). Użyj pliku SVG, PDF, PNG lub JPG.", e);
         }
     }
 }

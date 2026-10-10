@@ -89,11 +89,13 @@ internal sealed class OknoUstawien : Form
         przyciskLogo.Click += (_, _) => WybierzLogo();
         var przyciskBezLogo = new Button { Text = "Usuń", AutoSize = true };
         przyciskBezLogo.Click += (_, _) => _logo.Text = "";
-        Wiersz(uklad, "Logo PNG/JPG (opcjonalnie):", Poziomo(true, _logo, przyciskLogo, przyciskBezLogo));
+        Wiersz(uklad, "Logo (opcjonalnie):", Poziomo(true, _logo, przyciskLogo, przyciskBezLogo));
 
         _strona.Items.AddRange(Strony.Select(s => (object)s.Opis).ToArray());
         _strona.SelectedIndexChanged += (_, _) => _numerStrony.Enabled = Strony[_strona.SelectedIndex].Wartosc == WyborStrony.Numer;
-        Wiersz(uklad, "", Etykieta("Logo jest osadzane w oryginalnej rozdzielczości; puste marginesy są pomijane."));
+        Wiersz(uklad, "", Etykieta("Najlepiej logo wektorowe (SVG lub PDF) — ostre przy każdym powiększeniu. " +
+            "PNG/JPG są osadzane w oryginalnej rozdzielczości. Puste marginesy są pomijane, " +
+            "a kopia logo jest zapisywana razem z ustawieniami programu."));
 
         Naglowek(uklad, $"Położenie początkowe na podglądzie (rozmiar stały: {Wizualizacja.SzerokoscMm:0} × {Wizualizacja.WysokoscMm:0} mm)");
         Wiersz(uklad, "Strona:", Poziomo(false, _strona, _numerStrony));
@@ -191,12 +193,44 @@ internal sealed class OknoUstawien : Form
             _logo.Focus();
             return false;
         }
+        if (logo.Length > 0 && !Wizualizacja.RozszerzeniaLogo.Contains(Path.GetExtension(logo).ToLowerInvariant()))
+        {
+            Blad("Nieobsługiwany format logo. Użyj pliku SVG, PDF, PNG lub JPG.");
+            _logo.Focus();
+            return false;
+        }
+
+        // Sprawdzenie, czy logo da się odczytać — lepiej teraz niż przy podpisie.
+        if (logo.Length > 0)
+        {
+            try
+            {
+                Wizualizacja.PodgladPdf(new DaneWizualizacji("Test", null, logo, DateTimeOffset.Now));
+            }
+            catch (Exception e)
+            {
+                Blad(KomunikatyBledow.Opisz(e));
+                _logo.Focus();
+                return false;
+            }
+        }
+
+        string? kopiaLogo;
+        try
+        {
+            kopiaLogo = Ustawienia.ZachowajKopieLogo(logo.Length == 0 ? null : logo);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Blad($"Nie udało się zapisać kopii logo w folderze ustawień ({Ustawienia.Folder}).\n\n{e.Message}");
+            return false;
+        }
 
         var u = Ustawienia;
         var wiersze = _stanowisko.Text.Replace("\r\n", "\n").Split('\n').Select(w => w.Trim()).Where(w => w.Length > 0);
         var stanowisko = string.Join("\n", wiersze);
         u.Stanowisko = stanowisko.Length == 0 ? null : stanowisko;
-        u.SciezkaLogo = logo.Length == 0 ? null : logo;
+        u.SciezkaLogo = kopiaLogo;
         u.AdresTsa = adres;
         u.LoginTsa = string.IsNullOrWhiteSpace(_loginTsa.Text) ? null : _loginTsa.Text.Trim();
         u.HasloTsa = _hasloTsa.Text;
@@ -219,7 +253,8 @@ internal sealed class OknoUstawien : Form
     {
         using var dialog = new OpenFileDialog
         {
-            Filter = "Obrazy (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg",
+            Filter = "Logo (*.svg;*.pdf;*.png;*.jpg;*.jpeg)|*.svg;*.pdf;*.png;*.jpg;*.jpeg|" +
+                     "Wektorowe (*.svg;*.pdf)|*.svg;*.pdf|Obrazy (*.png;*.jpg;*.jpeg)|*.png;*.jpg;*.jpeg",
             Title = "Wybierz logo",
         };
         if (dialog.ShowDialog(this) == DialogResult.OK)
