@@ -17,6 +17,11 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      # Sekrety repozytorium (opcjonalne — bez nich program buduje się, ale bez pakietu menu Windows 11
+      # i bez publikacji w repozytorium wydań, z którego program pobiera aktualizacje).
+      CERTYFIKAT_PFX: ${{ secrets.CERTYFIKAT_PFX }}
+      TOKEN_WYDANIA: ${{ secrets.TOKEN_WYDANIA }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,6 +34,36 @@ jobs:
       # --blame: przy awarii procesu testów pokazuje, który test był wtedy wykonywany.
       - name: Testy
         run: dotnet test tests/PodpisPdf.Tests -c Release --blame
+
+      # Pakiet „z zawartością zewnętrzną” dla nowego menu kontekstowego Windows 11, podpisany certyfikatem
+      # CN=PodpisPdf (sekret CERTYFIKAT_PFX). Bez sekretu: certyfikat tymczasowy — pakiet tylko do testu
+      # poniżej, nie trafia do PodpisPdf.exe.
+      - name: Pakiet menu Windows 11
+        shell: pwsh
+        run: |
+          $wersja = ([xml](Get-Content src/PodpisPdf/PodpisPdf.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          $bin = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.*\x64\makeappx.exe" | Sort-Object FullName -Descending | Select-Object -First 1).DirectoryName
+          "Wersja pakietu: $wersja, narzędzia: $bin"
+          New-Item -ItemType Directory -Force pakiet/budowa, pakiet/wynik | Out-Null
+          Copy-Item pakiet/Assets pakiet/budowa -Recurse -Force
+          (Get-Content pakiet/AppxManifest.xml -Raw).Replace('WERSJA', $wersja) | Set-Content pakiet/budowa/AppxManifest.xml -Encoding utf8
+          & "$bin\makeappx.exe" pack /d pakiet/budowa /p pakiet/wynik/PodpisPdf.msix /nv /o
+          if ($LASTEXITCODE -ne 0) { throw "makeappx: $LASTEXITCODE" }
+          $haslo = 'PodpisPdf'
+          if ($env:CERTYFIKAT_PFX) {
+            [IO.File]::WriteAllBytes("$PWD/pakiet/cert.pfx", [Convert]::FromBase64String($env:CERTYFIKAT_PFX))
+          } else {
+            "::warning::Brak sekretu CERTYFIKAT_PFX — pakiet menu Windows 11 podpisany certyfikatem tymczasowym, tylko do testu."
+            $c = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=PodpisPdf' -CertStoreLocation Cert:\CurrentUser\My -KeyExportPolicy Exportable
+            Export-PfxCertificate -Cert $c -FilePath pakiet/cert.pfx -Password (ConvertTo-SecureString $haslo -AsPlainText -Force) | Out-Null
+          }
+          & "$bin\signtool.exe" sign /fd SHA256 /f pakiet/cert.pfx /p $haslo pakiet/wynik/PodpisPdf.msix
+          if ($LASTEXITCODE -ne 0) { throw "signtool: $LASTEXITCODE" }
+          $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new("$PWD/pakiet/cert.pfx", $haslo)
+          [IO.File]::WriteAllBytes("$PWD/pakiet/wynik/PodpisPdf.cer", $cert.Export('Cert'))
+          "Certyfikat: $($cert.Subject), odcisk $($cert.Thumbprint), ważny do $($cert.NotAfter)"
+          Remove-Item pakiet/cert.pfx
+          if (-not $env:CERTYFIKAT_PFX) { Move-Item pakiet/wynik pakiet/test }
 
       - name: Publikacja PodpisPdf.exe
         run: dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64 -o publish
@@ -50,6 +85,30 @@ jobs:
             "Uruchomienie $proba`: $([math]::Round($czas.TotalSeconds, 2)) s"
           }
           "Rozmiar: $([math]::Round((Get-Item publish/PodpisPdf.exe).Length / 1MB, 1)) MB"
+
+      # Rejestracja pakietu z PodpisPdf.exe w osobnym folderze (jak %APPDATA%\PodpisPdf): start programu
+      # z tożsamością pakietu i aktywacja serwera COM polecenia menu (tak robi to Eksplorator Windows 11).
+      - name: Test pakietu menu Windows 11
+        shell: pwsh
+        run: |
+          $folder = Join-Path $env:RUNNER_TEMP 'PodpisPdf-pakiet'
+          New-Item -ItemType Directory -Force $folder | Out-Null
+          Copy-Item publish/PodpisPdf.exe $folder
+          $zrodlo = if (Test-Path pakiet/wynik/PodpisPdf.msix) { 'pakiet/wynik' } else { 'pakiet/test' }
+          certutil -addstore TrustedPeople "$zrodlo/PodpisPdf.cer" | Out-Null
+          Add-AppxPackage -Path "$zrodlo/PodpisPdf.msix" -ExternalLocation $folder
+          Get-AppxPackage PodpisPdf | Format-List Name, Version, PackageFullName
+          Remove-Item "$env:TEMP/PodpisPdf-sprawdz.txt" -ErrorAction SilentlyContinue
+          $p = Start-Process "$folder/PodpisPdf.exe" -ArgumentList '--sprawdz' -PassThru
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "Start z tożsamością pakietu: brak zakończenia" }
+          Get-Content "$env:TEMP/PodpisPdf-sprawdz.txt" -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) { Get-Content "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue; throw "Start z tożsamością pakietu: kod $($p.ExitCode)" }
+          $obiekt = [Activator]::CreateInstance([Type]::GetTypeFromCLSID([Guid]'6E2F4C3A-8B1D-4F5E-9A7C-2D3B4E5F6A71'))
+          if ($null -eq $obiekt) { throw "Serwer COM menu nie odpowiada" }
+          "Serwer COM menu Windows 11: działa"
+          [Runtime.InteropServices.Marshal]::ReleaseComObject($obiekt) | Out-Null
+          Get-Process PodpisPdf -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-AppxPackage PodpisPdf | Remove-AppxPackage
 
       - name: Zrzuty ekranu (jasny i ciemny motyw)
         shell: pwsh
@@ -84,10 +143,19 @@ jobs:
           name: Zrzuty-ekranu
           path: zrzuty/*.png
 
+      - name: Suma kontrolna SHA-256
+        shell: pwsh
+        run: |
+          $suma = (Get-FileHash publish/PodpisPdf.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content publish/PodpisPdf.exe.sha256 "$suma  PodpisPdf.exe" -NoNewline -Encoding ascii
+          "SHA-256: $suma"
+
       - uses: actions/upload-artifact@v4
         with:
           name: PodpisPdf
-          path: publish/PodpisPdf.exe
+          path: |
+            publish/PodpisPdf.exe
+            publish/PodpisPdf.exe.sha256
 
       # Wydanie (Release) z plikiem PodpisPdf.exe: po wypchnięciu znacznika vX.Y.Z.W
       # albo po ręcznym uruchomieniu workflow z podanym numerem wersji (znacznik powstaje wtedy automatycznie).
@@ -98,5 +166,30 @@ jobs:
           tag_name: ${{ inputs.wersja != '' && format('v{0}', inputs.wersja) || github.ref_name }}
           target_commitish: ${{ github.sha }}
           name: PodpisPdf ${{ inputs.wersja != '' && format('v{0}', inputs.wersja) || github.ref_name }}
-          files: publish/PodpisPdf.exe
+          files: |
+            publish/PodpisPdf.exe
+            publish/PodpisPdf.exe.sha256
+            pakiet/wynik/PodpisPdf.cer
+          fail_on_unmatched_files: false
           generate_release_notes: true
+
+      # Publiczne repozytorium wydań — stąd program pobiera aktualizacje (sekret TOKEN_WYDANIA:
+      # token z prawem zapisu do Orinoko357/PodpisPdf-wydania).
+      - name: Wydanie w repozytorium aktualizacji
+        if: (startsWith(github.ref, 'refs/tags/v') || inputs.wersja != '') && env.TOKEN_WYDANIA != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: Orinoko357/PodpisPdf-wydania
+          token: ${{ secrets.TOKEN_WYDANIA }}
+          tag_name: ${{ inputs.wersja != '' && format('v{0}', inputs.wersja) || github.ref_name }}
+          name: PodpisPdf ${{ inputs.wersja != '' && format('v{0}', inputs.wersja) || github.ref_name }}
+          body: |
+            Kwalifikowany podpis elektroniczny PAdES plików PDF. Pobierz **PodpisPdf.exe** i uruchom
+            (Windows 10/11, 64-bit). Zainstalowany program aktualizuje się sam.
+
+            Certyfikat **PodpisPdf.cer** jest potrzebny tylko do pozycji w nowym menu kontekstowym Windows 11.
+          files: |
+            publish/PodpisPdf.exe
+            publish/PodpisPdf.exe.sha256
+            pakiet/wynik/PodpisPdf.cer
+          fail_on_unmatched_files: false

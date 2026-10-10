@@ -6,6 +6,9 @@ using PodpisPdf.Core;
 
 namespace PodpisPdf;
 
+/// <summary>Działanie po otwarciu pliku PDF dwuklikiem.</summary>
+internal enum PoOtwarciuPdf { Pytaj, Podpisz, Przegladaj }
+
 /// <summary>Ustawienia programu zapisywane w %APPDATA%\PodpisPdf\config.json.</summary>
 internal sealed class Ustawienia
 {
@@ -44,6 +47,20 @@ internal sealed class Ustawienia
 
     /// <summary>Odcisk (thumbprint) ostatnio użytego certyfikatu.</summary>
     public string? OstatniCertyfikat { get; set; }
+
+    /// <summary>Co zrobić z plikiem PDF otwartym dwuklikiem (gdy PodpisPdf jest domyślną aplikacją).</summary>
+    public PoOtwarciuPdf PoOtwarciuPdf { get; set; } = PoOtwarciuPdf.Pytaj;
+
+    /// <summary>Aplikacja, która otwierała pliki PDF przed PodpisPdf (do przeglądania, gdy nie ma Acrobata).</summary>
+    public string? PoprzedniaAplikacjaPdf { get; set; }
+
+    /// <summary>Codzienne sprawdzanie, czy jest nowsza wersja programu.</summary>
+    public bool SprawdzajAktualizacje { get; set; } = true;
+
+    public DateTimeOffset? OstatnieSprawdzenieAktualizacji { get; set; }
+
+    /// <summary>Pozycja w nowym menu kontekstowym Windows 11 (pakiet z tożsamością).</summary>
+    public bool MenuWindows11 { get; set; }
 
     public static string Folder =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PodpisPdf");

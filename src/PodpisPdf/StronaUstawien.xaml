@@ -180,6 +180,32 @@
                                 </ctk:SettingsCard.HeaderIcon>
                                 <ToggleSwitch x:Name="MenuKontekstowe" OnContent="Włączone" OffContent="Wyłączone" />
                             </ctk:SettingsCard>
+                            <ctk:SettingsCard x:Name="KartaMenu11" Header="Nowe menu kontekstowe Windows 11">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE7C4;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ProgressRing x:Name="PostepMenu11" IsActive="False" Width="18" Height="18" />
+                                    <Button x:Name="PrzyciskCertyfikatu" Content="Zainstaluj certyfikat…" Click="PrzyInstalacjiCertyfikatu" Visibility="Collapsed" />
+                                    <Button x:Name="PrzyciskMenu11" Content="Dodaj do menu" Click="PrzyMenu11" />
+                                </StackPanel>
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard x:Name="KartaDomyslnej" Header="Domyślna aplikacja dla plików PDF">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE7C3;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <Button x:Name="PrzyciskDomyslnej" Content="Ustaw jako domyślną…" Click="PrzyUstawieniuDomyslnej" />
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard Header="Po otwarciu pliku PDF" Description="Gdy PodpisPdf jest domyślną aplikacją: zapytać, czy od razu podpisać lub otworzyć do przeglądania">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE8E5;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <ComboBox x:Name="ListaPoOtwarciu" Width="230">
+                                    <x:String>Pytaj: podpisz czy przeglądaj</x:String>
+                                    <x:String>Zawsze podpisuj</x:String>
+                                    <x:String>Zawsze otwieraj do przeglądania</x:String>
+                                </ComboBox>
+                            </ctk:SettingsCard>
                             <ctk:SettingsCard Header="Przyrostek nazwy podpisanego pliku" Description="Np. wniosek.pdf → wniosek_podpisany.pdf; oryginał zostaje bez zmian">
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE8AC;" />
@@ -194,6 +220,21 @@
                                 <ctk:SettingsCard.HeaderIcon>
                                     <BitmapIcon x:Name="IkonaProgramu" ShowAsMonochrome="False" />
                                 </ctk:SettingsCard.HeaderIcon>
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard x:Name="KartaAktualizacji" Header="Aktualizacje">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE895;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <ProgressRing x:Name="PostepAktualizacji" IsActive="False" Width="18" Height="18" />
+                                    <Button x:Name="PrzyciskSprawdzenia" Content="Sprawdź teraz" Click="PrzySprawdzeniuAktualizacji" />
+                                </StackPanel>
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard Header="Sprawdzaj aktualizacje automatycznie" Description="Raz dziennie; o nowej wersji program poinformuje, zainstaluje ją po kliknięciu">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE823;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <ToggleSwitch x:Name="SprawdzajAktualizacje" OnContent="Włączone" OffContent="Wyłączone" />
                             </ctk:SettingsCard>
                             <ctk:SettingsCard x:Name="KartaFolderu" Header="Ustawienia i kopia programu">
                                 <ctk:SettingsCard.HeaderIcon>

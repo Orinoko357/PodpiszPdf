@@ -25,6 +25,7 @@ public sealed partial class StronaUstawien : Page
         KartaMenuKontekstowego.Description = $"„{PodpisPdf.MenuKontekstowe.Etykieta}” pod prawym przyciskiem myszy";
         KartaWersji.Header = $"PodpisPdf {Instalacja.BiezacaWersja.ToString(3)}";
         KartaFolderu.Description = Ustawienia.Folder;
+        KartaAktualizacji.Description = $"Nowe wersje z {Aktualizacje.StronaWydan}";
         var ikona = Path.Combine(AppContext.BaseDirectory, "PodpisPdf.ico");
         if (File.Exists(ikona))
             IkonaProgramu.UriSource = new Uri(ikona);
@@ -92,6 +93,9 @@ public sealed partial class StronaUstawien : Page
         Zasobnik.IsOn = u.MinimalizujDoZasobnika;
         Autostart.IsOn = u.Autostart;
         MenuKontekstowe.IsOn = u.MenuKontekstowe;
+        ListaPoOtwarciu.SelectedIndex = (int)u.PoOtwarciuPdf;
+        SprawdzajAktualizacje.IsOn = u.SprawdzajAktualizacje;
+        OdswiezStanIntegracji();
         OdswiezLogo();
     }
 
@@ -214,6 +218,151 @@ public sealed partial class StronaUstawien : Page
         }
     }
 
+    // ---- Integracja z Windows: aplikacja domyślna, menu Windows 11, aktualizacje ----
+
+    /// <summary>Opisy i przyciski zgodnie z bieżącym stanem systemu.</summary>
+    private void OdswiezStanIntegracji()
+    {
+        KartaDomyslnej.Description = DomyslnaAplikacja.JestDomyslna
+            ? "PodpisPdf otwiera pliki PDF. Zmienisz to w Ustawieniach Windows → Aplikacje domyślne."
+            : "Pliki PDF otwierane dwuklikiem trafią do PodpisPdf, a ten zapyta: podpisać czy przeglądać (w Adobe Acrobat Reader)";
+        PrzyciskDomyslnej.Content = DomyslnaAplikacja.JestDomyslna ? "Ustawienia Windows…" : "Ustaw jako domyślną…";
+
+        PrzyciskCertyfikatu.Visibility = Visibility.Collapsed;
+        if (!MenuWindows11.JestWindows11)
+        {
+            KartaMenu11.Description = "Dostępne tylko w Windows 11. W Windows 10 działa zwykłe menu kontekstowe.";
+            PrzyciskMenu11.IsEnabled = false;
+            return;
+        }
+        if (!MenuWindows11.MaPakiet)
+        {
+            KartaMenu11.Description = "Ta kopia programu nie zawiera podpisanego pakietu menu (pobierz wydanie z GitHub).";
+            PrzyciskMenu11.IsEnabled = false;
+            return;
+        }
+        var zarejestrowana = MenuWindows11.ZarejestrowanaWersja() != null;
+        var zaufany = MenuWindows11.CertyfikatZaufany();
+        KartaMenu11.Description = zarejestrowana
+            ? $"„{PodpisPdf.MenuKontekstowe.Etykieta}” jest w menu Windows 11 (bez „Pokaż więcej opcji”)"
+            : zaufany
+                ? $"Dodaje „{PodpisPdf.MenuKontekstowe.Etykieta}” bezpośrednio do menu Windows 11"
+                : "Wymaga jednorazowej instalacji certyfikatu PodpisPdf na komputerze (uprawnienia administratora)";
+        PrzyciskCertyfikatu.Visibility = !zarejestrowana && !zaufany ? Visibility.Visible : Visibility.Collapsed;
+        PrzyciskMenu11.Content = zarejestrowana ? "Usuń z menu" : "Dodaj do menu";
+        PrzyciskMenu11.IsEnabled = zarejestrowana || zaufany;
+    }
+
+    private async void PrzyUstawieniuDomyslnej(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!Okno.TrybTestowy)
+            {
+                DomyslnaAplikacja.Zarejestruj(Okno.Ustawienia);
+                _ustawienia.PoprzedniaAplikacjaPdf = Okno.Ustawienia.PoprzedniaAplikacjaPdf;
+                Okno.Ustawienia.Zapisz();
+            }
+            if (!DomyslnaAplikacja.JestDomyslna)
+            {
+                await Dialogi.PokazAsync(XamlRoot, "Wybierz PodpisPdf w Ustawieniach Windows",
+                    "Windows nie pozwala programom samodzielnie zostać aplikacją domyślną.\n\n" +
+                    "W oknie, które się otworzy, kliknij pozycję „.pdf” i wybierz „PodpisPdf”.");
+            }
+            DomyslnaAplikacja.OtworzUstawieniaWindows();
+        }
+        catch (Exception ex)
+        {
+            await Dialogi.BladAsync(XamlRoot, "Nie udało się zarejestrować PodpisPdf jako aplikacji do PDF.\n\n" + KomunikatyBledow.Opisz(ex));
+        }
+    }
+
+    private async void PrzyInstalacjiCertyfikatu(object sender, RoutedEventArgs e)
+    {
+        PostepMenu11.IsActive = true;
+        try
+        {
+            var zainstalowano = await Task.Run(MenuWindows11.ZainstalujCertyfikat);
+            if (!zainstalowano)
+                await Dialogi.BladAsync(XamlRoot, "Certyfikat nie został zainstalowany (wymaga zgody administratora).");
+        }
+        catch (Exception ex)
+        {
+            await Dialogi.BladAsync(XamlRoot, KomunikatyBledow.Opisz(ex));
+        }
+        finally
+        {
+            PostepMenu11.IsActive = false;
+            OdswiezStanIntegracji();
+        }
+    }
+
+    private async void PrzyMenu11(object sender, RoutedEventArgs e)
+    {
+        var dodaj = MenuWindows11.ZarejestrowanaWersja() == null;
+        PostepMenu11.IsActive = true;
+        PrzyciskMenu11.IsEnabled = false;
+        try
+        {
+            if (dodaj)
+                await MenuWindows11.ZarejestrujAsync();
+            else
+                await MenuWindows11.WyrejestrujAsync();
+            // Zmiana działa od razu — zapisujemy ją niezależnie od przycisku „Zapisz”.
+            _ustawienia.MenuWindows11 = dodaj;
+            Okno.Ustawienia.MenuWindows11 = dodaj;
+            Okno.Ustawienia.Zapisz();
+            if (dodaj)
+                await Dialogi.PokazAsync(XamlRoot, "Gotowe",
+                    $"„{PodpisPdf.MenuKontekstowe.Etykieta}” pojawi się w menu kontekstowym plików PDF. " +
+                    "Jeśli jeszcze go nie widać, zamknij i otwórz ponownie okno Eksploratora.");
+        }
+        catch (Exception ex)
+        {
+            await Dialogi.BladAsync(XamlRoot, ex is InvalidOperationException ? ex.Message : KomunikatyBledow.Opisz(ex));
+        }
+        finally
+        {
+            PostepMenu11.IsActive = false;
+            OdswiezStanIntegracji();
+        }
+    }
+
+    private async void PrzySprawdzeniuAktualizacji(object sender, RoutedEventArgs e)
+    {
+        PrzyciskSprawdzenia.IsEnabled = false;
+        PostepAktualizacji.IsActive = true;
+        try
+        {
+            var aktualizacja = await AktualizacjaProgramu.SprawdzAsync();
+            if (aktualizacja == null)
+            {
+                KartaAktualizacji.Description = $"Masz najnowszą wersję ({Instalacja.BiezacaWersja.ToString(3)}). Sprawdzono {DateTime.Now:HH:mm}.";
+                return;
+            }
+            var odpowiedz = await Dialogi.PokazAsync(XamlRoot, $"Dostępna wersja {aktualizacja.Wersja}",
+                $"Masz wersję {Instalacja.BiezacaWersja}. Zaktualizować teraz? Program uruchomi się ponownie." +
+                (string.IsNullOrWhiteSpace(aktualizacja.Opis) ? "" : "\n\n" + aktualizacja.Opis.Trim()),
+                "Później", "Zaktualizuj");
+            var glowna = Okno.StronaGlowna;
+            glowna?.PokazAktualizacje(aktualizacja);
+            if (odpowiedz == ContentDialogResult.Primary && glowna != null)
+            {
+                Wroc();
+                glowna.ZainstalujAktualizacje(aktualizacja);
+            }
+        }
+        catch (Exception ex)
+        {
+            KartaAktualizacji.Description = "Nie udało się sprawdzić aktualizacji: " + KomunikatyBledow.Opisz(ex);
+        }
+        finally
+        {
+            PrzyciskSprawdzenia.IsEnabled = true;
+            PostepAktualizacji.IsActive = false;
+        }
+    }
+
     // ---- Zapis ----
 
     private void PrzyAnulowaniu(object sender, RoutedEventArgs e) => Wroc();
@@ -309,6 +458,8 @@ public sealed partial class StronaUstawien : Page
         u.MinimalizujDoZasobnika = Zasobnik.IsOn;
         u.Autostart = Autostart.IsOn;
         u.MenuKontekstowe = MenuKontekstowe.IsOn;
+        u.PoOtwarciuPdf = (PoOtwarciuPdf)Math.Max(0, ListaPoOtwarciu.SelectedIndex);
+        u.SprawdzajAktualizacje = SprawdzajAktualizacje.IsOn;
         return true;
     }
 }

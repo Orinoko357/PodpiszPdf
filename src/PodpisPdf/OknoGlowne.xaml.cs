@@ -228,6 +228,21 @@ public sealed partial class OknoGlowne : Window
         _zasobnik.ForceCreate(enablesEfficiencyMode: false);
     }
 
+    /// <summary>Powiadomienie z ikony w zasobniku, gdy okno jest ukryte.</summary>
+    internal void Powiadom(string tytul, string tresc)
+    {
+        if (_zasobnik == null || AppWindow.IsVisible)
+            return;
+        try
+        {
+            _zasobnik.ShowNotification(tytul, tresc);
+        }
+        catch (Exception)
+        {
+            // Powiadomienia mogą być wyłączone w Windows.
+        }
+    }
+
     /// <summary>Ikona w zasobniku zgodnie z ustawieniami (po ich zmianie).</summary>
     internal void OdswiezZasobnik()
     {

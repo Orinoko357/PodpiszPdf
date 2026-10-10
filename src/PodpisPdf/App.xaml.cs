@@ -37,6 +37,9 @@ public partial class App : Application
                     Okno.Activate();
                     await Task.Delay(1500);
                     Rozgrzewka.Wykonaj(zglaszajBledy: true);
+                    File.WriteAllText(Path.Combine(Path.GetTempPath(), "PodpisPdf-sprawdz.txt"),
+                        $"PodpisPdf {Instalacja.BiezacaWersja}, tożsamość pakietu: {Win32.NazwaPakietu() ?? "brak"}, " +
+                        $"pakiet menu w programie: {(MenuWindows11.MaPakiet ? "tak" : "nie")}");
                     Okno.ZamknijProgram();
                     return;
 

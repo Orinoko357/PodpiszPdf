@@ -16,7 +16,7 @@
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <Product>PodpisPdf</Product>
-    <Version>2.0.0.1</Version>
+    <Version>3.0.0.0</Version>
     <Description>Kwalifikowany podpis elektroniczny PAdES dla plików PDF</Description>
 
     <!-- Aplikacja bez pakietu MSIX, z własnym środowiskiem Windows App SDK (nie wymaga instalacji). -->
@@ -40,6 +40,12 @@
 
   <ItemGroup>
     <Content Include="PodpisPdf.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Podpisany pakiet menu Windows 11 i jego certyfikat — tworzone w GitHub Actions (katalog pakiet/). -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\pakiet\wynik\PodpisPdf.msix" LogicalName="PodpisPdf.msix" Condition="Exists('..\..\pakiet\wynik\PodpisPdf.msix')" />
+    <EmbeddedResource Include="..\..\pakiet\wynik\PodpisPdf.cer" LogicalName="PodpisPdf.cer" Condition="Exists('..\..\pakiet\wynik\PodpisPdf.cer')" />
   </ItemGroup>
 
   <ItemGroup>

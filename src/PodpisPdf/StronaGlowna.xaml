@@ -121,7 +121,14 @@
                 </Grid>
             </Border>
 
-            <InfoBar x:Name="Informacja" Grid.Row="3" IsOpen="True" IsClosable="False" Severity="Informational" />
+            <StackPanel Grid.Row="3" Spacing="8">
+                <InfoBar x:Name="Aktualizacja" IsOpen="False" IsClosable="True" Severity="Success" Title="Dostępna nowa wersja">
+                    <InfoBar.ActionButton>
+                        <Button x:Name="PrzyciskAktualizacji" Content="Zaktualizuj teraz" Click="PrzyAktualizacji" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+                <InfoBar x:Name="Informacja" IsOpen="True" IsClosable="False" Severity="Informational" />
+            </StackPanel>
         </Grid>
 
         <!-- Stopka -->

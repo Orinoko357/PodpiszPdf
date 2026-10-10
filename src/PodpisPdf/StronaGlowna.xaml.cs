@@ -65,10 +65,22 @@ public sealed partial class StronaGlowna : Page
         _zainicjalizowano = true;
 
         var ustawienia = Ustawienia;
-        var instalacja = Task.Run(() =>
+        var instalacja = Task.Run(async () =>
         {
             var komunikat = OdswiezInstalacje(ustawienia);
             OdswiezMenuKontekstowe(ustawienia);
+            AktualizacjaProgramu.UsunPoprzedniaWersje();
+            try
+            {
+                // Program przeniesiony lub zaktualizowany: wpisy w rejestrze i pakiet muszą wskazywać na ten plik.
+                if (DomyslnaAplikacja.JestZarejestrowana && !DomyslnaAplikacja.JestAktualna)
+                    DomyslnaAplikacja.Zarejestruj(ustawienia);
+                await MenuWindows11.OdswiezAsync(ustawienia);
+            }
+            catch (Exception e)
+            {
+                App.Zapisz(e); // nie przerywa startu — szczegóły w %TEMP%\PodpisPdf-blad.txt
+            }
             return komunikat;
         });
 
@@ -76,6 +88,8 @@ public sealed partial class StronaGlowna : Page
         PrzetworzZlecenia();
 
         var komunikat = await instalacja;
+        if (Program.PoAktualizacji)
+            komunikat = $"Zaktualizowano PodpisPdf do wersji {Instalacja.BiezacaWersja}.";
         if (komunikat != null && !_trwaPodpisywanie)
             UstawStatus(komunikat);
 
@@ -85,6 +99,87 @@ public sealed partial class StronaGlowna : Page
             Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
             Rozgrzewka.Wykonaj();
         });
+
+        // Aktualizacje: przy starcie (najwyżej raz na dobę) i co kilka godzin, gdy program czeka w zasobniku.
+        await SprawdzAktualizacjeAutomatycznie();
+        var zegar = DispatcherQueue.CreateTimer();
+        zegar.Interval = TimeSpan.FromHours(6);
+        zegar.Tick += async (_, _) => await SprawdzAktualizacjeAutomatycznie();
+        zegar.Start();
+    }
+
+    // ---- Aktualizacje ----
+
+    private DostepnaAktualizacja? _aktualizacja;
+
+    private async Task SprawdzAktualizacjeAutomatycznie()
+    {
+        var u = Ustawienia;
+        if (!u.SprawdzajAktualizacje || Okno.TrybTestowy)
+            return;
+        if (u.OstatnieSprawdzenieAktualizacji is { } ostatnie && DateTimeOffset.Now - ostatnie < TimeSpan.FromHours(20))
+            return;
+        try
+        {
+            var aktualizacja = await AktualizacjaProgramu.SprawdzAsync();
+            u.OstatnieSprawdzenieAktualizacji = DateTimeOffset.Now;
+            ZapiszCicho(u);
+            if (aktualizacja != null)
+            {
+                PokazAktualizacje(aktualizacja);
+                Okno.Powiadom($"Dostępna nowa wersja PodpisPdf {aktualizacja.Wersja}",
+                    "Otwórz program, aby zaktualizować go jednym kliknięciem.");
+            }
+        }
+        catch (Exception)
+        {
+            // Brak sieci lub serwera — spróbujemy przy następnej okazji.
+        }
+    }
+
+    /// <summary>Pasek z informacją o nowej wersji i przyciskiem aktualizacji.</summary>
+    internal void PokazAktualizacje(DostepnaAktualizacja aktualizacja)
+    {
+        _aktualizacja = aktualizacja;
+        Aktualizacja.Title = $"Dostępna nowa wersja {aktualizacja.Wersja}";
+        Aktualizacja.Message = $"Masz wersję {Instalacja.BiezacaWersja}. Aktualizacja zajmie chwilę, program uruchomi się ponownie.";
+        PrzyciskAktualizacji.IsEnabled = true;
+        Aktualizacja.IsOpen = true;
+    }
+
+    private void PrzyAktualizacji(object sender, RoutedEventArgs e)
+    {
+        if (_aktualizacja != null)
+            ZainstalujAktualizacje(_aktualizacja);
+    }
+
+    /// <summary>Pobiera i instaluje nową wersję, potem uruchamia ją w miejsce tej kopii.</summary>
+    internal async void ZainstalujAktualizacje(DostepnaAktualizacja aktualizacja)
+    {
+        if (_trwaPodpisywanie)
+        {
+            await Dialogi.PokazAsync(XamlRoot, "Trwa podpisywanie", "Dokończ podpisywanie i spróbuj ponownie.");
+            return;
+        }
+        UstawTrwaPodpisywanie(true);
+        PrzyciskAktualizacji.IsEnabled = false;
+        try
+        {
+            var postep = new Progress<double>(p => UstawStatus($"Pobieranie wersji {aktualizacja.Wersja}… {p:P0}"));
+            UstawStatus($"Pobieranie wersji {aktualizacja.Wersja}…");
+            await AktualizacjaProgramu.PobierzIZainstalujAsync(aktualizacja, postep);
+            UstawStatus("Uruchamianie nowej wersji…");
+            AktualizacjaProgramu.UruchomNowaWersje();
+            Okno.ZamknijProgram();
+        }
+        catch (Exception ex)
+        {
+            UstawTrwaPodpisywanie(false);
+            PrzyciskAktualizacji.IsEnabled = true;
+            UstawStatus("Nie udało się zaktualizować programu.");
+            await Dialogi.BladAsync(XamlRoot, "Nie udało się zaktualizować programu.\n\n" + KomunikatyBledow.Opisz(ex) +
+                $"\n\nNową wersję można też pobrać ręcznie: {Aktualizacje.StronaWydan}");
+        }
     }
 
     /// <summary>Zrzuty ekranu i test uruchomienia: przykładowy plik i certyfikaty zamiast prawdziwych.</summary>
@@ -173,6 +268,9 @@ public sealed partial class StronaGlowna : Page
     internal async void PoZmianieUstawien(Ustawienia nowe)
     {
         nowe.OstatniCertyfikat = Ustawienia.OstatniCertyfikat;
+        nowe.OstatnieSprawdzenieAktualizacji = Ustawienia.OstatnieSprawdzenieAktualizacji;
+        nowe.PoprzedniaAplikacjaPdf = Ustawienia.PoprzedniaAplikacjaPdf;
+        nowe.MenuWindows11 = Ustawienia.MenuWindows11;
         nowe.SkalaPodpisu = Ustawienia.SkalaPodpisu;
         Okno.Ustawienia = nowe;
         OdswiezInformacje();

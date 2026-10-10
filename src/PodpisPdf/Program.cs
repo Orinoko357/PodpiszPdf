@@ -14,13 +14,27 @@ public static class Program
     internal static string? FolderZrzutow { get; private set; }
     internal static JednaInstancja? Instancja { get; private set; }
 
+    public const string ParametrPoAktualizacji = "--po-aktualizacji";
+
+    /// <summary>Program uruchomiony przez nową wersję po aktualizacji (do komunikatu na pasku stanu).</summary>
+    internal static bool PoAktualizacji { get; private set; }
+
     [STAThread]
     private static int Main(string[] args)
     {
+        // Serwer COM dla nowego menu kontekstowego Windows 11 — bez interfejsu i bez blokady jednej kopii.
+        if (args.Any(a => string.Equals(a, SerwerMenu.ParametrSerwera, StringComparison.OrdinalIgnoreCase)))
+            return SerwerMenu.Uruchom();
+
         WinRT.ComWrappersSupport.InitializeComWrappers();
 
         Autostart = args.Any(a => string.Equals(a, Instalacja.ParametrAutostartu, StringComparison.OrdinalIgnoreCase));
+        PoAktualizacji = args.Contains(ParametrPoAktualizacji);
         PlikStartowy = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal));
+
+        // Dwuklik pliku PDF (PodpisPdf jako aplikacja domyślna): podpisać czy przejrzeć?
+        if (args.Contains(DomyslnaAplikacja.ParametrOtwarcia) && PlikStartowy != null && !CzyPodpisac(PlikStartowy))
+            return 0;
         if (args.Contains("--sprawdz"))
         {
             Tryb = TrybUruchomienia.Sprawdzenie;
@@ -35,7 +49,9 @@ public static class Program
 
         if (Tryb == TrybUruchomienia.Normalny)
         {
-            Instancja = JednaInstancja.Przejmij() ?? ObsluzDzialajacaKopie(PlikStartowy, Autostart);
+            // Po aktualizacji poprzednia wersja właśnie się zamyka — czekamy, aż zwolni blokadę.
+            Instancja = JednaInstancja.Przejmij(PoAktualizacji ? TimeSpan.FromSeconds(30) : default)
+                        ?? ObsluzDzialajacaKopie(PlikStartowy, Autostart);
             if (Instancja == null)
                 return 0;
         }
@@ -54,6 +70,33 @@ public static class Program
             Instancja?.Dispose();
         }
         return Environment.ExitCode;
+    }
+
+    /// <summary>
+    /// Wybór po otwarciu pliku PDF: zgodnie z ustawieniem albo w oknie „Podpisz / Przeglądaj”.
+    /// Zwraca true, gdy plik ma trafić do podpisu.
+    /// </summary>
+    private static bool CzyPodpisac(string plik)
+    {
+        var ustawienia = Ustawienia.Wczytaj();
+        var wybor = ustawienia.PoOtwarciuPdf switch
+        {
+            PoOtwarciuPdf.Podpisz => Win32.WyborOtwarcia.Podpisz,
+            PoOtwarciuPdf.Przegladaj => Win32.WyborOtwarcia.Przegladaj,
+            _ => Win32.WyborOtwarcia.Anuluj,
+        };
+        if (ustawienia.PoOtwarciuPdf == PoOtwarciuPdf.Pytaj)
+        {
+            (wybor, var zapamietaj) = Win32.ZapytajOOtwarcie(plik, Przegladarka.Nazwa(ustawienia));
+            if (zapamietaj)
+            {
+                ustawienia.PoOtwarciuPdf = wybor == Win32.WyborOtwarcia.Podpisz ? PoOtwarciuPdf.Podpisz : PoOtwarciuPdf.Przegladaj;
+                try { ustawienia.Zapisz(); } catch (Exception) { /* zapamiętanie wyboru nie jest krytyczne */ }
+            }
+        }
+        if (wybor == Win32.WyborOtwarcia.Przegladaj)
+            Przegladarka.Otworz(plik, ustawienia);
+        return wybor == Win32.WyborOtwarcia.Podpisz;
     }
 
     /// <summary>
