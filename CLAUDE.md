@@ -37,6 +37,7 @@ Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagaj�
 - Menu Windows 11: pakiet `pakiet/AppxManifest.xml` (sparse, podpis sekretem `CERTYFIKAT_PFX`, CN=PodpisPdf) osadzany
   w exe; serwer COM `-Embedding` (`SerwerMenu.cs`). Okno WinUI **nie może** mieć tożsamości pakietu (nie znajduje
   wtedy zasobów) — dlatego `app.manifest` nie ma elementu `<msix>`, a serwer menu uruchamia program przez Eksplorator.
+- Bez PublishTrimmed: przycinanie zepsuło zwykły start (XAML parsing failed). CI testuje zwykły start, nie tylko `--sprawdz`.
 - PDFium wywoływane bezpośrednio (`DokumentPdf.Pdfium`), na jednym wątku; Docnet.Core tylko dostarcza bibliotekę natywną.
 
 ## Wizualizacja podpisu

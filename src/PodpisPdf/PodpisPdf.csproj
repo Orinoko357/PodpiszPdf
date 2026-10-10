@@ -16,7 +16,7 @@
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <Product>PodpisPdf</Product>
-    <Version>3.0.0.2</Version>
+    <Version>3.0.0.3</Version>
     <Description>Kwalifikowany podpis elektroniczny PAdES dla plików PDF</Description>
 
     <!-- Aplikacja bez pakietu MSIX, z własnym środowiskiem Windows App SDK (nie wymaga instalacji). -->
@@ -35,15 +35,8 @@
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <PublishReadyToRun>true</PublishReadyToRun>
-    <!-- Przycinanie częściowe: z bibliotek oznaczonych jako bezpieczne (m.in. projekcja Windows SDK, 53 MB)
-         zostaje tylko używany kod; iText, BouncyCastle i kod programu zostają w całości. Pełny podpis
-         próbny (tryb sprawdzania), zrzuty i test menu w GitHub Actions sprawdzają wynik. -->
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>partial</TrimMode>
-    <!-- Serwer COM menu Windows 11 (IExplorerCommand) i odczyt ustawień JSON przez odbicie. -->
-    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
-    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <!-- Bez przycinania (PublishTrimmed): w 3.0.0.2 usunęło kod potrzebny przy zwykłym starcie programu
+         („XAML parsing failed”), czego test w trybie sprawdzania nie wykrył. -->
     <DebugType>none</DebugType>
   </PropertyGroup>
 
