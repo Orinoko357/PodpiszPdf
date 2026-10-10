@@ -16,7 +16,7 @@
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <Product>PodpisPdf</Product>
-    <Version>3.0.0.1</Version>
+    <Version>3.0.0.2</Version>
     <Description>Kwalifikowany podpis elektroniczny PAdES dla plików PDF</Description>
 
     <!-- Aplikacja bez pakietu MSIX, z własnym środowiskiem Windows App SDK (nie wymaga instalacji). -->
@@ -74,8 +74,8 @@
           BeforeTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromMsix;AddMicrosoftWindowsAppSDKPayloadFilesFromComponents"
           DependsOnTargets="ExtractMicrosoftWindowsAppSDKMsixFiles">
     <ItemGroup>
-      <_ZbedneSkladniki Include="onnxruntime*.dll;DirectML.dll;Microsoft.Windows.AI.*.dll;Microsoft.Windows.Widgets.dll;Microsoft.Windows.Workloads*.dll;workloads*.json" />
-      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\**\%(_ZbedneSkladniki.Identity)" Condition="'$(MicrosoftWindowsAppSDKMsixContent)' != ''" />
+      <MicrosoftWindowsAppSDKFilesExcluded Condition="'$(MicrosoftWindowsAppSDKMsixContent)' != ''"
+        Include="$(MicrosoftWindowsAppSDKMsixContent)\**\onnxruntime*.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\DirectML.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\Microsoft.Windows.AI.*.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\Microsoft.Windows.Widgets.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\Microsoft.Windows.Workloads*.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\workloads*.json" />
       <WindowsAppSdkComponentPackages Remove="@(WindowsAppSdkComponentPackages)"
         Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', 'microsoft\.windowsappsdk\.(ai|ml|widgets)[\\/.]', System.Text.RegularExpressions.RegexOptions.IgnoreCase))" />
     </ItemGroup>

@@ -105,6 +105,7 @@ dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64 -o publish
 
 Wynik: `publish\PodpisPdf.exe` — jeden plik, nie wymaga instalacji .NET ani Windows App SDK (Windows 10 1809+/11, 64-bit).
 Przy pierwszym uruchomieniu plik wypakowuje biblioteki WinUI do folderu tymczasowego, więc start trwa wtedy dłużej.
+Publikacja pomija nieużywane moduły Windows App SDK (AI/ML, widżety) i przycina nieużywany kod bibliotek .NET (przycinanie częściowe).
 GitHub Actions buduje ten plik przy każdym pushu (artefakt **PodpisPdf** w zakładce *Actions*).
 
 ## Struktura
