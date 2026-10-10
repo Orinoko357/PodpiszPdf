@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using PodpisPdf.Core;
@@ -13,16 +14,20 @@ internal sealed class OknoGlowne : Form
     private readonly Button _przyciskUstawienia;
     private readonly Button _przyciskPodpisz;
     private readonly Label _status;
+    private readonly NotifyIcon _zasobnik;
+    private readonly ConcurrentQueue<string> _zlecenia = new();
 
     private Ustawienia _ustawienia;
     private string? _plik;
     private bool _trwaPodpisywanie;
+    private bool _pokazanoDymek;
 
     public OknoGlowne(string? plikStartowy)
     {
         _ustawienia = Ustawienia.Wczytaj();
 
         Text = "PodpisPdf — podpis kwalifikowany PDF";
+        Icon = Ustawienia.Ikona();
         Font = SystemFonts.MessageBoxFont ?? Font;
         AutoScaleMode = AutoScaleMode.Font;
         StartPosition = FormStartPosition.CenterScreen;
@@ -125,14 +130,132 @@ internal sealed class OknoGlowne : Form
         _strefaPliku.DragEnter += PrzyPrzeciaganiu;
         _strefaPliku.DragDrop += PrzyUpuszczeniu;
 
+        _zasobnik = UtworzIkoneZasobnika();
+
         Shown += (_, _) =>
         {
+            OdswiezMenuKontekstowe(cicho: true);
             WczytajCertyfikaty();
             if (!string.IsNullOrEmpty(plikStartowy))
-                UstawPlik(plikStartowy);
+                _zlecenia.Enqueue(plikStartowy); // uruchomienie z menu kontekstowego — od razu do podpisu
+            PrzetworzZlecenia();
         };
 
         UstawPlik(null);
+    }
+
+    /// <summary>
+    /// Wywoływane (w wątku tła), gdy program uruchomiono ponownie, np. z menu kontekstowego pliku PDF.
+    /// Pusty tekst oznacza „pokaż okno”.
+    /// </summary>
+    public void PrzyjmijZInnejKopii(string plik)
+    {
+        _zlecenia.Enqueue(plik);
+        if (IsHandleCreated)
+            BeginInvoke(PrzetworzZlecenia);
+    }
+
+    private void PrzetworzZlecenia()
+    {
+        if (_trwaPodpisywanie || !_zlecenia.TryDequeue(out var plik))
+            return;
+        Przywroc();
+        if (string.IsNullOrEmpty(plik))
+        {
+            PrzetworzZlecenia();
+            return;
+        }
+        UstawPlik(plik);
+        if (_plik != null)
+            Podpisz();
+        else
+            PrzetworzZlecenia();
+    }
+
+    // ---- Zasobnik systemowy ----
+
+    private NotifyIcon UtworzIkoneZasobnika()
+    {
+        var menu = new ContextMenuStrip();
+        var otworz = menu.Items.Add("Otwórz PodpisPdf", null, (_, _) => Przywroc());
+        otworz.Font = new Font(otworz.Font, FontStyle.Bold);
+        menu.Items.Add("Podpisz plik PDF…", null, (_, _) =>
+        {
+            Przywroc();
+            if (_trwaPodpisywanie)
+                return;
+            WybierzPlik();
+            if (_plik != null)
+                Podpisz();
+        });
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Zakończ", null, (_, _) => Close());
+
+        var ikona = new NotifyIcon
+        {
+            Icon = Icon,
+            Text = "PodpisPdf",
+            ContextMenuStrip = menu,
+            Visible = _ustawienia.MinimalizujDoZasobnika,
+        };
+        ikona.DoubleClick += (_, _) => Przywroc();
+        return ikona;
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        if (WindowState == FormWindowState.Minimized && _ustawienia.MinimalizujDoZasobnika)
+        {
+            Hide();
+            if (!_pokazanoDymek)
+            {
+                _pokazanoDymek = true;
+                _zasobnik.ShowBalloonTip(3000, "PodpisPdf działa w tle",
+                    "Kliknij dwukrotnie ikonę, aby otworzyć okno. Pliki PDF można podpisywać z menu pod prawym przyciskiem myszy.",
+                    ToolTipIcon.Info);
+            }
+        }
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        _zasobnik.Visible = false;
+        _zasobnik.Dispose();
+        base.OnFormClosed(e);
+    }
+
+    private void Przywroc()
+    {
+        if (!Visible)
+            Show();
+        if (WindowState == FormWindowState.Minimized)
+            WindowState = FormWindowState.Normal;
+        // Okno uruchomione z innego procesu Windows nie zawsze wysuwa na wierzch — krótkie TopMost pomaga.
+        TopMost = true;
+        TopMost = false;
+        Activate();
+    }
+
+    private void OdswiezMenuKontekstowe(bool cicho)
+    {
+        try
+        {
+            if (_ustawienia.MenuKontekstowe)
+            {
+                if (!MenuKontekstowe.JestAktualne())
+                    MenuKontekstowe.Zarejestruj();
+            }
+            else
+            {
+                MenuKontekstowe.Wyrejestruj();
+            }
+        }
+        catch (Exception e) when (e is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {
+            if (!cicho)
+                Blad("Nie udało się zmienić menu kontekstowego plików PDF.\n\n" + e.Message);
+        }
     }
 
     private CertyfikatInfo? WybranyCertyfikat =>
@@ -267,6 +390,8 @@ internal sealed class OknoGlowne : Form
         {
             Blad("Nie udało się zapisać ustawień.\n\n" + KomunikatyBledow.Opisz(e));
         }
+        _zasobnik.Visible = _ustawienia.MinimalizujDoZasobnika;
+        OdswiezMenuKontekstowe(cicho: false);
     }
 
     private async void Podpisz()
@@ -301,9 +426,19 @@ internal sealed class OknoGlowne : Form
         opcje.PrzygotujKlucz = klucz => UstawOknoNadrzedneDlaPinu(klucz, oknoNadrzedne);
 
         UstawTrwaPodpisywanie(true);
-        UstawStatus("Podpisywanie… Sterownik karty może poprosić o PIN.");
         try
         {
+            // Podgląd wszystkich stron: użytkownik klika, gdzie ma być wizualizacja podpisu.
+            UstawStatus("Wskaż na podglądzie miejsce podpisu.");
+            var dane = new DaneWizualizacji(certyfikat.ImieNazwisko, ustawienia.Stanowisko, ustawienia.SciezkaLogo, DateTimeOffset.Now);
+            opcje.Miejsce = OknoPodgladu.WskazMiejsce(this, wejscie, dane, ustawienia.Polozenie);
+            if (opcje.Miejsce == null)
+            {
+                UstawStatus("Podpisywanie anulowane.");
+                return;
+            }
+
+            UstawStatus("Podpisywanie… Sterownik karty może poprosić o PIN.");
             var wynik = await Task.Run(() =>
             {
                 var tsa = ustawienia.UtworzKlientaTsa();
@@ -331,6 +466,7 @@ internal sealed class OknoGlowne : Form
         finally
         {
             UstawTrwaPodpisywanie(false);
+            BeginInvoke(PrzetworzZlecenia); // kolejne pliki z menu kontekstowego
         }
     }
 

@@ -1,0 +1,54 @@
+using System.Runtime.InteropServices;
+using Microsoft.Win32;
+
+namespace PodpisPdf;
+
+/// <summary>
+/// Pozycja „Podpisz w PodpisPdf” w menu kontekstowym plików PDF w Eksploratorze Windows.
+/// Rejestrowana dla bieżącego użytkownika (HKCU) — nie wymaga uprawnień administratora.
+/// </summary>
+internal static class MenuKontekstowe
+{
+    public const string Etykieta = "Podpisz w PodpisPdf";
+    private const string Klucz = @"Software\Classes\SystemFileAssociations\.pdf\shell\PodpisPdf";
+
+    public static void Zarejestruj()
+    {
+        var exe = Environment.ProcessPath ?? Application.ExecutablePath;
+        using (var klucz = Registry.CurrentUser.CreateSubKey(Klucz))
+        {
+            klucz.SetValue("", Etykieta);
+            klucz.SetValue("Icon", $"\"{exe}\",0");
+        }
+        using (var polecenie = Registry.CurrentUser.CreateSubKey(Klucz + @"\command"))
+            polecenie.SetValue("", $"\"{exe}\" \"%1\"");
+        PowiadomEksplorator();
+    }
+
+    public static void Wyrejestruj()
+    {
+        Registry.CurrentUser.DeleteSubKeyTree(Klucz, throwOnMissingSubKey: false);
+        PowiadomEksplorator();
+    }
+
+    /// <summary>
+    /// Czy wpis wskazuje na ten plik programu. Program jest przenośnym plikiem .exe — po przeniesieniu
+    /// w inne miejsce wpis trzeba odświeżyć.
+    /// </summary>
+    public static bool JestAktualne()
+    {
+        using var polecenie = Registry.CurrentUser.OpenSubKey(Klucz + @"\command");
+        var exe = Environment.ProcessPath ?? Application.ExecutablePath;
+        return polecenie?.GetValue("") is string wartosc &&
+               string.Equals(wartosc, $"\"{exe}\" \"%1\"", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void PowiadomEksplorator()
+    {
+        const int ShcneAssocchanged = 0x08000000;
+        SHChangeNotify(ShcneAssocchanged, 0, IntPtr.Zero, IntPtr.Zero);
+    }
+
+    [DllImport("shell32.dll")]
+    private static extern void SHChangeNotify(int wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+}

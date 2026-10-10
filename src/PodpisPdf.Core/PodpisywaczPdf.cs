@@ -51,7 +51,7 @@ public sealed class PodpisywaczPdf
             throw new BladPodpisu("Wybrany certyfikat nie ma klucza prywatnego.");
 
         var podpis = new PodpisKluczemCertyfikatu(certyfikat, opcje.PrzygotujKlucz);
-        var (numerStrony, prostokat) = UstalMiejscePodpisu(wejscie, opcje.Polozenie);
+        var (numerStrony, prostokat) = UstalMiejscePodpisu(wejscie, opcje);
         var lancuch = ZbudujLancuch(certyfikat);
 
         var czasSerwera = _czasSerwera();
@@ -59,7 +59,7 @@ public sealed class PodpisywaczPdf
 
         var dane = new DaneWizualizacji(
             CertyfikatInfo.PobierzImieNazwisko(certyfikat), opcje.Stanowisko, opcje.SciezkaLogo, czas);
-        var wyglad = Wizualizacja.Utworz(dane, prostokat.GetWidth(), prostokat.GetHeight());
+        var wyglad = Wizualizacja.Utworz(dane);
 
         var wlasciwosci = new SignerProperties()
             .SetPageNumber(numerStrony)
@@ -107,11 +107,21 @@ public sealed class PodpisywaczPdf
         return new WynikPodpisu(wyjscie, czas, czasSerwera != null);
     }
 
-    private static (int Numer, Rectangle Prostokat) UstalMiejscePodpisu(string wejscie, PolozenieWizualizacji polozenie)
+    private static (int Numer, Rectangle Prostokat) UstalMiejscePodpisu(string wejscie, OpcjePodpisu opcje)
     {
         using var czytnik = new PdfReader(wejscie);
         using var dokument = new PdfDocument(czytnik);
         var liczbaStron = dokument.GetNumberOfPages();
+
+        if (opcje.Miejsce is { } miejsce)
+        {
+            if (miejsce.NumerStrony < 1 || miejsce.NumerStrony > liczbaStron)
+                throw new BladPodpisu($"Dokument ma {liczbaStron} str., a wskazano stronę {miejsce.NumerStrony}.");
+            var cropBox = dokument.GetPage(miejsce.NumerStrony).GetCropBox();
+            return (miejsce.NumerStrony, Wizualizacja.ProstokatWMiejscu(cropBox, miejsce));
+        }
+
+        var polozenie = opcje.Polozenie;
 
         var numer = polozenie.Strona switch
         {

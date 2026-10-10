@@ -30,6 +30,12 @@ internal sealed class Ustawienia
     public string Przyrostek { get; set; } = DomyslnyPrzyrostek;
     public bool PoziomLT { get; set; }
 
+    /// <summary>Minimalizacja chowa okno do zasobnika systemowego (obok zegara).</summary>
+    public bool MinimalizujDoZasobnika { get; set; } = true;
+
+    /// <summary>Pozycja „Podpisz w PodpisPdf” w menu kontekstowym plików PDF.</summary>
+    public bool MenuKontekstowe { get; set; } = true;
+
     /// <summary>Odcisk (thumbprint) ostatnio użytego certyfikatu.</summary>
     public string? OstatniCertyfikat { get; set; }
 
@@ -101,6 +107,12 @@ internal sealed class Ustawienia
 
     public KlientZnacznikaCzasu UtworzKlientaTsa() =>
         KlientZnacznikaCzasu.DlaAdresu(AdresTsa, LoginTsa, HasloTsa);
+
+    public static Icon Ikona()
+    {
+        using var strumien = typeof(Ustawienia).Assembly.GetManifestResourceStream("PodpisPdf.ico")!;
+        return new Icon(strumien);
+    }
 
     public OpcjePodpisu UtworzOpcjePodpisu() => new()
     {

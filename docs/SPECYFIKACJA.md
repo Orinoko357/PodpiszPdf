@@ -24,7 +24,7 @@ Typowe zastosowanie w SZUP: podpisywanie wniosków PDF z polem „Podpis kwalifi
 
 1. Użytkownik uruchamia `PodpisPdf.exe` i przeciąga plik PDF do okna (albo wybiera go przyciskiem).
 2. Wybiera certyfikat z listy.
-3. Klika **Podpisz**.
+3. Klika **Podpisz**; otwiera się podgląd wszystkich stron, na którym kliknięciem wskazuje miejsce podpisu.
 4. Sterownik karty pokazuje własne okno do wpisania PIN-u. Aplikacja nie widzi PIN-u.
 5. Aplikacja pobiera znacznik czasu i zapisuje wynik obok oryginału: `wniosek.pdf` → `wniosek_podpisany.pdf`. Oryginał zostaje bez zmian.
 6. Na koniec wyświetla komunikat o powodzeniu albo zrozumiały opis błędu, np. brak karty, zły PIN, serwer znacznika czasu niedostępny.
@@ -60,14 +60,14 @@ Opcjonalnie, do decyzji: poziom **B-LT**, czyli dołączenie do pliku danych OCS
 
 ## 5. Wizualizacja podpisu
 
-Prostokąt na stronie dokumentu, który zawiera:
+Prostokąt o stałym rozmiarze (75 × 22 mm), bez ramki i z przezroczystym tłem, w miejscu wskazanym kliknięciem na podglądzie. Zawiera:
 
 | Element | Źródło | Obowiązkowy |
 |---|---|---|
 | **Nagłówek „Podpisano elektronicznie przez:”** | Stały tekst na samej górze, przed imieniem i nazwiskiem | tak |
 | **Imię i nazwisko** (zawsze pogrubione) | Z certyfikatu (pola *GivenName* i *Surname*; jeśli ich brak, pole *CN*) | tak |
 | **Stanowisko** | Wpisane w ustawieniach programu; Enter wymusza podział wiersza, bez tego zawija się samo do dwóch wierszy | nie |
-| **Logo** | Plik PNG lub JPG wskazany w ustawieniach | nie |
+| **Logo** | Plik PNG lub JPG wskazany w ustawieniach; zawsze w oryginalnej rozdzielczości, puste marginesy pomijane | nie |
 | **Data i godzina** | Czas złożenia podpisu bez sekund (RRRR-MM-DD GG:MM), patrz uwaga niżej | tak |
 
 Pusty element (np. brak logo) znika, a układ dopasowuje się do reszty. Czcionka obsługuje polskie znaki.
@@ -85,7 +85,8 @@ Zapisywane w pliku `%APPDATA%\PodpisPdf\config.json` i edytowane w oknie „Usta
 - stanowisko (tekst, opcjonalny),
 - logo (ścieżka do pliku, opcjonalna),
 - adres serwera znacznika czasu oraz opcjonalnie login i hasło,
-- położenie wizualizacji: strona (pierwsza, ostatnia albo numer), pozycja na stronie, rozmiar,
+- położenie początkowe wizualizacji na podglądzie: strona (pierwsza, ostatnia albo numer), narożnik i odległość od krawędzi,
+- minimalizacja do zasobnika systemowego, pozycja „Podpisz w PodpisPdf” w menu kontekstowym plików PDF,
 - przyrostek nazwy pliku wynikowego (domyślnie `_podpisany`).
 
 ---
@@ -112,7 +113,7 @@ Zapisywane w pliku `%APPDATA%\PodpisPdf\config.json` i edytowane w oknie „Usta
 ## 9. Otwarte kwestie
 
 1. **Wzór wizualizacji** — do dostarczenia przez użytkownika.
-2. **Położenie podpisu** — stała pozycja z ustawień, czy wybór miejsca kliknięciem na podglądzie strony (bardziej wygodne, ale aplikacja byłaby większa)?
+2. ~~**Położenie podpisu**~~ — rozstrzygnięte: wybór miejsca kliknięciem na podglądzie wszystkich stron.
 3. **Serwer znacznika czasu** — który TSA (darmowy, np. Certum, czy kwalifikowany płatny z kontem)?
 4. **Poziom B-LT** — czy jest potrzebny do archiwizacji?
 5. **Jakich kart i usług używacie** (Certum, SimplySign, Szafir…)? Od tego zależy lista kroków do testów.

@@ -11,8 +11,17 @@ Specyfikacja: [docs/SPECYFIKACJA.md](docs/SPECYFIKACJA.md).
 1. Uruchom `PodpisPdf.exe` i przeciągnij plik PDF do okna (albo kliknij **Wybierz plik…**).
    Plik można też przeciągnąć na ikonę `PodpisPdf.exe`.
 2. Wybierz certyfikat z listy (★ — certyfikat kwalifikowany).
-3. Kliknij **Podpisz** i wpisz PIN w oknie sterownika karty (program nie widzi PIN-u).
-4. Wynik zapisuje się obok oryginału: `wniosek.pdf` → `wniosek_podpisany.pdf`. Oryginał zostaje bez zmian.
+3. Kliknij **Podpisz**. Otworzy się podgląd wszystkich stron dokumentu — **kliknij miejsce**, w którym ma
+   się znaleźć podpis (rozmiar wizualizacji jest stały), i zatwierdź przyciskiem **Podpisz**.
+4. Wpisz PIN w oknie sterownika karty (program nie widzi PIN-u).
+5. Wynik zapisuje się obok oryginału: `wniosek.pdf` → `wniosek_podpisany.pdf`. Oryginał zostaje bez zmian.
+
+**Z Eksploratora Windows:** prawy przycisk myszy na pliku PDF → **Podpisz w PodpisPdf** (w Windows 11:
+*Pokaż więcej opcji*). Program otwiera od razu podgląd do wskazania miejsca podpisu. Jeśli program już działa
+(np. w zasobniku), plik trafia do działającego okna.
+
+**Zasobnik systemowy:** zminimalizowane okno chowa się do ikony obok zegara. Dwuklik otwiera okno;
+menu ikony: *Otwórz*, *Podpisz plik PDF…*, *Zakończ*.
 
 Lista pokazuje certyfikaty z osobistego magazynu Windows, które mają klucz prywatny, są ważne
 i służą do podpisu (*nonRepudiation*). Certyfikaty z kart i z SimplySign Desktop trafiają tam same,
@@ -30,12 +39,20 @@ Okno **Ustawienia…**; zapis w `%APPDATA%\PodpisPdf\config.json`:
 |---|---|
 | Stanowisko (na wizualizacji) | brak |
 | Logo PNG/JPG (na wizualizacji) | brak |
-| Strona z podpisem: pierwsza / ostatnia / numer | ostatnia |
-| Położenie: narożnik strony i odległość od krawędzi [mm] | prawy dolny, 15 × 15 mm |
-| Rozmiar wizualizacji [mm] | 75 × 22 mm |
+| Położenie początkowe na podglądzie: strona (pierwsza / ostatnia / numer), narożnik, odległość od krawędzi [mm] | ostatnia strona, prawy dolny róg, 15 × 15 mm |
 | Serwer znacznika czasu (TSA), login, hasło | `http://time.certum.pl`, bez logowania |
 | PAdES B-LT (dołączenie OCSP/CRL do pliku) | wyłączone |
 | Przyrostek nazwy pliku wynikowego | `_podpisany` |
+| Minimalizacja do zasobnika systemowego | włączona |
+| „Podpisz w PodpisPdf” w menu kontekstowym plików PDF | włączone |
+
+Wizualizacja ma stały rozmiar **75 × 22 mm**, bez ramki i z przezroczystym tłem (nie zasłania formularza).
+Logo jest osadzane w oryginalnej rozdzielczości, bez stratnej kompresji; białe lub przezroczyste marginesy
+w pliku logo są pomijane (przycięcie w PDF, obraz pozostaje nienaruszony), więc logo zajmuje całe dostępne miejsce.
+Stanowisko można podzielić na wiersze klawiszem Enter; bez tego zawija się samo.
+
+Menu kontekstowe jest rejestrowane dla bieżącego użytkownika (`HKCU\Software\Classes\SystemFileAssociations\.pdf\shell\PodpisPdf`),
+bez uprawnień administratora. Po przeniesieniu `PodpisPdf.exe` w inne miejsce wpis odświeża się przy następnym uruchomieniu.
 
 Hasło do TSA jest szyfrowane mechanizmem Windows DPAPI — odczyta je tylko ten sam użytkownik Windows.
 
@@ -60,8 +77,8 @@ GitHub Actions buduje ten plik przy każdym pushu (artefakt **PodpisPdf** w zak�
 
 | Katalog | Zawartość |
 |---|---|
-| `src/PodpisPdf.Core` | Logika: wybór certyfikatów, podpis PAdES (iText 9 + BouncyCastle), wizualizacja, znacznik czasu, komunikaty błędów |
-| `src/PodpisPdf` | Okno programu (WinForms) i ustawienia |
+| `src/PodpisPdf.Core` | Logika: wybór certyfikatów, podpis PAdES (iText 9 + BouncyCastle), wizualizacja, znacznik czasu, podgląd stron (PDFium), komunikaty błędów |
+| `src/PodpisPdf` | Okno programu (WinForms): podgląd z wyborem miejsca, ustawienia, zasobnik, menu kontekstowe |
 | `tests/PodpisPdf.Tests` | Testy na certyfikatach testowych (RSA i ECDSA) z lokalnym serwerem znacznika czasu — bez karty i bez sieci |
 | `tools/PodpisTestowy` | Narzędzie deweloperskie: podpis certyfikatem z pliku PFX do sprawdzenia formatu w Adobe/EU DSS |
 | `docs/TESTY.md` | Lista kroków testu z prawdziwą kartą |
@@ -75,10 +92,11 @@ dotnet run --project tools/PodpisTestowy -- podpisz wniosek.pdf test.pfx haslo
 
 ## Ograniczenia
 
-- Wizualizacja na stronach obróconych (/Rotate) nie jest obracana razem ze stroną.
+- Na stronach obróconych (/Rotate) nie można umieścić podpisu — podgląd na to nie pozwala.
 - Pliki PDF zabezpieczone hasłem trzeba najpierw odbezpieczyć.
 
 ## Licencje
 
 - iText 9 — AGPL. Użytek wewnętrzny albo udostępnienie kodu źródłowego nie stanowi problemu.
+- Docnet.Core (MIT) z silnikiem PDFium (BSD/Apache 2.0) — podgląd stron.
 - Czcionka DejaVu Sans (wbudowana, obsługa polskich znaków) — licencja Bitstream Vera, zob. `src/PodpisPdf.Core/Zasoby/DejaVu-LICENSE.txt`.

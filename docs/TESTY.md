@@ -17,12 +17,24 @@ Przed testem:
 ## 2. Podpis
 
 - [ ] Przeciągnij plik PDF do okna. Wybierz certyfikat, kliknij **Podpisz**.
+- [ ] Otwiera się podgląd wszystkich stron; podpis jest wstępnie w położeniu z ustawień. Przewiń, kliknij inne
+      miejsce (także na innej stronie) — prostokąt podpisu przenosi się tam. Kliknij **Podpisz**.
+- [ ] W pliku wynikowym podpis jest dokładnie w wskazanym miejscu, bez ramki; logo jest ostre przy dużym powiększeniu.
 - [ ] Pojawia się okno PIN-u **sterownika karty** (nie programu PodpisPdf), na wierzchu.
 - [ ] Po wpisaniu PIN-u: komunikat o powodzeniu, obok oryginału powstaje `…_podpisany.pdf`; oryginał nie zmienia się (data modyfikacji).
 - [ ] Wizualizacja na stronie: imię i nazwisko, stanowisko (jeśli ustawione), logo (jeśli ustawione), data i godzina.
 - [ ] Przy kolejnym uruchomieniu zaznaczony jest ostatnio użyty certyfikat.
 
-## 3. Błędy
+## 3. Menu kontekstowe i zasobnik
+
+- [ ] Prawy przycisk na pliku PDF w Eksploratorze → **Podpisz w PodpisPdf** (Windows 11: *Pokaż więcej opcji*) —
+      program otwiera podgląd tego pliku.
+- [ ] Zminimalizuj program — znika z paska zadań, ikona jest obok zegara. Podpisz plik z menu kontekstowego —
+      otwiera się działające okno (nie druga kopia programu).
+- [ ] Dwuklik na ikonie w zasobniku przywraca okno; *Zakończ* w menu ikony zamyka program.
+- [ ] Wyłączenie opcji menu kontekstowego w ustawieniach usuwa pozycję z menu.
+
+## 4. Błędy
 
 - [ ] Zły PIN → komunikat „Nieprawidłowy PIN…” (nie wpisuj złego PIN-u więcej niż raz — grozi blokadą karty).
 - [ ] *Anuluj* w oknie PIN-u → „Podpisywanie zostało anulowane”.
@@ -30,7 +42,7 @@ Przed testem:
 - [ ] Wyłączona sieć (lub zły adres TSA) → komunikat o niedostępnym serwerze znacznika czasu; plik `_podpisany.pdf` nie powstaje.
 - [ ] Plik wynikowy otwarty w Adobe Reader podczas ponownego podpisu → komunikat, że plik jest otwarty w innym programie.
 
-## 4. Weryfikacja podpisanego pliku
+## 5. Weryfikacja podpisanego pliku
 
 - [ ] **Adobe Acrobat Reader**: panel *Podpisy* — „Podpis jest ważny”, „Podpis zawiera osadzony znacznik czasu”.
       (Jeśli Reader pisze, że tożsamość jest nieznana: *Edycja → Preferencje → Podpisy → Weryfikacja → Więcej…* →

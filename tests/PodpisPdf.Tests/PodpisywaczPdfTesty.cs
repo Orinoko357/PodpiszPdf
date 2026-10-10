@@ -157,16 +157,50 @@ public class PodpisywaczPdfTesty
     }
 
     [Fact]
-    public void WizualizacjaWiekszaNizStronaDajeZrozumialyBlad()
+    public void WizualizacjaWMiejscuWskazanymNaPodgladzie()
+    {
+        var folder = PlikiTestowe.Folder();
+        var wejscie = PlikiTestowe.UtworzPdf(folder, strony: 3);
+        var wyjscie = Path.Combine(folder, "w.pdf");
+        using var cert = CertyfikatyTestowe.Utworz();
+        var opcje = new OpcjePodpisu { Miejsce = new MiejscePodpisu(2, 100, 400) };
+
+        new PodpisywaczPdf(new TestowyTsa()).Podpisz(wejscie, wyjscie, cert, opcje);
+
+        using var pdf = new PdfDocument(new PdfReader(wyjscie));
+        var nazwa = new SignatureUtil(pdf).GetSignatureNames()[0];
+        var widget = PdfAcroForm.GetAcroForm(pdf, false).GetField(nazwa).GetWidgets()[0];
+        Assert.Equal(2, pdf.GetPageNumber(widget.GetPage()));
+        var rect = widget.GetRectangle().ToRectangle();
+        Assert.Equal(100, rect.GetX(), 0.01);
+        Assert.Equal(400, rect.GetY(), 0.01);
+        Assert.Equal(Wizualizacja.SzerokoscPt, rect.GetWidth(), 0.01);
+        Assert.Equal(Wizualizacja.WysokoscPt, rect.GetHeight(), 0.01);
+    }
+
+    [Fact]
+    public void MiejscePozaStronaDajeZrozumialyBlad()
     {
         var folder = PlikiTestowe.Folder();
         var wejscie = PlikiTestowe.UtworzPdf(folder);
         using var cert = CertyfikatyTestowe.Utworz();
-        var opcje = new OpcjePodpisu { Polozenie = new PolozenieWizualizacji { SzerokoscMm = 400 } };
+        var opcje = new OpcjePodpisu { Miejsce = new MiejscePodpisu(1, 550, 10) };
 
         var e = Assert.Throws<BladPodpisu>(() =>
             new PodpisywaczPdf(new TestowyTsa()).Podpisz(wejscie, Path.Combine(folder, "w.pdf"), cert, opcje));
-        Assert.Contains("nie mieści się", e.Message);
+        Assert.Contains("poza stronę", e.Message);
+    }
+
+    [Fact]
+    public void DopasowanieKliknieciaDoKrawedziStrony()
+    {
+        var strona = new iText.Kernel.Geom.Rectangle(0, 0, 595, 842);
+        var (x, y) = Wizualizacja.DopasujDoStrony(strona, 590, 5);
+        Assert.Equal(595 - Wizualizacja.SzerokoscPt, x, 0.01);
+        Assert.Equal(0, y, 0.01);
+        (x, y) = Wizualizacja.DopasujDoStrony(strona, 300, 400);
+        Assert.Equal(300 - Wizualizacja.SzerokoscPt / 2, x, 0.01);
+        Assert.Equal(400 - Wizualizacja.WysokoscPt / 2, y, 0.01);
     }
 
     [Fact]

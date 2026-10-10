@@ -28,9 +28,13 @@ public sealed class PolozenieWizualizacji
 
     public float MarginesPoziomyMm { get; set; } = 15;
     public float MarginesPionowyMm { get; set; } = 15;
-    public float SzerokoscMm { get; set; } = 75;
-    public float WysokoscMm { get; set; } = 22;
 }
+
+/// <summary>
+/// Miejsce wskazane kliknięciem na podglądzie: numer strony (od 1) i lewy dolny róg wizualizacji
+/// w punktach, w układzie współrzędnych strony PDF.
+/// </summary>
+public sealed record MiejscePodpisu(int NumerStrony, float X, float Y);
 
 /// <summary>Parametry jednego podpisu.</summary>
 public sealed class OpcjePodpisu
@@ -41,7 +45,11 @@ public sealed class OpcjePodpisu
     /// <summary>Ścieżka do logo PNG/JPG (opcjonalna).</summary>
     public string? SciezkaLogo { get; set; }
 
+    /// <summary>Położenie domyślne (z ustawień), używane gdy nie wskazano <see cref="Miejsce"/>.</summary>
     public PolozenieWizualizacji Polozenie { get; set; } = new();
+
+    /// <summary>Miejsce wskazane na podglądzie; ma pierwszeństwo przed <see cref="Polozenie"/>.</summary>
+    public MiejscePodpisu? Miejsce { get; set; }
 
     /// <summary>Dołączenie danych OCSP/CRL do pliku (PAdES B-LT) zamiast samego B-T.</summary>
     public bool PoziomLT { get; set; }

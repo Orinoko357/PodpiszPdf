@@ -37,9 +37,17 @@ internal sealed class OknoUstawien : Form
     private readonly ComboBox _naroznik = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 160 };
     private readonly NumericUpDown _marginesX = Liczba(0, 500);
     private readonly NumericUpDown _marginesY = Liczba(0, 500);
-    private readonly NumericUpDown _szerokosc = Liczba(20, 500);
-    private readonly NumericUpDown _wysokosc = Liczba(8, 500);
     private readonly TextBox _przyrostek = new() { Width = 160 };
+    private readonly CheckBox _zasobnik = new()
+    {
+        Text = "Minimalizuj do zasobnika systemowego (ikona obok zegara)",
+        AutoSize = true,
+    };
+    private readonly CheckBox _menuKontekstowe = new()
+    {
+        Text = $"Pokaż „{MenuKontekstowe.Etykieta}” w menu plików PDF (prawy przycisk myszy)",
+        AutoSize = true,
+    };
     private readonly CheckBox _poziomLT = new()
     {
         Text = "Dołącz dane OCSP/CRL do pliku (PAdES B-LT) — weryfikacja możliwa także po latach",
@@ -70,7 +78,7 @@ internal sealed class OknoUstawien : Form
             Dock = DockStyle.Fill,
         };
         uklad.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        uklad.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 420));
+        uklad.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 480));
         Controls.Add(uklad);
 
         Naglowek(uklad, "Wizualizacja podpisu");
@@ -85,14 +93,15 @@ internal sealed class OknoUstawien : Form
 
         _strona.Items.AddRange(Strony.Select(s => (object)s.Opis).ToArray());
         _strona.SelectedIndexChanged += (_, _) => _numerStrony.Enabled = Strony[_strona.SelectedIndex].Wartosc == WyborStrony.Numer;
+        Wiersz(uklad, "", Etykieta("Logo jest osadzane w oryginalnej rozdzielczości; puste marginesy są pomijane."));
+
+        Naglowek(uklad, $"Położenie początkowe na podglądzie (rozmiar stały: {Wizualizacja.SzerokoscMm:0} × {Wizualizacja.WysokoscMm:0} mm)");
         Wiersz(uklad, "Strona:", Poziomo(false, _strona, _numerStrony));
 
         _naroznik.Items.AddRange(Narozniki.Select(n => (object)n.Opis).ToArray());
         Wiersz(uklad, "Położenie:", Poziomo(false, _naroznik));
         Wiersz(uklad, "Odległość od krawędzi [mm]:",
             Poziomo(false, Etykieta("w poziomie"), _marginesX, Etykieta("w pionie"), _marginesY));
-        Wiersz(uklad, "Rozmiar [mm]:",
-            Poziomo(false, Etykieta("szerokość"), _szerokosc, Etykieta("wysokość"), _wysokosc));
 
         Naglowek(uklad, "Serwer znacznika czasu (TSA)");
         Wiersz(uklad, "Adres:", _adresTsa);
@@ -102,6 +111,10 @@ internal sealed class OknoUstawien : Form
         przyciskTest.Click += async (_, _) => await SprawdzTsa(przyciskTest);
         Wiersz(uklad, "", Poziomo(false, przyciskTest));
         Wiersz(uklad, "", _poziomLT);
+
+        Naglowek(uklad, "Program");
+        Wiersz(uklad, "", _zasobnik);
+        Wiersz(uklad, "", _menuKontekstowe);
 
         Naglowek(uklad, "Plik wynikowy");
         Wiersz(uklad, "Przyrostek nazwy:", Poziomo(false, _przyrostek, Etykieta("np. wniosek.pdf → wniosek_podpisany.pdf")));
@@ -147,10 +160,10 @@ internal sealed class OknoUstawien : Form
         _naroznik.SelectedIndex = Math.Max(0, Array.FindIndex(Narozniki, n => n.Wartosc == p.Naroznik));
         UstawLiczbe(_marginesX, p.MarginesPoziomyMm);
         UstawLiczbe(_marginesY, p.MarginesPionowyMm);
-        UstawLiczbe(_szerokosc, p.SzerokoscMm);
-        UstawLiczbe(_wysokosc, p.WysokoscMm);
         _przyrostek.Text = u.Przyrostek;
         _poziomLT.Checked = u.PoziomLT;
+        _zasobnik.Checked = u.MinimalizujDoZasobnika;
+        _menuKontekstowe.Checked = u.MenuKontekstowe;
     }
 
     private bool ZapiszZPol()
@@ -194,11 +207,11 @@ internal sealed class OknoUstawien : Form
             Naroznik = Narozniki[_naroznik.SelectedIndex].Wartosc,
             MarginesPoziomyMm = (float)_marginesX.Value,
             MarginesPionowyMm = (float)_marginesY.Value,
-            SzerokoscMm = (float)_szerokosc.Value,
-            WysokoscMm = (float)_wysokosc.Value,
         };
         u.Przyrostek = przyrostek;
         u.PoziomLT = _poziomLT.Checked;
+        u.MinimalizujDoZasobnika = _zasobnik.Checked;
+        u.MenuKontekstowe = _menuKontekstowe.Checked;
         return true;
     }
 
@@ -253,7 +266,7 @@ internal sealed class OknoUstawien : Form
         pole.Value = Math.Clamp((decimal)wartosc, pole.Minimum, pole.Maximum);
 
     private static Label Etykieta(string tekst) =>
-        new() { Text = tekst, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(3, 6, 3, 0) };
+        new() { Text = tekst, AutoSize = true, MaximumSize = new Size(480, 0), Anchor = AnchorStyles.Left, Margin = new Padding(3, 6, 3, 0) };
 
     private static Control Poziomo(bool rozciagnijPierwszy, params Control[] kontrolki)
     {
