@@ -19,11 +19,19 @@ jobs:
       - name: Największe pliki publikacji (bez jednego pliku)
         shell: pwsh
         run: |
-          dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64 -p:PublishSingleFile=false -o folder | Out-Null
+          $log = dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64 -p:PublishSingleFile=false -o folder -bl:publish.binlog
+          $pominiete = ($log | Select-String 'Pominięte pliki' | Select-Object -First 1).Line
+          "::notice title=Pominiete::$pominiete"
+          $zrodla = Get-ChildItem -Recurse -Filter onnxruntime.dll -Path src/PodpisPdf/obj, "$env:USERPROFILE/.nuget/packages" -ErrorAction SilentlyContinue | ForEach-Object FullName
+          "::notice title=onnxruntime::" + ($zrodla -join ' ; ')
           $razem = [math]::Round((Get-ChildItem folder -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 1)
           $lista = Get-ChildItem folder -Recurse -File | Sort-Object Length -Descending | Select-Object -First 45 |
             ForEach-Object { "{0:N1} MB {1}" -f ($_.Length / 1MB), $_.FullName.Substring((Resolve-Path folder).Path.Length + 1) }
           "::notice title=Skladniki::Razem $razem MB; " + ($lista -join '; ')
+      - uses: actions/upload-artifact@v6
+        with:
+          name: binlog
+          path: publish.binlog
 
   warianty:
     runs-on: windows-latest
