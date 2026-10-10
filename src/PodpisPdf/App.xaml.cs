@@ -37,6 +37,7 @@ public partial class App : Application
                     Okno.Activate();
                     await Task.Delay(1500);
                     Rozgrzewka.Wykonaj(zglaszajBledy: true);
+                    Samotest.PodpisProbny(); // pełny podpis w gotowym exe (certyfikat i znacznik czasu w pamięci)
                     File.WriteAllText(Path.Combine(Path.GetTempPath(), "PodpisPdf-sprawdz.txt"),
                         $"PodpisPdf {Instalacja.BiezacaWersja}, tożsamość pakietu: {Win32.NazwaPakietu() ?? "brak"}, " +
                         $"pakiet menu w programie: {(MenuWindows11.MaPakiet ? "tak" : "nie")}");

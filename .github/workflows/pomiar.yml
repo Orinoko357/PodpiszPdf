@@ -31,16 +31,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - nazwa: obecny (R2R, kompresja, wszystko wypakowywane)
+          - nazwa: obecny
             parametry: ""
-          - nazwa: bez kompresji
-            parametry: -p:EnableCompressionInSingleFile=false
-          - nazwa: bez ReadyToRun
-            parametry: -p:PublishReadyToRun=false
-          - nazwa: wypakowywane tylko biblioteki natywne
-            parametry: -p:IncludeAllContentForSelfExtract=false -p:IncludeNativeLibrariesForSelfExtract=true
-          - nazwa: bez kompresji i bez ReadyToRun
-            parametry: -p:EnableCompressionInSingleFile=false -p:PublishReadyToRun=false
+          - nazwa: bez AI, ML i widżetów
+            parametry: -p:BezZbednychSkladnikow=true
+          - nazwa: bez AI, ML, widżetów + przycinanie częściowe
+            parametry: -p:BezZbednychSkladnikow=true -p:PublishTrimmed=true -p:TrimMode=partial -p:BuiltInComInteropSupport=true -p:JsonSerializerIsReflectionEnabledByDefault=true -p:SuppressTrimAnalysisWarnings=true
     name: ${{ matrix.nazwa }}
     steps:
       - uses: actions/checkout@v7
@@ -71,3 +67,14 @@ jobs:
           $rozmiar = [math]::Round((Get-Item publish/PodpisPdf.exe).Length / 1MB, 1)
           $wypak = if (Test-Path $env:DOTNET_BUNDLE_EXTRACT_BASE_DIR) { [math]::Round((Get-ChildItem $env:DOTNET_BUNDLE_EXTRACT_BASE_DIR -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 1) } else { 0 }
           "::notice title=Wynik::${{ matrix.nazwa }} | exe $rozmiar MB | wypakowane $wypak MB | start: pierwszy $($wyniki[0]) s, kolejne $($wyniki[1..3] -join ' / ') s"
+      - name: Zrzuty ekranu (sprawdzenie interfejsu)
+        shell: pwsh
+        run: |
+          $p = Start-Process publish/PodpisPdf.exe -ArgumentList '--zrzuty', "$PWD/zrzuty" -PassThru
+          if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "brak zakończenia" }
+          if ($p.ExitCode -ne 0) {
+            $blad = (Get-Content "$env:TEMP/PodpisPdf-blad.txt" -Raw -ErrorAction SilentlyContinue) -replace "\r?\n", ' | '
+            "::error title=Zrzuty ${{ matrix.nazwa }}::kod $($p.ExitCode): $blad"
+            throw "kod $($p.ExitCode)"
+          }
+          "::notice title=Zrzuty::${{ matrix.nazwa }}: $((Get-ChildItem zrzuty/*.png).Count) zrzutów"

@@ -287,3 +287,9 @@ public class WizualizacjaTesty
         }
     }
 }
+
+public class SamotestTesty
+{
+    [Fact]
+    public void PodpisProbnyDziala() => PodpisPdf.Core.Samotest.PodpisProbny();
+}
