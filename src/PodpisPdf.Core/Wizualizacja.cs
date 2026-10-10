@@ -26,6 +26,9 @@ internal static class Wizualizacja
     private const float MinRozmiarCzcionki = 4f;
     private const float InterliniaWzgledna = 1.2f;
     private const float SkalaNazwiska = 1.15f;
+    private const float SkalaNaglowka = 0.85f;
+
+    internal const string Naglowek = "Podpisano elektronicznie przez";
     // Zapas na zaokrąglenia układu, żeby wiersz nie zawinął się „na styk”.
     private const float ZapasSzerokosci = 0.96f;
 
@@ -63,6 +66,7 @@ internal static class Wizualizacja
 
         var linie = new List<(string Tekst, PdfFont Czcionka, float Skala)>
         {
+            (Naglowek, zwykla, SkalaNaglowka),
             (dane.ImieNazwisko, pogrubiona, SkalaNazwiska),
         };
         if (!string.IsNullOrWhiteSpace(dane.Stanowisko))
