@@ -32,6 +32,7 @@ public sealed partial class OknoGlowne : Window
         if (!trybTestowy)
             Ustawienia.PrzeniesLogoDoFolderuUstawien();
 
+        App.Etap = "okno główne (XAML)";
         InitializeComponent();
         Hwnd = WindowNative.GetWindowHandle(this);
 
@@ -39,8 +40,18 @@ public sealed partial class OknoGlowne : Window
         TytulOkna.Text = TytulProgramu;
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(PasekTytulu);
+        App.Etap = "tło okna";
         if (!trybTestowy)
-            SystemBackdrop = new MicaBackdrop();
+        {
+            try
+            {
+                SystemBackdrop = new MicaBackdrop();
+            }
+            catch (Exception e)
+            {
+                App.Zapisz(e); // bez Mica okno ma zwykłe tło
+            }
+        }
         else
             Korzen.Background = (Brush)Application.Current.Resources["SolidBackgroundFillColorBaseBrush"];
 
@@ -70,10 +81,23 @@ public sealed partial class OknoGlowne : Window
             }
         };
 
+        App.Etap = "ikona w zasobniku";
         if (!trybTestowy && (Ustawienia.MinimalizujDoZasobnika || startWZasobniku))
-            UtworzIkoneZasobnika();
+        {
+            try
+            {
+                UtworzIkoneZasobnika();
+            }
+            catch (Exception e)
+            {
+                App.Zapisz(e); // program działa dalej, tylko bez ikony obok zegara
+                _zasobnik = null;
+            }
+        }
 
+        App.Etap = "strona główna (XAML)";
         Ramka.Navigate(typeof(StronaGlowna));
+        App.Etap = "po utworzeniu okna";
     }
 
     internal IntPtr Hwnd { get; }

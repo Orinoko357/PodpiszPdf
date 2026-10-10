@@ -1,0 +1,85 @@
+name: Diagnoza startu
+
+# Tymczasowy: zwykły start programu w warunkach zbliżonych do komputera użytkownika.
+on:
+  push:
+    paths:
+      - .github/workflows/diagnoza.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnoza:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Publikacja
+        run: dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64 -o publish
+      - name: Starty w różnych warunkach
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $exe = Join-Path (Join-Path $env:USERPROFILE 'Downloads') 'PodpisPdf.exe'
+          New-Item -ItemType Directory -Force (Split-Path $exe) | Out-Null
+          Copy-Item publish/PodpisPdf.exe $exe
+          function Start-Proba($nazwa) {
+            Remove-Item "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue
+            $p = Start-Process $exe -PassThru
+            Start-Sleep -Seconds 20
+            $blad = Get-Content "$env:TEMP/PodpisPdf-blad.txt" -Raw -ErrorAction SilentlyContinue
+            $dziala = -not $p.HasExited
+            Get-Process PodpisPdf -ErrorAction SilentlyContinue | Stop-Process -Force
+            Start-Sleep -Seconds 2
+            if ($blad) { "::warning title=$nazwa::BŁĄD: $($blad -replace "`r?`n", ' | ')" }
+            elseif ($dziala) { "::notice title=$nazwa::działa" }
+            else { "::warning title=$nazwa::zakończył się bez pliku błędu (kod $($p.ExitCode))" }
+          }
+
+          Start-Proba '1 zwykły start z Pobranych'
+
+          # Ustawienia jak z wersji 1.5 (logo w nieistniejącym już pliku, stanowisko w dwóch wierszach).
+          $folder = Join-Path $env:APPDATA 'PodpisPdf'
+          New-Item -ItemType Directory -Force $folder | Out-Null
+          @'
+          {
+            "Stanowisko": "Kierownik Biura Informatyki\nUrzędu Miasta Wodzisławia Śląskiego",
+            "SciezkaLogo": "C:\\Users\\Public\\logo.svg",
+            "AdresTsa": "http://time.certum.pl",
+            "Polozenie": { "Strona": "Ostatnia", "NumerStrony": 1, "Naroznik": "PrawyDolny", "MarginesPoziomyMm": 15, "MarginesPionowyMm": 15 },
+            "SkalaPodpisu": 1.2,
+            "Przyrostek": "_podpisany",
+            "PoziomLT": false,
+            "MinimalizujDoZasobnika": true,
+            "Autostart": true,
+            "MenuKontekstowe": true,
+            "OstatniCertyfikat": "ABCDEF"
+          }
+          '@ | Set-Content (Join-Path $folder 'config.json') -Encoding utf8
+          Start-Proba '2 ustawienia z wersji 1.5'
+
+          # Kopia wersji 1.5 w AppData (autostart) — jak u użytkownika.
+          gh release download v1.5.0.0 -R ${{ github.repository }} -p PodpisPdf.exe -D $env:RUNNER_TEMP/v15 2>&1 | Out-Null
+          if (Test-Path "$env:RUNNER_TEMP/v15/PodpisPdf.exe") { Copy-Item "$env:RUNNER_TEMP/v15/PodpisPdf.exe" (Join-Path $folder 'PodpisPdf.exe') -Force }
+          Start-Proba '3 kopia 1.5 w AppData'
+
+          reg add 'HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' /v AppsUseLightTheme /t REG_DWORD /d 0 /f | Out-Null
+          reg add 'HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' /v SystemUsesLightTheme /t REG_DWORD /d 0 /f | Out-Null
+          Start-Proba '4 tryb ciemny'
+
+          Set-Culture pl-PL
+          Set-WinHomeLocation -GeoId 191
+          Start-Proba '5 polskie formaty regionalne'
+
+          # Uruchomienie z kopii w AppData (autostart) zamiast z Pobranych.
+          $exe = Join-Path $folder 'PodpisPdf.exe'
+          Copy-Item publish/PodpisPdf.exe $exe -Force
+          Start-Proba '6 start z kopii w AppData'
+          exit 0

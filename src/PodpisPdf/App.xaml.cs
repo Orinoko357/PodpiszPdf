@@ -5,8 +5,16 @@ namespace PodpisPdf;
 
 public partial class App : Application
 {
+    /// <summary>Bieżący etap startu (do komunikatu o błędzie i pliku diagnostycznego).</summary>
+    internal static string Etap { get; set; } = "zasoby aplikacji";
+
+    // Brakujące zasoby XAML zgłaszane przez WinUI (zwykle przyczyna „XAML parsing failed”).
+    private static readonly List<string> BledyZasobow = new();
+
     public App()
     {
+        DebugSettings.IsXamlResourceReferenceTracingEnabled = true;
+        DebugSettings.XamlResourceReferenceFailed += (_, e) => { lock (BledyZasobow) BledyZasobow.Add(e.Message); };
         InitializeComponent();
         UnhandledException += (_, e) =>
         {
@@ -67,9 +75,17 @@ public partial class App : Application
             Zapisz(e);
             Environment.ExitCode = 1;
             if (Program.Tryb == TrybUruchomienia.Normalny)
-                Win32.Komunikat("Nie udało się uruchomić programu:\n\n" + KomunikatyBledow.Opisz(e), Win32.Blad);
+                Win32.Komunikat($"Nie udało się uruchomić programu (etap: {Etap}):\n\n" + KomunikatyBledow.Opisz(e) +
+                    $"\n\n{e.GetType().Name} 0x{e.HResult:X8}" + OpisBledowZasobow() +
+                    "\n\nSzczegóły: %TEMP%\\PodpisPdf-blad.txt", Win32.Blad);
             Exit();
         }
+    }
+
+    private static string OpisBledowZasobow()
+    {
+        lock (BledyZasobow)
+            return BledyZasobow.Count == 0 ? "" : "\n\nBrakujące zasoby XAML:\n" + string.Join("\n", BledyZasobow.Distinct().Take(5));
     }
 
     /// <summary>Zapis błędu do pliku (diagnostyka, także w GitHub Actions).</summary>
@@ -77,7 +93,8 @@ public partial class App : Application
     {
         try
         {
-            File.WriteAllText(Path.Combine(Path.GetTempPath(), "PodpisPdf-blad.txt"), $"{DateTime.Now:O}\n{e}");
+            File.WriteAllText(Path.Combine(Path.GetTempPath(), "PodpisPdf-blad.txt"),
+                $"{DateTime.Now:O}\nPodpisPdf {Instalacja.BiezacaWersja}, etap: {Etap}, Windows {Environment.OSVersion.Version}\n{e}{OpisBledowZasobow()}");
         }
         catch (Exception)
         {
