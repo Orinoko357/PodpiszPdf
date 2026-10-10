@@ -20,9 +20,10 @@ jobs:
         shell: pwsh
         run: |
           dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64 -p:PublishSingleFile=false -o folder | Out-Null
-          "Razem: $([math]::Round((Get-ChildItem folder -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 1)) MB, plików: $((Get-ChildItem folder -Recurse -File).Count)"
-          Get-ChildItem folder -Recurse -File | Sort-Object Length -Descending | Select-Object -First 40 |
-            ForEach-Object { "{0,8:N1} MB  {1}" -f ($_.Length / 1MB), $_.FullName.Substring((Resolve-Path folder).Path.Length + 1) }
+          $razem = [math]::Round((Get-ChildItem folder -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 1)
+          $lista = Get-ChildItem folder -Recurse -File | Sort-Object Length -Descending | Select-Object -First 45 |
+            ForEach-Object { "{0:N1} MB {1}" -f ($_.Length / 1MB), $_.FullName.Substring((Resolve-Path folder).Path.Length + 1) }
+          "::notice title=Skladniki::Razem $razem MB; " + ($lista -join '; ')
 
   warianty:
     runs-on: windows-latest
@@ -38,8 +39,8 @@ jobs:
             parametry: -p:PublishReadyToRun=false
           - nazwa: wypakowywane tylko biblioteki natywne
             parametry: -p:IncludeAllContentForSelfExtract=false -p:IncludeNativeLibrariesForSelfExtract=true
-          - nazwa: tylko natywne, bez kompresji
-            parametry: -p:IncludeAllContentForSelfExtract=false -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=false
+          - nazwa: bez kompresji i bez ReadyToRun
+            parametry: -p:EnableCompressionInSingleFile=false -p:PublishReadyToRun=false
     name: ${{ matrix.nazwa }}
     steps:
       - uses: actions/checkout@v7
@@ -60,9 +61,13 @@ jobs:
               $p = Start-Process publish/PodpisPdf.exe -ArgumentList '--sprawdz' -PassThru
               if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "brak zakończenia" }
             }
-            if ($p.ExitCode -ne 0) { Get-Content "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue; throw "kod $($p.ExitCode)" }
+            if ($p.ExitCode -ne 0) {
+              $blad = (Get-Content "$env:TEMP/PodpisPdf-blad.txt" -Raw -ErrorAction SilentlyContinue) -replace "\r?\n", ' | '
+              "::error title=${{ matrix.nazwa }}::kod $($p.ExitCode): $blad"
+              throw "kod $($p.ExitCode)"
+            }
             [math]::Round($czas.TotalSeconds - 1.5, 2) # bez stałej pauzy 1,5 s w trybie --sprawdz
           }
           $rozmiar = [math]::Round((Get-Item publish/PodpisPdf.exe).Length / 1MB, 1)
           $wypak = if (Test-Path $env:DOTNET_BUNDLE_EXTRACT_BASE_DIR) { [math]::Round((Get-ChildItem $env:DOTNET_BUNDLE_EXTRACT_BASE_DIR -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 1) } else { 0 }
-          "WYNIK | ${{ matrix.nazwa }} | exe $rozmiar MB | wypakowane $wypak MB | start: pierwszy $($wyniki[0]) s, kolejne $($wyniki[1..3] -join ' / ') s"
+          "::notice title=Wynik::${{ matrix.nazwa }} | exe $rozmiar MB | wypakowane $wypak MB | start: pierwszy $($wyniki[0]) s, kolejne $($wyniki[1..3] -join ' / ') s"
