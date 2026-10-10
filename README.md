@@ -105,8 +105,10 @@ dotnet run --project tools/PodpisTestowy -- podpisz wniosek.pdf test.pfx haslo
 
 ## Wydania
 
-Plik `PodpisPdf.exe` do pobrania jest w zakładce **Releases** repozytorium. Nowe wydanie powstaje
-automatycznie po wypchnięciu znacznika wersji, np.:
+Plik `PodpisPdf.exe` do pobrania jest w zakładce **Releases** repozytorium. Nowe wydanie powstaje:
+
+- ręcznie: *Actions → Build → Run workflow*, wybrać gałąź i wpisać numer wersji (np. `1.0.0.2`), albo
+- po wypchnięciu znacznika wersji, np.:
 
 ```
 git tag v1.0.0.2
