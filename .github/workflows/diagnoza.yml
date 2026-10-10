@@ -45,41 +45,29 @@ jobs:
 
           Start-Proba '1 zwykły start z Pobranych'
 
-          # Ustawienia jak z wersji 1.5 (logo w nieistniejącym już pliku, stanowisko w dwóch wierszach).
-          $folder = Join-Path $env:APPDATA 'PodpisPdf'
-          New-Item -ItemType Directory -Force $folder | Out-Null
-          @'
-          {
-            "Stanowisko": "Kierownik Biura Informatyki\nUrzędu Miasta Wodzisławia Śląskiego",
-            "SciezkaLogo": "C:\\Users\\Public\\logo.svg",
-            "AdresTsa": "http://time.certum.pl",
-            "Polozenie": { "Strona": "Ostatnia", "NumerStrony": 1, "Naroznik": "PrawyDolny", "MarginesPoziomyMm": 15, "MarginesPionowyMm": 15 },
-            "SkalaPodpisu": 1.2,
-            "Przyrostek": "_podpisany",
-            "PoziomLT": false,
-            "MinimalizujDoZasobnika": true,
-            "Autostart": true,
-            "MenuKontekstowe": true,
-            "OstatniCertyfikat": "ABCDEF"
-          }
-          '@ | Set-Content (Join-Path $folder 'config.json') -Encoding utf8
-          Start-Proba '2 ustawienia z wersji 1.5'
+          # Znacznik „pobrane z internetu” (Mark of the Web), jak po pobraniu przeglądarką.
+          Set-Content -Path $exe -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3`r`nHostUrl=https://github.com/"
+          Start-Proba '2 plik z Internetu (MOTW)'
 
-          # Kopia wersji 1.5 w AppData (autostart) — jak u użytkownika.
-          gh release download v1.5.0.0 -R ${{ github.repository }} -p PodpisPdf.exe -D $env:RUNNER_TEMP/v15 2>&1 | Out-Null
-          if (Test-Path "$env:RUNNER_TEMP/v15/PodpisPdf.exe") { Copy-Item "$env:RUNNER_TEMP/v15/PodpisPdf.exe" (Join-Path $folder 'PodpisPdf.exe') -Force }
-          Start-Proba '3 kopia 1.5 w AppData'
+          # Folder tymczasowy (wypakowane biblioteki) w profilu ze spacją.
+          $env:DOTNET_BUNDLE_EXTRACT_BASE_DIR = 'C:\Users\Jan Kowalski\AppData\Local\Temp\.net'
+          Start-Proba '3 profil ze spacją'
 
-          reg add 'HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' /v AppsUseLightTheme /t REG_DWORD /d 0 /f | Out-Null
-          reg add 'HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' /v SystemUsesLightTheme /t REG_DWORD /d 0 /f | Out-Null
-          Start-Proba '4 tryb ciemny'
+          # Polskie litery w ścieżce profilu.
+          $env:DOTNET_BUNDLE_EXTRACT_BASE_DIR = 'C:\Users\Mateusz Kozielski Żółć\AppData\Local\Temp\.net'
+          Start-Proba '4 profil z polskimi literami'
 
-          Set-Culture pl-PL
-          Set-WinHomeLocation -GeoId 191
-          Start-Proba '5 polskie formaty regionalne'
+          # Program w folderze z polskimi literami i spacją.
+          Remove-Item Env:DOTNET_BUNDLE_EXTRACT_BASE_DIR
+          $exe2 = 'C:\Users\Mateusz Kozielski Żółć\Pobrane pliki\PodpisPdf.exe'
+          New-Item -ItemType Directory -Force (Split-Path $exe2) | Out-Null
+          Copy-Item publish/PodpisPdf.exe $exe2
+          $exe = $exe2
+          Start-Proba '5 program w folderze z polskimi literami'
 
-          # Uruchomienie z kopii w AppData (autostart) zamiast z Pobranych.
-          $exe = Join-Path $folder 'PodpisPdf.exe'
-          Copy-Item publish/PodpisPdf.exe $exe -Force
-          Start-Proba '6 start z kopii w AppData'
+          # Zmienna TEMP ze spacją i polskimi literami (bez DOTNET_BUNDLE_EXTRACT_BASE_DIR).
+          $t = 'C:\Users\Mateusz Kozielski Żółć\Temp'
+          New-Item -ItemType Directory -Force $t | Out-Null
+          $env:TEMP = $t; $env:TMP = $t
+          Start-Proba '6 TEMP z polskimi literami'
           exit 0
