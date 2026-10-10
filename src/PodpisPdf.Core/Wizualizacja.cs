@@ -70,8 +70,11 @@ internal static class Wizualizacja
             new(Naglowek, zwykla, SkalaNaglowka),
             new(dane.ImieNazwisko, pogrubiona, SkalaNazwiska),
         };
-        if (!string.IsNullOrWhiteSpace(dane.Stanowisko))
-            linie.Add(new(dane.Stanowisko.Trim(), zwykla, 1f, MaksWierszyStanowiska));
+        var stanowisko = WierszeStanowiska(dane.Stanowisko);
+        if (stanowisko.Count == 1)
+            linie.Add(new(stanowisko[0], zwykla, 1f, MaksWierszyStanowiska));
+        else
+            linie.AddRange(stanowisko.Select(w => new Wiersz(w, zwykla, 1f)));
         linie.Add(new("Data: " + FormatujCzas(dane.Czas), zwykla, 1f));
 
         var logo = WczytajLogo(dane.SciezkaLogo);
@@ -147,12 +150,23 @@ internal static class Wizualizacja
         return wyglad;
     }
 
+    /// <summary>
+    /// Wiersze stanowiska. Podział wpisany przez użytkownika (Enter w ustawieniach) jest zachowany dokładnie;
+    /// bez niego program sam zawija stanowisko do dwóch wierszy.
+    /// </summary>
+    internal static List<string> WierszeStanowiska(string? stanowisko) =>
+        (stanowisko ?? "")
+            .Split('\n')
+            .Select(w => w.Trim())
+            .Where(w => w.Length > 0)
+            .ToList();
+
     internal static string FormatujCzas(DateTimeOffset czas)
     {
         var lokalny = czas.ToLocalTime();
         var przesuniecie = lokalny.Offset;
         var znak = przesuniecie < TimeSpan.Zero ? "-" : "+";
-        return lokalny.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) +
+        return lokalny.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) +
                $" (UTC{znak}{przesuniecie.Duration():hh\\:mm})";
     }
 

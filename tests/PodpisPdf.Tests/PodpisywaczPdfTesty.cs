@@ -217,6 +217,22 @@ public class WizualizacjaTesty
         Assert.Equal(int.MaxValue, Wizualizacja.LiczbaWierszy("abcdabcd", czcionka, 10, slowo));
     }
 
+    [Fact]
+    public void PodzialStanowiskaWpisanyPrzezUzytkownika()
+    {
+        Assert.Equal(new[] { "Kierownik biura informatyki", "Urzędu Miasta Wodzisławia Śląskiego" },
+            Wizualizacja.WierszeStanowiska("Kierownik biura informatyki \r\n Urzędu Miasta Wodzisławia Śląskiego\n"));
+        Assert.Equal(new[] { "Kierownik" }, Wizualizacja.WierszeStanowiska("Kierownik"));
+        Assert.Empty(Wizualizacja.WierszeStanowiska("  "));
+    }
+
+    [Fact]
+    public void DataNaWizualizacjiBezSekund()
+    {
+        var tekst = Wizualizacja.FormatujCzas(new DateTimeOffset(2026, 3, 14, 10, 20, 30, TimeSpan.Zero));
+        Assert.Matches(@"^\d{4}-\d{2}-\d{2} \d{2}:\d{2} \(UTC[+-]\d{2}:\d{2}\)$", tekst);
+    }
+
     private static void ZbierzCzcionki(PdfObject? obiekt, List<string> wynik, HashSet<PdfObject> odwiedzone)
     {
         if (obiekt is PdfIndirectReference r)

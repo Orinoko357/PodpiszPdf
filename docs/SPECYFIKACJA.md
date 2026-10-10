@@ -66,9 +66,9 @@ Prostokąt na stronie dokumentu, który zawiera:
 |---|---|---|
 | **Nagłówek „Podpisano elektronicznie przez:”** | Stały tekst na samej górze, przed imieniem i nazwiskiem | tak |
 | **Imię i nazwisko** (zawsze pogrubione) | Z certyfikatu (pola *GivenName* i *Surname*; jeśli ich brak, pole *CN*) | tak |
-| **Stanowisko** | Wpisane w ustawieniach programu | nie |
+| **Stanowisko** | Wpisane w ustawieniach programu; Enter wymusza podział wiersza, bez tego zawija się samo do dwóch wierszy | nie |
 | **Logo** | Plik PNG lub JPG wskazany w ustawieniach | nie |
-| **Data i godzina** | Czas złożenia podpisu, patrz uwaga niżej | tak |
+| **Data i godzina** | Czas złożenia podpisu bez sekund (RRRR-MM-DD GG:MM), patrz uwaga niżej | tak |
 
 Pusty element (np. brak logo) znika, a układ dopasowuje się do reszty. Czcionka obsługuje polskie znaki.
 

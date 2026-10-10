@@ -19,7 +19,15 @@ internal sealed class OknoUstawien : Form
         (Naroznik.LewyGorny, "lewy górny róg"),
     };
 
-    private readonly TextBox _stanowisko = new() { Dock = DockStyle.Fill };
+    private readonly TextBox _stanowisko = new()
+    {
+        Dock = DockStyle.Fill,
+        Multiline = true,
+        AcceptsReturn = true,
+        WordWrap = false,
+        ScrollBars = ScrollBars.Vertical,
+        Height = 52,
+    };
     private readonly TextBox _logo = new() { Dock = DockStyle.Fill };
     private readonly TextBox _adresTsa = new() { Dock = DockStyle.Fill };
     private readonly TextBox _loginTsa = new() { Dock = DockStyle.Fill };
@@ -67,6 +75,7 @@ internal sealed class OknoUstawien : Form
 
         Naglowek(uklad, "Wizualizacja podpisu");
         Wiersz(uklad, "Stanowisko (opcjonalnie):", _stanowisko);
+        Wiersz(uklad, "", Etykieta("Enter = nowy wiersz na wizualizacji (bez tego zawija się samo)"));
 
         var przyciskLogo = new Button { Text = "Wybierz…", AutoSize = true };
         przyciskLogo.Click += (_, _) => WybierzLogo();
@@ -127,7 +136,7 @@ internal sealed class OknoUstawien : Form
     {
         var u = Ustawienia;
         var p = u.Polozenie;
-        _stanowisko.Text = u.Stanowisko ?? "";
+        _stanowisko.Text = (u.Stanowisko ?? "").Replace("\n", Environment.NewLine);
         _logo.Text = u.SciezkaLogo ?? "";
         _adresTsa.Text = u.AdresTsa;
         _loginTsa.Text = u.LoginTsa ?? "";
@@ -171,7 +180,9 @@ internal sealed class OknoUstawien : Form
         }
 
         var u = Ustawienia;
-        u.Stanowisko = string.IsNullOrWhiteSpace(_stanowisko.Text) ? null : _stanowisko.Text.Trim();
+        var wiersze = _stanowisko.Text.Replace("\r\n", "\n").Split('\n').Select(w => w.Trim()).Where(w => w.Length > 0);
+        var stanowisko = string.Join("\n", wiersze);
+        u.Stanowisko = stanowisko.Length == 0 ? null : stanowisko;
         u.SciezkaLogo = logo.Length == 0 ? null : logo;
         u.AdresTsa = adres;
         u.LoginTsa = string.IsNullOrWhiteSpace(_loginTsa.Text) ? null : _loginTsa.Text.Trim();
