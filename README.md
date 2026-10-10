@@ -75,14 +75,15 @@ Wiążący czas zawsze zawiera znacznik czasu w podpisie.
 
 ## Budowanie
 
-Wymagane .NET 8 SDK na Windows.
+Wymagane .NET 10 SDK (i .NET 8 dla testów) na Windows.
 
 ```
 dotnet test tests/PodpisPdf.Tests
-dotnet publish src/PodpisPdf -c Release -r win-x64 -o publish
+dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64 -o publish
 ```
 
-Wynik: `publish\PodpisPdf.exe` — jeden plik, nie wymaga instalacji .NET (Windows 10/11, 64-bit).
+Wynik: `publish\PodpisPdf.exe` — jeden plik, nie wymaga instalacji .NET ani Windows App SDK (Windows 10 1809+/11, 64-bit).
+Przy pierwszym uruchomieniu plik wypakowuje biblioteki WinUI do folderu tymczasowego, więc start trwa wtedy dłużej.
 GitHub Actions buduje ten plik przy każdym pushu (artefakt **PodpisPdf** w zakładce *Actions*).
 
 ## Struktura
@@ -90,7 +91,7 @@ GitHub Actions buduje ten plik przy każdym pushu (artefakt **PodpisPdf** w zak�
 | Katalog | Zawartość |
 |---|---|
 | `src/PodpisPdf.Core` | Logika: wybór certyfikatów, podpis PAdES (iText 9 + BouncyCastle), wizualizacja, znacznik czasu, podgląd stron (PDFium), komunikaty błędów |
-| `src/PodpisPdf` | Okno programu (WinForms): podgląd z wyborem miejsca, ustawienia, zasobnik, menu kontekstowe |
+| `src/PodpisPdf` | Interfejs WinUI 3 (Windows App SDK, .NET 10): strona główna, podgląd z wyborem miejsca, ustawienia, zasobnik, menu kontekstowe |
 | `tests/PodpisPdf.Tests` | Testy na certyfikatach testowych (RSA i ECDSA) z lokalnym serwerem znacznika czasu — bez karty i bez sieci |
 | `tools/PodpisTestowy` | Narzędzie deweloperskie: podpis certyfikatem z pliku PFX do sprawdzenia formatu w Adobe/EU DSS |
 | `docs/TESTY.md` | Lista kroków testu z prawdziwą kartą |

@@ -1,6 +1,6 @@
 # PodpisPdf — wskazówki dla Claude
 
-Aplikacja WinForms (.NET 8) do kwalifikowanego podpisu PAdES plików PDF. Opis w `README.md`,
+Aplikacja WinUI 3 (Windows App SDK, .NET 10; logika w `PodpisPdf.Core` na .NET 8) do kwalifikowanego podpisu PAdES plików PDF. Opis w `README.md`,
 wymagania w `docs/SPECYFIKACJA.md`, lista testów z kartą w `docs/TESTY.md`. Rozmowa z użytkownikiem po polsku.
 
 ## Wydania — obowiązkowo po każdej zmianie programu
@@ -24,10 +24,11 @@ Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagaj�
 
 - Testy (Linux i Windows): `dotnet test tests/PodpisPdf.Tests` — logika podpisu na certyfikatach testowych
   z lokalnym serwerem znacznika czasu, renderowanie przez PDFium.
-- `src/PodpisPdf` (WinForms) buduje się tylko pakietem SDK z obsługą Windows Desktop; na Linuksie z SDK
-  z dystrybucji można jedynie sprawdzić kompilację osobnym projektem z
-  `<FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />` i `EnableWindowsTargeting`.
-- Publikacja: `dotnet publish src/PodpisPdf -c Release -r win-x64` → jeden plik `PodpisPdf.exe`.
+- `src/PodpisPdf` (WinUI 3, XAML) kompiluje się tylko na Windows (kompilator XAML) — sprawdzenie w GitHub Actions.
+  Jedno okno (`OknoGlowne`) z ramką stron: `StronaGlowna`, `StronaPodgladu`, `StronaUstawien`.
+- Publikacja: `dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64` → jeden plik `PodpisPdf.exe`.
+- CI uruchamia `PodpisPdf.exe --sprawdz` (test startu) i `--zrzuty <folder>` (zrzuty stron w obu motywach);
+  zrzuty trafiają na gałąź `zrzuty-ekranu` (pobranie: `git fetch origin zrzuty-ekranu`).
 
 ## Wizualizacja podpisu
 

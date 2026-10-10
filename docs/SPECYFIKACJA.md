@@ -94,7 +94,7 @@ Zapisywane w pliku `%APPDATA%\PodpisPdf\config.json` i edytowane w oknie „Usta
 
 ## 7. Technologia
 
-- **C# / .NET 8, WinForms.** Wynikiem jest jeden plik `PodpisPdf.exe` (self-contained), który nie wymaga instalacji .NET.
+- **C# / .NET 10, WinUI 3 (Windows App SDK, bez pakietu MSIX).** Wynikiem jest jeden plik `PodpisPdf.exe` (self-contained), który nie wymaga instalacji .NET.
 - **iText 9 + BouncyCastle** do podpisu PAdES. Licencja AGPL: przy użytku wewnętrznym albo udostępnieniu kodu źródłowego nie ma problemu.
 - Dostęp do klucza przez mechanizmy kryptograficzne Windows (CNG/CSP), czyli przez sterownik producenta karty.
 - System: Windows 10 lub 11, 64-bit.
