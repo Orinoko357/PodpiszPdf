@@ -68,6 +68,7 @@ Okno **Ustawienia…**; zapis w `%APPDATA%\PodpisPdf\config.json`:
 | Pozycja w nowym menu kontekstowym Windows 11 | wyłączona |
 | Po otwarciu pliku PDF (gdy PodpisPdf jest aplikacją domyślną): pytaj / podpisuj / przeglądaj | pytaj |
 | Codzienne sprawdzanie aktualizacji | włączone |
+| Minimalizuj po podpisaniu (bez okienka z podsumowaniem; dymek w zasobniku) | wyłączone |
 
 Wizualizacja jest pisana **Arialem**: imię i nazwisko 11 pt (pogrubione), nagłówek i data 8 pt, stanowisko 7–9 pt
 (jak największe, byle nie szersze od pozostałych wierszy). Rozmiar prostokąta wynika z treści; rysując podpis

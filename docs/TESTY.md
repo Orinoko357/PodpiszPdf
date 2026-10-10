@@ -34,6 +34,7 @@ Przed testem:
 - [ ] Zminimalizuj program — znika z paska zadań, ikona jest obok zegara. Podpisz plik z menu kontekstowego —
       otwiera się działające okno (nie druga kopia programu).
 - [ ] Dwuklik na ikonie w zasobniku przywraca okno; *Zakończ* w menu ikony zamyka program.
+- [ ] Ustawienia → *Minimalizuj po podpisaniu* włączone: po podpisie nie ma okienka z podsumowaniem, okno chowa się do zasobnika, a dymek pokazuje nazwę podpisanego pliku.
 - [ ] Wyłączenie opcji menu kontekstowego w ustawieniach usuwa pozycję z menu.
 
 ## 4. Autostart i aktualizacja

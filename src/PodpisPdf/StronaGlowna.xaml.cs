@@ -544,6 +544,13 @@ public sealed partial class StronaGlowna : Page
             ZapiszCicho(ustawienia);
 
             UstawStatus($"Podpisano: {wynik.SciezkaWyniku}");
+            if (ustawienia.MinimalizujPoPodpisie && !Okno.TrybTestowy)
+            {
+                // Bez pytań: okno znika (do zasobnika, jeśli włączony), a wynik pokazuje dymek.
+                Okno.Minimalizuj();
+                Okno.Powiadom("Dokument został podpisany", Path.GetFileName(wynik.SciezkaWyniku));
+                return;
+            }
             var zrodloCzasu = wynik.CzasZSerwera ? "z serwera znacznika czasu" : "z zegara komputera — serwer nie odpowiedział przed podpisem";
             var decyzja = await Dialogi.PokazAsync(XamlRoot, "Dokument został podpisany",
                 $"Zapisano jako:\n{wynik.SciezkaWyniku}\n\n" +

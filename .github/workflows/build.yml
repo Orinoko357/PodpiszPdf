@@ -291,7 +291,7 @@ jobs:
           Set-Content wynik/PodpisPdf.msi.sha256 "$suma  PodpisPdf.msi" -NoNewline -Encoding ascii
           "SHA-256: $suma"
 
-      # Gotowy, przetestowany instalator — z tego artefaktu korzysta wydanie.yml (bez ponownej budowy).
+      # Gotowy, przetestowany instalator — z tego artefaktu korzysta zadanie „wydanie” (bez ponownej budowy).
       - uses: actions/upload-artifact@v6
         with:
           name: PodpisPdf

@@ -199,6 +199,14 @@ public sealed partial class OknoGlowne : Window
         Win32.SetForegroundWindow(Hwnd);
     }
 
+    /// <summary>Minimalizacja okna — przy włączonym zasobniku okno chowa się do niego (PrzyZmianieOkna).</summary>
+    internal void Minimalizuj()
+    {
+        _pokazanoDymek = true; // zamiast ogólnego dymka „działa w tle” — powiadomienie o podpisie
+        if (AppWindow.Presenter is OverlappedPresenter p)
+            p.Minimize();
+    }
+
     private void PrzyZmianieOkna(AppWindow okno, AppWindowChangedEventArgs e)
     {
         if (!e.DidPresenterChange && !e.DidSizeChange)

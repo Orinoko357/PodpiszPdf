@@ -39,6 +39,9 @@ internal sealed class Ustawienia
     /// <summary>Minimalizacja chowa okno do zasobnika systemowego (obok zegara).</summary>
     public bool MinimalizujDoZasobnika { get; set; } = true;
 
+    /// <summary>Po udanym podpisie okno od razu się minimalizuje, bez okienka z podsumowaniem.</summary>
+    public bool MinimalizujPoPodpisie { get; set; }
+
     /// <summary>Uruchamianie przy logowaniu do Windows (z kopii programu w %APPDATA%\PodpisPdf).</summary>
     public bool Autostart { get; set; }
 

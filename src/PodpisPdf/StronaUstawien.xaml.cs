@@ -91,6 +91,7 @@ public sealed partial class StronaUstawien : Page
         Przyrostek.Text = u.Przyrostek;
         PoziomLT.IsOn = u.PoziomLT;
         Zasobnik.IsOn = u.MinimalizujDoZasobnika;
+        MinimalizujPoPodpisie.IsOn = u.MinimalizujPoPodpisie;
         Autostart.IsOn = u.Autostart;
         MenuKontekstowe.IsOn = u.MenuKontekstowe;
         ListaPoOtwarciu.SelectedIndex = (int)u.PoOtwarciuPdf;
@@ -459,6 +460,7 @@ public sealed partial class StronaUstawien : Page
         u.Przyrostek = przyrostek;
         u.PoziomLT = PoziomLT.IsOn;
         u.MinimalizujDoZasobnika = Zasobnik.IsOn;
+        u.MinimalizujPoPodpisie = MinimalizujPoPodpisie.IsOn;
         u.Autostart = Autostart.IsOn;
         u.MenuKontekstowe = MenuKontekstowe.IsOn;
         u.PoOtwarciuPdf = (PoOtwarciuPdf)Math.Max(0, ListaPoOtwarciu.SelectedIndex);
