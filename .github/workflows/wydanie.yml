@@ -1,0 +1,96 @@
+name: Wydanie
+
+# Publikacja wydania z gotowego instalatora: bierze artefakt „PodpisPdf” z udanego przebiegu „Build”
+# dla tego samego commita (zbudowany i przetestowany po pushu) — bez ponownej budowy, ok. minuty.
+on:
+  workflow_dispatch:
+    inputs:
+      wersja:
+        description: "Numer wydania, np. 3.1.0.1 (musi być równy <Version> w PodpisPdf.csproj)"
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  wydanie:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TOKEN_WYDANIA: ${{ secrets.TOKEN_WYDANIA }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Zgodność numeru wersji
+        run: |
+          wersja=$(grep -oP '(?<=<Version>)[^<]+' src/PodpisPdf/PodpisPdf.csproj)
+          if [ "$wersja" != "${{ inputs.wersja }}" ]; then
+            echo "::error::Wersja w PodpisPdf.csproj ($wersja) różni się od podanej (${{ inputs.wersja }})."
+            exit 1
+          fi
+
+      - name: Udany przebieg „Build” dla tego commita
+        id: build
+        run: |
+          id=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yml/runs?head_sha=${{ github.sha }}&status=success&per_page=1" --jq '.workflow_runs[0].id // empty')
+          if [ -z "$id" ]; then
+            echo "::error::Brak udanego przebiegu Build dla commita ${{ github.sha }} — poczekaj, aż się zakończy (albo popraw błędy)."
+            exit 1
+          fi
+          echo "Przebieg Build: $id"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: PodpisPdf
+          run-id: ${{ steps.build.outputs.id }}
+          github-token: ${{ github.token }}
+          path: wynik
+
+      - name: Kontrola plików
+        run: |
+          ls -la wynik wynik/* 2>/dev/null || true
+          msi=$(find wynik -name PodpisPdf.msi | head -1); sum=$(find wynik -name PodpisPdf.msi.sha256 | head -1); cer=$(find wynik -name PodpisPdf.cer | head -1)
+          [ -n "$msi" ] && [ -n "$sum" ] && [ -n "$cer" ] || { echo "::error::Niepełny artefakt"; exit 1; }
+          oczekiwana=$(cut -d' ' -f1 "$sum"); faktyczna=$(sha256sum "$msi" | cut -d' ' -f1)
+          [ "$oczekiwana" = "$faktyczna" ] || { echo "::error::Suma SHA-256 instalatora się nie zgadza"; exit 1; }
+          mkdir -p pliki && cp "$msi" "$sum" "$cer" pliki/
+          ls -la pliki
+
+      - name: Wydanie (Release)
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ inputs.wersja }}
+          target_commitish: ${{ github.sha }}
+          name: PodpisPdf v${{ inputs.wersja }}
+          files: pliki/*
+          generate_release_notes: true
+
+      # Publiczne repozytorium wydań — stąd program pobiera aktualizacje.
+      - name: Wydanie w repozytorium aktualizacji
+        if: env.TOKEN_WYDANIA != ''
+        uses: softprops/action-gh-release@v3
+        with:
+          repository: Orinoko357/PodpisPdf-wydania
+          token: ${{ secrets.TOKEN_WYDANIA }}
+          tag_name: v${{ inputs.wersja }}
+          name: PodpisPdf v${{ inputs.wersja }}
+          body: |
+            Kwalifikowany podpis elektroniczny PAdES plików PDF. Pobierz i uruchom instalator **PodpisPdf.msi**
+            (Windows 10/11, 64-bit, instalacja dla całego komputera). Zainstalowany program aktualizuje się sam.
+            Cicha instalacja: `msiexec /i PodpisPdf.msi /qn`.
+
+            Certyfikat **PodpisPdf.cer** jest potrzebny tylko do pozycji w nowym menu kontekstowym Windows 11
+            (instalator dodaje go sam).
+          files: pliki/*
+
+      # Sprawdzenie tak, jak robi to program: najnowsze wydanie w repozytorium aktualizacji ma instalator i sumę.
+      - name: Kontrola repozytorium aktualizacji
+        if: env.TOKEN_WYDANIA != ''
+        run: |
+          sleep 5
+          curl -sf https://api.github.com/repos/Orinoko357/PodpisPdf-wydania/releases/latest -o najnowsze.json
+          jq -r '.tag_name, (.assets[].name)' najnowsze.json
+          [ "$(jq -r .tag_name najnowsze.json)" = "v${{ inputs.wersja }}" ] || { echo "::error::Najnowsze wydanie w repozytorium aktualizacji to nie v${{ inputs.wersja }}"; exit 1; }
+          jq -e '[.assets[].name] | index("PodpisPdf.msi") and index("PodpisPdf.msi.sha256")' najnowsze.json > /dev/null || { echo "::error::Brak instalatora lub sumy"; exit 1; }

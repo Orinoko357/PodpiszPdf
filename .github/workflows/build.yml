@@ -2,14 +2,10 @@ name: Build
 
 # Jeden przebieg na commit: wynik budowania z „push” jest widoczny także w pull requeście
 # (osobny przebieg dla pull_request dublował maile o błędach).
+# Wydania publikuje osobny workflow wydanie.yml z gotowego instalatora z tego przebiegu.
 on:
   push:
   workflow_dispatch:
-    inputs:
-      wersja:
-        description: "Numer wydania do opublikowania, np. 1.0.0.1 (puste = tylko budowanie)"
-        required: false
-        default: ""
 
 permissions:
   contents: write
@@ -30,6 +26,13 @@ jobs:
           dotnet-version: |
             8.0.x
             10.0.x
+
+      # Pakiety NuGet z poprzednich przebiegów (WinUI, Windows App SDK, iText) — bez pobierania od nowa.
+      - uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
 
       # --blame: przy awarii procesu testów pokazuje, który test był wtedy wykonywany.
       - name: Testy
@@ -187,13 +190,30 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "wix build: $LASTEXITCODE" }
           "Instalator: $([math]::Round((Get-Item wynik/PodpisPdf.msi).Length / 1MB, 1)) MB, wersja MSI $wersjaMsi"
 
-      - name: Test instalatora (instalacja, start, certyfikat, odinstalowanie)
+      - name: Test instalatora (aktualizacja, start, menu, certyfikat, odinstalowanie)
         shell: pwsh
         run: |
+          # Aktualizacja: najpierw opublikowane wydanie, na nie nowy instalator (gdy ma wyższy numer).
+          $wersja = [version](([xml](Get-Content src/PodpisPdf/PodpisPdf.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
+          $najnowsze = Invoke-RestMethod https://api.github.com/repos/Orinoko357/PodpisPdf-wydania/releases/latest -ErrorAction SilentlyContinue
+          $poprzednia = if ($najnowsze) { [version]($najnowsze.tag_name.TrimStart('v')) } else { $null }
+          $testAktualizacji = $poprzednia -and $poprzednia -lt $wersja -and ($najnowsze.assets.name -contains 'PodpisPdf.msi')
+          if ($testAktualizacji) {
+            Invoke-WebRequest ($najnowsze.assets | Where-Object name -eq 'PodpisPdf.msi').browser_download_url -OutFile "$env:RUNNER_TEMP\poprzednia.msi"
+            $p0 = Start-Process msiexec.exe -ArgumentList '/i', "`"$env:RUNNER_TEMP\poprzednia.msi`"", '/qn' -Wait -PassThru
+            if ($p0.ExitCode -ne 0) { throw "Instalacja poprzedniej wersji $poprzednia: kod $($p0.ExitCode)" }
+            "Zainstalowano poprzednią wersję $poprzednia"
+          } else { "Bez testu aktualizacji (opublikowana: $poprzednia, budowana: $wersja)" }
+
           $p = Start-Process msiexec.exe -ArgumentList '/i', "`"$((Resolve-Path wynik/PodpisPdf.msi).Path)`"", '/qn', '/l*v', "`"$env:RUNNER_TEMP\instalacja.log`"" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\instalacja.log" -Tail 60; throw "Instalacja MSI: kod $($p.ExitCode)" }
           $exe = Join-Path $env:ProgramFiles 'PodpisPdf\PodpisPdf.exe'
           if (-not (Test-Path $exe)) { throw "Brak $exe po instalacji" }
+          $wersjaPliku = [version](Get-Item $exe).VersionInfo.FileVersion
+          if ($wersjaPliku -ne $wersja) { throw "Zainstalowana wersja $wersjaPliku zamiast $wersja" }
+          $wpisy = @(Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | Get-ItemProperty | Where-Object DisplayName -eq 'PodpisPdf')
+          if ($wpisy.Count -ne 1) { throw "Wpisów PodpisPdf w Aplikacjach: $($wpisy.Count) (oczekiwano 1)" }
+          if ($testAktualizacji) { "Aktualizacja $poprzednia → $wersja: działa (jeden wpis w Aplikacjach)" }
           $cer = if (Test-Path pakiet/wynik/PodpisPdf.cer) { 'pakiet/wynik/PodpisPdf.cer' } else { 'pakiet/test/PodpisPdf.cer' }
           $odcisk = ([Security.Cryptography.X509Certificates.X509Certificate2]::new((Resolve-Path $cer).Path)).Thumbprint
           if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople | Where-Object Thumbprint -eq $odcisk)) { throw "Instalator nie dodał certyfikatu" }
@@ -205,11 +225,41 @@ jobs:
           Remove-Item "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue
           $z = Start-Process $exe -PassThru
           Start-Sleep -Seconds 15
+          # Rejestracja pakietu menu odbywa się w tle po starcie — dajemy jej do 45 s.
+          $koniec = (Get-Date).AddSeconds(30)
+          while ($env:CERTYFIKAT_PFX -and -not (Get-AppxPackage PodpisPdf) -and (Get-Date) -lt $koniec) { Start-Sleep -Seconds 3 }
           $blad = Get-Content "$env:TEMP/PodpisPdf-blad.txt" -Raw -ErrorAction SilentlyContinue
           $dziala = -not $z.HasExited
           Get-Process PodpisPdf -ErrorAction SilentlyContinue | Stop-Process -Force
           if ($blad) { "::error title=Zainstalowany program::$($blad -replace "`r?`n", ' | ')"; throw "Błąd zwykłego startu zainstalowanego programu" }
           if (-not $dziala) { throw "Zainstalowany program zakończył się przy starcie" }
+
+          # Menu Windows 11: program sam rejestruje pakiet (certyfikat dodał instalator), serwer COM odpowiada.
+          if ($env:CERTYFIKAT_PFX) {
+            $pakiet = Get-AppxPackage PodpisPdf
+            if (-not $pakiet) { throw "Program nie zarejestrował pozycji w menu Windows 11" }
+            "Menu Windows 11: pakiet $($pakiet.Version) zarejestrowany automatycznie"
+            $obiekt = [Activator]::CreateInstance([Type]::GetTypeFromCLSID([Guid]'6E2F4C3A-8B1D-4F5E-9A7C-2D3B4E5F6A71'))
+            if ($null -eq $obiekt) { throw "Serwer COM menu nie odpowiada" }
+            [Runtime.InteropServices.Marshal]::ReleaseComObject($obiekt) | Out-Null
+            Get-Process PodpisPdf -ErrorAction SilentlyContinue | Stop-Process -Force
+          }
+
+          # Otwarcie PDF z ustawieniem „zawsze przeglądaj”: plik trafia do przeglądarki, program się kończy.
+          $config = Join-Path $env:APPDATA 'PodpisPdf\config.json'
+          $ustawienia = if (Test-Path $config) { Get-Content $config -Raw | ConvertFrom-Json } else { New-Item -ItemType Directory -Force (Split-Path $config) | Out-Null; [pscustomobject]@{} }
+          $ustawienia | Add-Member -NotePropertyName PoOtwarciuPdf -NotePropertyValue 'Przegladaj' -Force
+          $ustawienia | ConvertTo-Json -Depth 5 | Set-Content $config -Encoding utf8
+          $pdf = (Resolve-Path zrzuty/wniosek_o_dofinansowanie.pdf).Path
+          $o = Start-Process $exe -ArgumentList '--otworz', "`"$pdf`"" -PassThru
+          if (-not $o.WaitForExit(60000)) { $o.Kill(); throw "Otwarcie do przeglądania: program się nie zakończył" }
+          if ($o.ExitCode -ne 0) { throw "Otwarcie do przeglądania: kod $($o.ExitCode)" }
+          Start-Sleep -Seconds 5
+          $przegladarka = Get-Process msedge, Acrobat, AcroRd32 -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $przegladarka) { throw "Plik PDF nie został otwarty w przeglądarce" }
+          "Otwarcie PDF do przeglądania: $($przegladarka.ProcessName)"
+          Get-Process msedge, Acrobat, AcroRd32 -ErrorAction SilentlyContinue | Stop-Process -Force
+
           Get-AppxPackage PodpisPdf | Format-List Name, Version
           Get-AppxPackage PodpisPdf | Remove-AppxPackage
           Start-Sleep -Seconds 2
@@ -226,47 +276,12 @@ jobs:
           Set-Content wynik/PodpisPdf.msi.sha256 "$suma  PodpisPdf.msi" -NoNewline -Encoding ascii
           "SHA-256: $suma"
 
+      # Gotowy, przetestowany instalator — z tego artefaktu korzysta wydanie.yml (bez ponownej budowy).
       - uses: actions/upload-artifact@v6
         with:
           name: PodpisPdf
           path: |
             wynik/PodpisPdf.msi
             wynik/PodpisPdf.msi.sha256
-
-      # Wydanie (Release) z plikiem PodpisPdf.exe: po wypchnięciu znacznika vX.Y.Z.W
-      # albo po ręcznym uruchomieniu workflow z podanym numerem wersji (znacznik powstaje wtedy automatycznie).
-      - name: Wydanie (Release)
-        if: startsWith(github.ref, 'refs/tags/v') || inputs.wersja != ''
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ inputs.wersja != '' && format('v{0}', inputs.wersja) || github.ref_name }}
-          target_commitish: ${{ github.sha }}
-          name: PodpisPdf ${{ inputs.wersja != '' && format('v{0}', inputs.wersja) || github.ref_name }}
-          files: |
-            wynik/PodpisPdf.msi
-            wynik/PodpisPdf.msi.sha256
             pakiet/wynik/PodpisPdf.cer
-          fail_on_unmatched_files: false
-          generate_release_notes: true
-
-      # Publiczne repozytorium wydań — stąd program pobiera aktualizacje (sekret TOKEN_WYDANIA:
-      # token z prawem zapisu do Orinoko357/PodpisPdf-wydania).
-      - name: Wydanie w repozytorium aktualizacji
-        if: (startsWith(github.ref, 'refs/tags/v') || inputs.wersja != '') && env.TOKEN_WYDANIA != ''
-        uses: softprops/action-gh-release@v3
-        with:
-          repository: Orinoko357/PodpisPdf-wydania
-          token: ${{ secrets.TOKEN_WYDANIA }}
-          tag_name: ${{ inputs.wersja != '' && format('v{0}', inputs.wersja) || github.ref_name }}
-          name: PodpisPdf ${{ inputs.wersja != '' && format('v{0}', inputs.wersja) || github.ref_name }}
-          body: |
-            Kwalifikowany podpis elektroniczny PAdES plików PDF. Pobierz i uruchom instalator **PodpisPdf.msi**
-            (Windows 10/11, 64-bit, instalacja dla całego komputera). Zainstalowany program aktualizuje się sam.
-            Cicha instalacja: `msiexec /i PodpisPdf.msi /qn`.
-
-            Certyfikat **PodpisPdf.cer** jest potrzebny tylko do pozycji w nowym menu kontekstowym Windows 11.
-          files: |
-            wynik/PodpisPdf.msi
-            wynik/PodpisPdf.msi.sha256
-            pakiet/wynik/PodpisPdf.cer
-          fail_on_unmatched_files: false
+          if-no-files-found: error
