@@ -31,12 +31,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - nazwa: obecny
+          - nazwa: nowy (bez AI/ML/widżetów, przycinanie)
             parametry: ""
-          - nazwa: bez AI, ML i widżetów
-            parametry: -p:BezZbednychSkladnikow=true
-          - nazwa: bez AI, ML, widżetów + przycinanie częściowe
-            parametry: -p:BezZbednychSkladnikow=true -p:PublishTrimmed=true -p:TrimMode=partial -p:BuiltInComInteropSupport=true -p:JsonSerializerIsReflectionEnabledByDefault=true -p:SuppressTrimAnalysisWarnings=true
+          - nazwa: bez przycinania
+            parametry: -p:PublishTrimmed=false
     name: ${{ matrix.nazwa }}
     steps:
       - uses: actions/checkout@v7

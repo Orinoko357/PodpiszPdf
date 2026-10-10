@@ -35,6 +35,15 @@
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <PublishReadyToRun>true</PublishReadyToRun>
+    <!-- Przycinanie częściowe: z bibliotek oznaczonych jako bezpieczne (m.in. projekcja Windows SDK, 53 MB)
+         zostaje tylko używany kod; iText, BouncyCastle i kod programu zostają w całości. Pełny podpis
+         próbny (--sprawdz), zrzuty i test menu w GitHub Actions sprawdzają wynik. -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <!-- Serwer COM menu Windows 11 (IExplorerCommand) i odczyt ustawień JSON przez odbicie. -->
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
     <DebugType>none</DebugType>
   </PropertyGroup>
 
@@ -57,14 +66,16 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
   </ItemGroup>
 
-  <!-- Moduły Windows App SDK, z których program nie korzysta (AI, uczenie maszynowe z onnxruntime/DirectML,
-       widżety) — bez nich PodpisPdf.exe jest znacznie mniejszy. Pakiet zbiorczy zostaje (zależą od niego
-       H.NotifyIcon i Community Toolkit), a bezpośrednie odwołanie z ExcludeAssets="all" wyłącza ich pliki. -->
-  <ItemGroup Condition="'$(BezZbednychSkladnikow)' == 'true'">
-    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="1.8.79" ExcludeAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="1.8.2223" ExcludeAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" Version="1.8.251231004" ExcludeAssets="all" />
-  </ItemGroup>
+  <!-- Moduły Windows App SDK, z których program nie korzysta: AI, uczenie maszynowe (onnxruntime, DirectML —
+       ok. 40 MB) i widżety. Pakiet zbiorczy Microsoft.WindowsAppSDK zostaje (zależą od niego H.NotifyIcon
+       i Community Toolkit), a ich pliki usuwamy z listy składników tuż przed skopiowaniem do programu. -->
+  <Target Name="PomijajZbedneSkladnikiWindowsAppSdk" BeforeTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromComponents">
+    <ItemGroup>
+      <WindowsAppSdkComponentPackages Remove="@(WindowsAppSdkComponentPackages)"
+        Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', 'microsoft\.windowsappsdk\.(ai|ml|widgets)[\\/.]', System.Text.RegularExpressions.RegexOptions.IgnoreCase))" />
+    </ItemGroup>
+    <Message Importance="high" Text="Składniki Windows App SDK w programie: @(WindowsAppSdkComponentPackages->'%(Identity)', ', ')" />
+  </Target>
 
   <ItemGroup>
     <ProjectReference Include="..\PodpisPdf.Core\PodpisPdf.Core.csproj" />
