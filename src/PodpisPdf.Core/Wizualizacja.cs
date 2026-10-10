@@ -27,6 +27,7 @@ internal static class Wizualizacja
     private const float InterliniaWzgledna = 1.2f;
     private const float SkalaNazwiska = 1.15f;
     private const float SkalaNaglowka = 0.85f;
+    private const int MaksWierszyStanowiska = 2;
 
     internal const string Naglowek = "Podpisano elektronicznie przez:";
     // Zapas na zaokrąglenia układu, żeby wiersz nie zawinął się „na styk”.
@@ -64,14 +65,14 @@ internal static class Wizualizacja
         var zwykla = UtworzCzcionke("PodpisPdf.Core.DejaVuSans.ttf");
         var pogrubiona = UtworzCzcionke("PodpisPdf.Core.DejaVuSans-Bold.ttf");
 
-        var linie = new List<(string Tekst, PdfFont Czcionka, float Skala)>
+        var linie = new List<Wiersz>
         {
-            (Naglowek, zwykla, SkalaNaglowka),
-            (dane.ImieNazwisko, pogrubiona, SkalaNazwiska),
+            new(Naglowek, zwykla, SkalaNaglowka),
+            new(dane.ImieNazwisko, pogrubiona, SkalaNazwiska),
         };
         if (!string.IsNullOrWhiteSpace(dane.Stanowisko))
-            linie.Add((dane.Stanowisko.Trim(), zwykla, 1f));
-        linie.Add(("Data: " + FormatujCzas(dane.Czas), zwykla, 1f));
+            linie.Add(new(dane.Stanowisko.Trim(), zwykla, 1f, MaksWierszyStanowiska));
+        linie.Add(new("Data: " + FormatujCzas(dane.Czas), zwykla, 1f));
 
         var logo = WczytajLogo(dane.SciezkaLogo);
 
@@ -91,7 +92,7 @@ internal static class Wizualizacja
         var tekst = new Div()
             .SetPadding(0)
             .SetMargin(0);
-        foreach (var (t, czcionka, skala) in linie)
+        foreach (var (t, czcionka, skala, _) in linie)
         {
             tekst.Add(new Paragraph(t)
                 .SetFont(czcionka)
@@ -155,19 +156,61 @@ internal static class Wizualizacja
                $" (UTC{znak}{przesuniecie.Duration():hh\\:mm})";
     }
 
-    private static float DobierzRozmiarCzcionki(List<(string Tekst, PdfFont Czcionka, float Skala)> linie, float szerokosc, float wysokosc)
+    /// <summary>
+    /// Największy rozmiar czcionki, przy którym wszystko mieści się w prostokącie.
+    /// Imię i nazwisko, nagłówek i data zajmują po jednym wierszu; długie stanowisko może się zawinąć,
+    /// żeby nie zmniejszać całego tekstu.
+    /// </summary>
+    private static float DobierzRozmiarCzcionki(List<Wiersz> linie, float szerokosc, float wysokosc)
     {
-        var sumaSkal = linie.Sum(l => l.Skala);
-        var rozmiar = Math.Min(MaksRozmiarCzcionki, wysokosc / (sumaSkal * InterliniaWzgledna));
-        foreach (var (tekst, czcionka, skala) in linie)
+        var dostepnaSzerokosc = szerokosc * ZapasSzerokosci;
+        for (var rozmiar = MaksRozmiarCzcionki; rozmiar >= MinRozmiarCzcionki; rozmiar -= 0.1f)
         {
-            var w = czcionka.GetWidth(tekst, 1f) * skala;
-            if (w > 0)
-                rozmiar = Math.Min(rozmiar, szerokosc * ZapasSzerokosci / w);
+            var lacznie = 0f;
+            var miesci = true;
+            foreach (var w in linie)
+            {
+                var r = rozmiar * w.Skala;
+                var wiersze = LiczbaWierszy(w.Tekst, w.Czcionka, r, dostepnaSzerokosc);
+                if (wiersze > w.MaksWierszy)
+                {
+                    miesci = false;
+                    break;
+                }
+                lacznie += wiersze * r * InterliniaWzgledna;
+            }
+            if (miesci && lacznie <= wysokosc)
+                return rozmiar;
         }
         // Przy bardzo długim tekście lepiej zawinąć wiersz niż użyć nieczytelnej czcionki.
-        return Math.Max(rozmiar, MinRozmiarCzcionki);
+        return MinRozmiarCzcionki;
     }
+
+    /// <summary>Liczba wierszy po zawinięciu tekstu na granicach słów (int.MaxValue, gdy słowo się nie mieści).</summary>
+    internal static int LiczbaWierszy(string tekst, PdfFont czcionka, float rozmiar, float szerokosc)
+    {
+        var spacja = czcionka.GetWidth(" ", rozmiar);
+        var wiersze = 1;
+        var biezaca = 0f;
+        foreach (var slowo in tekst.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var w = czcionka.GetWidth(slowo, rozmiar);
+            if (w > szerokosc)
+                return int.MaxValue;
+            if (biezaca == 0)
+                biezaca = w;
+            else if (biezaca + spacja + w <= szerokosc)
+                biezaca += spacja + w;
+            else
+            {
+                wiersze++;
+                biezaca = w;
+            }
+        }
+        return wiersze;
+    }
+
+    private sealed record Wiersz(string Tekst, PdfFont Czcionka, float Skala, int MaksWierszy = 1);
 
     private static PdfFont UtworzCzcionke(string zasob)
     {

@@ -206,6 +206,17 @@ public class WizualizacjaTesty
         Assert.Contains(czcionki, c => c.EndsWith("DejaVuSans"));
     }
 
+    [Fact]
+    public void ZawijanieWierszyNaGranicachSlow()
+    {
+        var czcionka = iText.Kernel.Font.PdfFontFactory.CreateFont(iText.IO.Font.Constants.StandardFonts.HELVETICA);
+        var slowo = czcionka.GetWidth("abcd", 10);
+        var spacja = czcionka.GetWidth(" ", 10);
+        Assert.Equal(1, Wizualizacja.LiczbaWierszy("abcd abcd", czcionka, 10, 2 * slowo + spacja));
+        Assert.Equal(2, Wizualizacja.LiczbaWierszy("abcd abcd abcd", czcionka, 10, 2 * slowo + spacja));
+        Assert.Equal(int.MaxValue, Wizualizacja.LiczbaWierszy("abcdabcd", czcionka, 10, slowo));
+    }
+
     private static void ZbierzCzcionki(PdfObject? obiekt, List<string> wynik, HashSet<PdfObject> odwiedzone)
     {
         if (obiekt is PdfIndirectReference r)
