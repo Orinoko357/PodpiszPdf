@@ -12,7 +12,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationVisualStyles>true</ApplicationVisualStyles>
     <Product>PodpisPdf</Product>
-    <Version>1.0.0.3</Version>
+    <Version>1.0.0.4</Version>
     <ApplicationIcon>PodpisPdf.ico</ApplicationIcon>
     <Description>Kwalifikowany podpis elektroniczny PAdES dla plików PDF</Description>
   </PropertyGroup>
@@ -22,9 +22,23 @@
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Szybki start: bez kompresji biblioteki są mapowane z pliku .exe zamiast rozpakowywania
+         ok. 150 MB w pamięci przy każdym uruchomieniu; ReadyToRun = kod iText/BouncyCastle
+         skompilowany z góry zamiast w locie. Kosztem jest większy plik .exe. -->
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <TieredPGO>true</TieredPGO>
     <DebugType>none</DebugType>
   </PropertyGroup>
+
+  <!-- Biblioteki natywne WPF z pakietu Windows Desktop nie są potrzebne aplikacji WinForms, a byłyby
+       wypakowywane z .exe przy pierwszym uruchomieniu. -->
+  <Target Name="PomijanieBibliotekWpf" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(RuntimeIdentifier)' != ''">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+        Condition="'%(Filename)%(Extension)' == 'D3DCompiler_47_cor3.dll' Or '%(Filename)%(Extension)' == 'PenImc_cor3.dll' Or '%(Filename)%(Extension)' == 'PresentationNative_cor3.dll' Or '%(Filename)%(Extension)' == 'wpfgfx_cor3.dll' Or '%(Filename)%(Extension)' == 'vcruntime140_cor3.dll'" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <EmbeddedResource Include="PodpisPdf.ico" LogicalName="PodpisPdf.ico" />

@@ -29,6 +29,21 @@ jobs:
       - name: Publikacja PodpisPdf.exe
         run: dotnet publish src/PodpisPdf -c Release -r win-x64 -o publish
 
+      - name: Test uruchomienia PodpisPdf.exe (i czas startu)
+        shell: pwsh
+        run: |
+          foreach ($proba in 1..2) {
+            $czas = Measure-Command {
+              $p = Start-Process publish/PodpisPdf.exe -ArgumentList '--sprawdz' -Wait -PassThru
+            }
+            if ($p.ExitCode -ne 0) {
+              Get-Content "$env:TEMP/PodpisPdf-sprawdz.txt" -ErrorAction SilentlyContinue
+              throw "PodpisPdf.exe --sprawdz zakończył się kodem $($p.ExitCode)"
+            }
+            "Uruchomienie $proba`: $([math]::Round($czas.TotalSeconds, 2)) s"
+          }
+          "Rozmiar: $([math]::Round((Get-Item publish/PodpisPdf.exe).Length / 1MB, 1)) MB"
+
       - uses: actions/upload-artifact@v4
         with:
           name: PodpisPdf

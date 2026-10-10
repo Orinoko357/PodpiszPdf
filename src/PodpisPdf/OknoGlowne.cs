@@ -95,7 +95,7 @@ internal sealed class OknoGlowne : Form
         uklad.Controls.Add(_listaCertyfikatow, 0, 2);
 
         _przyciskOdswiez = new Button { Text = "Odśwież listę", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Right, Padding = new Padding(8, 4, 8, 4) };
-        _przyciskOdswiez.Click += (_, _) => WczytajCertyfikaty();
+        _przyciskOdswiez.Click += async (_, _) => await WczytajCertyfikaty();
         uklad.Controls.Add(_przyciskOdswiez, 1, 2);
 
         var przyciski = new FlowLayoutPanel
@@ -133,20 +133,72 @@ internal sealed class OknoGlowne : Form
 
         _zasobnik = UtworzIkoneZasobnika();
 
-        Shown += (_, _) =>
-        {
-            // Uruchomienie przy logowaniu do Windows: program czeka w zasobniku.
-            if (autostart && _ustawienia.MinimalizujDoZasobnika && string.IsNullOrEmpty(plikStartowy))
-                Hide();
-            OdswiezInstalacje();
-            OdswiezMenuKontekstowe(cicho: true);
-            WczytajCertyfikaty();
-            if (!string.IsNullOrEmpty(plikStartowy))
-                _zlecenia.Enqueue(plikStartowy); // uruchomienie z menu kontekstowego — od razu do podpisu
-            PrzetworzZlecenia();
-        };
+        // Uruchomienie przy logowaniu do Windows: program startuje od razu w zasobniku, bez pokazywania okna.
+        _startWZasobniku = autostart && string.IsNullOrEmpty(plikStartowy);
+        if (_startWZasobniku)
+            _zasobnik.Visible = true;
+        _plikStartowy = plikStartowy;
 
         UstawPlik(null);
+    }
+
+    private readonly bool _startWZasobniku;
+    private readonly string? _plikStartowy;
+    private bool _zainicjalizowano;
+
+    protected override void SetVisibleCore(bool value)
+    {
+        if (_startWZasobniku && !_zainicjalizowano && value)
+        {
+            // Okno nie jest pokazywane, ale uchwyt musi powstać — przez niego przychodzą polecenia
+            // z menu kontekstowego i działa ikona w zasobniku.
+            if (!IsHandleCreated)
+                CreateHandle();
+            value = false;
+        }
+        base.SetVisibleCore(value);
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        BeginInvoke(Inicjalizuj);
+    }
+
+    /// <summary>
+    /// Start programu. Wolniejsze czynności (certyfikaty, kopia programu, biblioteki PDF) wykonują się w tle,
+    /// więc okno jest od razu gotowe.
+    /// </summary>
+    private async void Inicjalizuj()
+    {
+        if (_zainicjalizowano)
+            return;
+        _zainicjalizowano = true;
+
+        var ustawienia = _ustawienia;
+        var instalacja = Task.Run(() =>
+        {
+            var komunikat = OdswiezInstalacje(ustawienia);
+            OdswiezMenuKontekstowe(cicho: true);
+            return komunikat;
+        });
+
+        await WczytajCertyfikaty();
+
+        if (!string.IsNullOrEmpty(_plikStartowy))
+            _zlecenia.Enqueue(_plikStartowy); // uruchomienie z menu kontekstowego — od razu do podpisu
+        PrzetworzZlecenia();
+
+        var komunikat = await instalacja;
+        if (komunikat != null && !_trwaPodpisywanie)
+            UstawStatus(komunikat);
+
+        // Przygotowanie bibliotek PDF w tle — pierwszy podgląd i podpis będą szybsze.
+        _ = Task.Run(() =>
+        {
+            Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
+            Rozgrzewka.Wykonaj();
+        });
     }
 
     /// <summary>
@@ -177,20 +229,22 @@ internal sealed class OknoGlowne : Form
 
     /// <summary>
     /// Kopia programu w %APPDATA%: aktualizacja, gdy uruchomiono nowszą wersję, oraz autostart.
+    /// Wywoływane w tle; zwraca komunikat do paska stanu albo null.
     /// </summary>
-    private void OdswiezInstalacje()
+    private static string? OdswiezInstalacje(Ustawienia ustawienia)
     {
         try
         {
-            var wynik = Instalacja.Aktualizuj(instalujGdyBrak: _ustawienia.Autostart);
-            if (_ustawienia.Autostart)
+            var wynik = Instalacja.Aktualizuj(instalujGdyBrak: ustawienia.Autostart);
+            if (ustawienia.Autostart)
                 Instalacja.UstawAutostart(true);
-            if (wynik == Instalacja.Wynik.Zaktualizowano)
-                UstawStatus($"Zaktualizowano program w {Ustawienia.Folder} do wersji {Instalacja.BiezacaWersja}.");
+            return wynik == Instalacja.Wynik.Zaktualizowano
+                ? $"Zaktualizowano program w {Ustawienia.Folder} do wersji {Instalacja.BiezacaWersja}."
+                : null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
-            UstawStatus("Nie udało się zaktualizować kopii programu w AppData: " + e.Message);
+            return "Nie udało się zaktualizować kopii programu w AppData: " + e.Message;
         }
     }
 
@@ -300,14 +354,21 @@ internal sealed class OknoGlowne : Form
     private CertyfikatInfo? WybranyCertyfikat =>
         _listaCertyfikatow.SelectedItems.Count == 1 ? _listaCertyfikatow.SelectedItems[0].Tag as CertyfikatInfo : null;
 
-    private void WczytajCertyfikaty()
+    private bool _wczytywanieCertyfikatow;
+
+    /// <summary>Lista certyfikatów — odczyt magazynu (i sterowników kart) w tle, bez blokowania okna.</summary>
+    private async Task WczytajCertyfikaty()
     {
+        if (_wczytywanieCertyfikatow)
+            return;
+        _wczytywanieCertyfikatow = true;
         var poprzedni = WybranyCertyfikat?.Odcisk ?? _ustawienia.OstatniCertyfikat;
         IReadOnlyList<CertyfikatInfo> certyfikaty;
+        UstawStatus("Wczytywanie certyfikatów…");
+        OdswiezStan();
         try
         {
-            Cursor = Cursors.WaitCursor;
-            certyfikaty = MagazynCertyfikatow.PobierzCertyfikatyDoPodpisu();
+            certyfikaty = await Task.Run(MagazynCertyfikatow.PobierzCertyfikatyDoPodpisu);
         }
         catch (Exception e)
         {
@@ -316,7 +377,7 @@ internal sealed class OknoGlowne : Form
         }
         finally
         {
-            Cursor = Cursors.Default;
+            _wczytywanieCertyfikatow = false;
         }
 
         _listaCertyfikatow.BeginUpdate();
@@ -563,7 +624,7 @@ internal sealed class OknoGlowne : Form
     {
         _przyciskPodpisz.Enabled = !_trwaPodpisywanie && _plik != null && WybranyCertyfikat != null;
         _przyciskWybierz.Enabled = !_trwaPodpisywanie;
-        _przyciskOdswiez.Enabled = !_trwaPodpisywanie;
+        _przyciskOdswiez.Enabled = !_trwaPodpisywanie && !_wczytywanieCertyfikatow;
         _przyciskUstawienia.Enabled = !_trwaPodpisywanie;
         _listaCertyfikatow.Enabled = !_trwaPodpisywanie;
     }

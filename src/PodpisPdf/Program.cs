@@ -9,6 +9,12 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
 
+        if (args.Contains("--sprawdz"))
+        {
+            Sprawdz();
+            return;
+        }
+
         var autostart = args.Any(a => string.Equals(a, Instalacja.ParametrAutostartu, StringComparison.OrdinalIgnoreCase));
         var plik = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal));
 
@@ -21,6 +27,25 @@ internal static class Program
             var okno = new OknoGlowne(plik, autostart);
             instancja.Nasluchuj(okno.PrzyjmijPolecenie);
             Application.Run(okno);
+        }
+    }
+
+    /// <summary>
+    /// Test uruchomienia (GitHub Actions): biblioteki PDF, podgląd i okno główne bez pokazywania.
+    /// Kod wyjścia 0 = program startuje poprawnie.
+    /// </summary>
+    private static void Sprawdz()
+    {
+        try
+        {
+            PodpisPdf.Core.Rozgrzewka.Wykonaj(zglaszajBledy: true);
+            using var okno = new OknoGlowne(null);
+            okno.CreateControl();
+        }
+        catch (Exception e)
+        {
+            File.WriteAllText(Path.Combine(Path.GetTempPath(), "PodpisPdf-sprawdz.txt"), e.ToString());
+            Environment.ExitCode = 1;
         }
     }
 

@@ -56,7 +56,7 @@ Stanowisko można podzielić na wiersze klawiszem Enter; bez tego zawija się sa
 
 **Autostart i kopia programu w AppData.** Po włączeniu autostartu program kopiuje się do
 `%APPDATA%\PodpisPdf\PodpisPdf.exe` i stamtąd uruchamia przy logowaniu do Windows (wpis
-`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`), czekając w zasobniku. Z tej kopii korzysta też menu
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`) — od razu zminimalizowany do zasobnika, bez pokazywania okna. Z tej kopii korzysta też menu
 kontekstowe. Uruchomienie nowszej wersji (np. pobranej z *Releases*) nadpisuje kopię w AppData; starsza wersja
 nie nadpisuje nowszej. Jeśli program już działa w innej wersji, pojawia się ostrzeżenie — przy nowszej wersji
 można od razu zamknąć działający program i zastąpić go nową wersją.
