@@ -23,9 +23,9 @@ jobs:
       CERTYFIKAT_PFX: ${{ secrets.CERTYFIKAT_PFX }}
       TOKEN_WYDANIA: ${{ secrets.TOKEN_WYDANIA }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x
@@ -138,7 +138,7 @@ jobs:
           git commit -q -m "Zrzuty ekranu z $zrodlo (${{ github.ref_name }})"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" zrzuty-ekranu
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: Zrzuty-ekranu
           path: zrzuty/*.png
@@ -150,7 +150,7 @@ jobs:
           Set-Content publish/PodpisPdf.exe.sha256 "$suma  PodpisPdf.exe" -NoNewline -Encoding ascii
           "SHA-256: $suma"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: PodpisPdf
           path: |
@@ -161,7 +161,7 @@ jobs:
       # albo po ręcznym uruchomieniu workflow z podanym numerem wersji (znacznik powstaje wtedy automatycznie).
       - name: Wydanie (Release)
         if: startsWith(github.ref, 'refs/tags/v') || inputs.wersja != ''
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.wersja != '' && format('v{0}', inputs.wersja) || github.ref_name }}
           target_commitish: ${{ github.sha }}
@@ -177,7 +177,7 @@ jobs:
       # token z prawem zapisu do Orinoko357/PodpisPdf-wydania).
       - name: Wydanie w repozytorium aktualizacji
         if: (startsWith(github.ref, 'refs/tags/v') || inputs.wersja != '') && env.TOKEN_WYDANIA != ''
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           repository: Orinoko357/PodpisPdf-wydania
           token: ${{ secrets.TOKEN_WYDANIA }}
