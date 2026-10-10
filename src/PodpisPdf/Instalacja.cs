@@ -17,7 +17,7 @@ internal static class Instalacja
 
     public static string SciezkaDocelowa => Path.Combine(Ustawienia.Folder, "PodpisPdf.exe");
 
-    public static string BiezacyPlik => Environment.ProcessPath ?? Application.ExecutablePath;
+    public static string BiezacyPlik => Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "PodpisPdf.exe");
 
     public static Version BiezacaWersja => typeof(Instalacja).Assembly.GetName().Version ?? new Version(0, 0);
 

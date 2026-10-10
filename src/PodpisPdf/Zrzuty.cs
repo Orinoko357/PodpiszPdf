@@ -1,78 +1,79 @@
 using System.Formats.Asn1;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using iText.Kernel.Pdf;
 using iText.Layout;
 using iText.Layout.Element;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using PodpisPdf.Core;
-using PodpisPdf.Fluent;
+using Windows.Graphics.Imaging;
+using Windows.Storage.Streams;
+using Windows.UI;
 
 namespace PodpisPdf;
 
 /// <summary>
-/// Zrzuty ekranu wszystkich okien w obu motywach z przykładowymi danymi (GitHub Actions: <c>--zrzuty folder</c>).
+/// Zrzuty ekranu wszystkich stron w obu motywach z przykładowymi danymi (GitHub Actions: <c>--zrzuty folder</c>).
 /// Nie dotyka magazynu certyfikatów, rejestru ani ustawień użytkownika.
 /// </summary>
 internal static class Zrzuty
 {
-    public static bool Aktywne { get; private set; }
-
-    public static void Wykonaj(string folder)
+    public static async Task WykonajAsync(OknoGlowne okno, string folder)
     {
-        Aktywne = true;
         Directory.CreateDirectory(folder);
         var pdf = UtworzPdf(Path.Combine(folder, "wniosek_o_dofinansowanie.pdf"));
         var certyfikaty = Certyfikaty();
+        var korzen = okno.Korzen_;
+        var ramka = okno.Ramka_;
+        var dane = new DaneWizualizacji("Mateusz Kozielski", "Kierownik Biura Informatyki\nUrzędu Miasta Wodzisławia Śląskiego", null, DateTimeOffset.Now);
 
-        foreach (var (ciemny, nazwa) in new[] { (false, "jasny"), (true, "ciemny") })
+        foreach (var (motyw, nazwa) in new[] { (ElementTheme.Light, "jasny"), (ElementTheme.Dark, "ciemny") })
         {
-            Motyw.Wymus(ciemny);
+            korzen.RequestedTheme = motyw;
+            // Mica nie trafia do RenderTargetBitmap — w trybie testowym tło jest jednolite w kolorach Mica.
+            korzen.Background = new SolidColorBrush(motyw == ElementTheme.Dark ? Color.FromArgb(255, 0x20, 0x20, 0x20) : Color.FromArgb(255, 0xF3, 0xF3, 0xF3));
 
-            using (var glowne = new OknoGlowne(null) { StartPosition = FormStartPosition.Manual, Location = new Point(0, 0) })
-            {
-                glowne.Show();
-                glowne.PokazDanePrzykladowe(null, certyfikaty);
-                Zapisz(glowne, Path.Combine(folder, $"1-glowne-pusty-{nazwa}.png"));
-                glowne.PokazDanePrzykladowe(pdf, certyfikaty);
-                Zapisz(glowne, Path.Combine(folder, $"2-glowne-{nazwa}.png"), czekajMs: 2500);
-                glowne.Close();
-            }
+            var glowna = okno.StronaGlowna!;
+            glowna.PokazDanePrzykladowe(null, certyfikaty);
+            await Zapisz(korzen, Path.Combine(folder, $"1-glowne-pusty-{nazwa}.png"));
+            glowna.PokazDanePrzykladowe(pdf, certyfikaty);
+            await Zapisz(korzen, Path.Combine(folder, $"2-glowne-{nazwa}.png"), czekajMs: 2500);
 
-            var dane = new DaneWizualizacji("Mateusz Kozielski", "Kierownik Biura Informatyki\nUrzędu Miasta Wodzisławia Śląskiego", null, DateTimeOffset.Now);
-            using (var podglad = OknoPodgladu.Utworz(pdf, dane, new PolozenieWizualizacji(), 1f))
-            {
-                podglad.StartPosition = FormStartPosition.Manual;
-                podglad.Location = new Point(0, 0);
-                podglad.Size = new Size(1100, 780);
-                podglad.Show();
-                Zapisz(podglad, Path.Combine(folder, $"3-podglad-{nazwa}.png"), czekajMs: 1500);
-                podglad.Close();
-            }
+            var zadanie = await Task.Run(() => ZadaniePodgladu.Przygotuj(pdf, dane, new PolozenieWizualizacji(), 1f));
+            ramka.Navigate(typeof(StronaPodgladu), zadanie);
+            await Zapisz(korzen, Path.Combine(folder, $"3-podglad-{nazwa}.png"), czekajMs: 2500);
+            ramka.GoBack();
 
-            var ustawienia = new Ustawienia { Stanowisko = "Kierownik Biura Informatyki\nUrzędu Miasta Wodzisławia Śląskiego", Autostart = true };
-            using (var okno = new OknoUstawien(ustawienia) { StartPosition = FormStartPosition.Manual, Location = new Point(0, 0) })
-            {
-                okno.Show();
-                Zapisz(okno, Path.Combine(folder, $"4-ustawienia-wizualizacja-{nazwa}.png"), czekajMs: 1500);
-                okno.PokazStrone(2);
-                Zapisz(okno, Path.Combine(folder, $"5-ustawienia-program-{nazwa}.png"));
-                okno.Close();
-            }
+            var ustawienia = new Ustawienia { Stanowisko = dane.Stanowisko, Autostart = true };
+            ramka.Navigate(typeof(StronaUstawien), ustawienia);
+            var strona = (StronaUstawien)ramka.Content;
+            await Zapisz(korzen, Path.Combine(folder, $"4-ustawienia-wizualizacja-{nazwa}.png"), czekajMs: 1500);
+            strona.PokazSekcje(1);
+            await Zapisz(korzen, Path.Combine(folder, $"5-ustawienia-znacznik-{nazwa}.png"));
+            strona.PokazSekcje(2);
+            await Zapisz(korzen, Path.Combine(folder, $"6-ustawienia-program-{nazwa}.png"));
+            ramka.GoBack();
+            await Task.Delay(300);
         }
     }
 
-    private static void Zapisz(Form okno, string sciezka, int czekajMs = 800)
+    private static async Task Zapisz(FrameworkElement element, string sciezka, int czekajMs = 800)
     {
-        var koniec = Environment.TickCount64 + czekajMs;
-        while (Environment.TickCount64 < koniec)
-        {
-            Application.DoEvents();
-            Thread.Sleep(30);
-        }
-        okno.Refresh();
-        using var bitmapa = new Bitmap(okno.Width, okno.Height);
-        okno.DrawToBitmap(bitmapa, new Rectangle(0, 0, okno.Width, okno.Height));
-        bitmapa.Save(sciezka, System.Drawing.Imaging.ImageFormat.Png);
+        await Task.Delay(czekajMs);
+        var bitmapa = new RenderTargetBitmap();
+        await bitmapa.RenderAsync(element);
+        var piksele = await bitmapa.GetPixelsAsync();
+        using var strumien = new InMemoryRandomAccessStream();
+        var koder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, strumien);
+        koder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied,
+            (uint)bitmapa.PixelWidth, (uint)bitmapa.PixelHeight, 96, 96, piksele.ToArray());
+        await koder.FlushAsync();
+        strumien.Seek(0);
+        await using var plik = File.Create(sciezka);
+        await strumien.AsStreamForRead().CopyToAsync(plik);
     }
 
     private static string UtworzPdf(string sciezka)

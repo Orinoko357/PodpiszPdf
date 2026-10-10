@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="PodpisPdf.StronaUstawien"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ctk="using:CommunityToolkit.WinUI.Controls">
+
+    <Page.Resources>
+        <Style x:Key="SekcjaUstawienStyl" TargetType="StackPanel">
+            <Setter Property="Spacing" Value="4" />
+            <Setter Property="Padding" Value="0,0,0,24" />
+            <Setter Property="MaxWidth" Value="900" />
+        </Style>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <NavigationView x:Name="Nawigacja" PaneDisplayMode="Left" IsSettingsVisible="False" IsBackButtonVisible="Collapsed"
+                        IsPaneToggleButtonVisible="False" OpenPaneLength="220" SelectionChanged="PrzyZmianieSekcji">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Wizualizacja" Tag="0">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xEE56;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Znacznik czasu" Tag="1">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE823;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Program" Tag="2">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7F4;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Informacje" Tag="3">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE946;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <Grid Padding="28,8,28,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock x:Name="Tytul" Style="{StaticResource TitleTextBlockStyle}" Margin="0,0,0,16" />
+
+                <ScrollViewer Grid.Row="1" x:Name="Przewijanie" Padding="0,0,12,0">
+                    <Grid>
+                        <!-- Wizualizacja -->
+                        <StackPanel x:Name="SekcjaWizualizacji" Style="{StaticResource SekcjaUstawienStyl}">
+                            <Border Style="{StaticResource KartaStyl}" Margin="0,0,0,4">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="Podgląd wizualizacji" />
+                                    <TextBlock Text="Tak będzie wyglądał podpis (z Twoim imieniem i nazwiskiem z certyfikatu)" Style="{StaticResource DrugiStyl}" TextWrapping="Wrap" />
+                                    <Border Background="White" CornerRadius="4" Padding="12" HorizontalAlignment="Left"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                                        <Image x:Name="PodgladWizualizacji" Height="96" Width="326" Stretch="Uniform" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <ctk:SettingsCard Header="Stanowisko" Description="Enter dzieli stanowisko na wiersze; bez tego zawija się samo">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE77B;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <TextBox x:Name="Stanowisko" Width="320" Height="72" AcceptsReturn="True" TextWrapping="Wrap" TextChanged="PrzyZmianieStanowiska" />
+                            </ctk:SettingsCard>
+
+                            <ctk:SettingsCard Header="Logo" Description="SVG lub PDF (wektorowe — najlepsza jakość), PNG albo JPG. Kopia jest zapisywana razem z ustawieniami.">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xEB9F;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock x:Name="OpisLogo" Style="{StaticResource DrugiStyl}" VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis" Margin="0,0,4,0" />
+                                    <Button Content="Zmień…" Click="PrzyZmianieLogo" />
+                                    <Button x:Name="PrzyciskUsunLogo" Content="Usuń" Click="PrzyUsunieciuLogo" />
+                                </StackPanel>
+                            </ctk:SettingsCard>
+
+                            <ctk:SettingsCard Header="Położenie początkowe" Description="Gdzie podpis pojawi się na podglądzie — można go tam przesunąć lub narysować">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE81E;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ComboBox x:Name="Strona" Width="170" SelectionChanged="PrzyZmianieStrony">
+                                        <x:String>Ostatnia strona</x:String>
+                                        <x:String>Pierwsza strona</x:String>
+                                        <x:String>Strona o numerze</x:String>
+                                    </ComboBox>
+                                    <NumberBox x:Name="NumerStrony" Minimum="1" Maximum="9999" SmallChange="1" Width="100" SpinButtonPlacementMode="Compact" />
+                                    <ComboBox x:Name="Naroznik" Width="170">
+                                        <x:String>Prawy dolny róg</x:String>
+                                        <x:String>Lewy dolny róg</x:String>
+                                        <x:String>Prawy górny róg</x:String>
+                                        <x:String>Lewy górny róg</x:String>
+                                    </ComboBox>
+                                </StackPanel>
+                            </ctk:SettingsCard>
+
+                            <ctk:SettingsCard Header="Odległość od krawędzi strony" Description="W milimetrach, liczona od wybranego narożnika">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE9A6;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="poziomo" Style="{StaticResource DrugiStyl}" VerticalAlignment="Center" />
+                                    <NumberBox x:Name="MarginesX" Minimum="0" Maximum="500" SmallChange="1" Width="100" SpinButtonPlacementMode="Compact" />
+                                    <TextBlock Text="pionowo" Style="{StaticResource DrugiStyl}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                    <NumberBox x:Name="MarginesY" Minimum="0" Maximum="500" SmallChange="1" Width="100" SpinButtonPlacementMode="Compact" />
+                                </StackPanel>
+                            </ctk:SettingsCard>
+                        </StackPanel>
+
+                        <!-- Znacznik czasu -->
+                        <StackPanel x:Name="SekcjaZnacznika" Style="{StaticResource SekcjaUstawienStyl}" Visibility="Collapsed">
+                            <ctk:SettingsCard Header="Adres serwera (TSA)" Description="Np. http://time.certum.pl — znacznik czasu jest dodawany do każdego podpisu">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE774;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <TextBox x:Name="AdresTsa" Width="320" />
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard Header="Login" Description="Tylko dla płatnych serwerów kwalifikowanych">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE77B;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <TextBox x:Name="LoginTsa" Width="320" />
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard Header="Hasło" Description="Zapisywane w postaci zaszyfrowanej (Windows DPAPI)">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE72E;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <PasswordBox x:Name="HasloTsa" Width="320" />
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard Header="Test połączenia" Description="Pobiera próbny znacznik czasu z serwera">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE703;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <ProgressRing x:Name="TestTsaPostep" IsActive="False" Width="18" Height="18" />
+                                    <Button x:Name="PrzyciskTestuTsa" Content="Sprawdź połączenie" Click="PrzyTescieTsa" />
+                                </StackPanel>
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard Header="Dane do weryfikacji długoterminowej (PAdES B-LT)" Description="Dołącza do pliku dane OCSP/CRL — podpis da się zweryfikować także po latach">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE8B7;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <ToggleSwitch x:Name="PoziomLT" />
+                            </ctk:SettingsCard>
+                        </StackPanel>
+
+                        <!-- Program -->
+                        <StackPanel x:Name="SekcjaProgramu" Style="{StaticResource SekcjaUstawienStyl}" Visibility="Collapsed">
+                            <ctk:SettingsCard Header="Uruchamiaj przy logowaniu do Windows" Description="Program czeka w zasobniku; kopia programu w %APPDATA%\PodpisPdf">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE7E8;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <ToggleSwitch x:Name="Autostart" />
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard Header="Minimalizuj do zasobnika" Description="Zminimalizowane okno chowa się do ikony obok zegara">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE921;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <ToggleSwitch x:Name="Zasobnik" />
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard x:Name="KartaMenuKontekstowego" Header="Menu kontekstowe plików PDF">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE8A5;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <ToggleSwitch x:Name="MenuKontekstowe" />
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard Header="Przyrostek nazwy podpisanego pliku" Description="Np. wniosek.pdf → wniosek_podpisany.pdf; oryginał zostaje bez zmian">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE8AC;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <TextBox x:Name="Przyrostek" Width="200" />
+                            </ctk:SettingsCard>
+                        </StackPanel>
+
+                        <!-- Informacje -->
+                        <StackPanel x:Name="SekcjaInformacji" Style="{StaticResource SekcjaUstawienStyl}" Visibility="Collapsed">
+                            <ctk:SettingsCard x:Name="KartaWersji" Description="Kwalifikowany podpis elektroniczny PAdES ze znacznikiem czasu">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <BitmapIcon x:Name="IkonaProgramu" ShowAsMonochrome="False" />
+                                </ctk:SettingsCard.HeaderIcon>
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard x:Name="KartaFolderu" Header="Ustawienia i kopia programu">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE8B7;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <Button Content="Otwórz folder" Click="PrzyOtwarciuFolderu" />
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard Header="Licencje" Description="iText 9 i BouncyCastle (AGPL / MIT), PDFium (BSD), Windows App SDK i Windows Community Toolkit (MIT), H.NotifyIcon (MIT), czcionka DejaVu Sans">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE8F1;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                            </ctk:SettingsCard>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+        </NavigationView>
+
+        <!-- Stopka -->
+        <Grid Grid.Row="1" Padding="28,14" ColumnSpacing="10" Background="{ThemeResource LayerFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="1" Content="Anuluj" MinWidth="110" Click="PrzyAnulowaniu">
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="Escape" />
+                </Button.KeyboardAccelerators>
+            </Button>
+            <Button Grid.Column="2" Content="Zapisz" MinWidth="110" Style="{StaticResource AccentButtonStyle}" Click="PrzyZapisie" />
+        </Grid>
+    </Grid>
+</Page>

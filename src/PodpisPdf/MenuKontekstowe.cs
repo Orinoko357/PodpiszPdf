@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
 namespace PodpisPdf;
@@ -46,9 +45,6 @@ internal static class MenuKontekstowe
     private static void PowiadomEksplorator()
     {
         const int ShcneAssocchanged = 0x08000000;
-        SHChangeNotify(ShcneAssocchanged, 0, IntPtr.Zero, IntPtr.Zero);
+        Win32.SHChangeNotify(ShcneAssocchanged, 0, IntPtr.Zero, IntPtr.Zero);
     }
-
-    [DllImport("shell32.dll")]
-    private static extern void SHChangeNotify(int wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
 }

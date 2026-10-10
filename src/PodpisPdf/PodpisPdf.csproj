@@ -2,46 +2,50 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWinUI>true</UseWinUI>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>PodpisPdf</AssemblyName>
     <RootNamespace>PodpisPdf</RootNamespace>
-    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <ApplicationVisualStyles>true</ApplicationVisualStyles>
-    <Product>PodpisPdf</Product>
-    <Version>1.6.0.0</Version>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>PodpisPdf.ico</ApplicationIcon>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <Product>PodpisPdf</Product>
+    <Version>2.0.0.0</Version>
     <Description>Kwalifikowany podpis elektroniczny PAdES dla plików PDF</Description>
+
+    <!-- Aplikacja bez pakietu MSIX, z własnym środowiskiem Windows App SDK (nie wymaga instalacji). -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- Własna metoda Main: jedna kopia programu i obsługa parametrów przed startem interfejsu. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
-  <!-- dotnet publish -c Release -r win-x64  →  jeden plik PodpisPdf.exe, bez instalacji .NET -->
+  <!-- dotnet publish -c Release -r win-x64  →  jeden plik PodpisPdf.exe (przy pierwszym uruchomieniu wypakowuje pliki WinUI) -->
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <!-- Szybki start: bez kompresji biblioteki są mapowane z pliku .exe zamiast rozpakowywania
-         ok. 150 MB w pamięci przy każdym uruchomieniu; ReadyToRun = kod iText/BouncyCastle
-         skompilowany z góry zamiast w locie. Kosztem jest większy plik .exe. -->
-    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <PublishReadyToRun>true</PublishReadyToRun>
-    <TieredPGO>true</TieredPGO>
     <DebugType>none</DebugType>
   </PropertyGroup>
 
-  <!-- Biblioteki natywne WPF z pakietu Windows Desktop nie są potrzebne aplikacji WinForms, a byłyby
-       wypakowywane z .exe przy pierwszym uruchomieniu. -->
-  <Target Name="PomijanieBibliotekWpf" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(RuntimeIdentifier)' != ''">
-    <ItemGroup>
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
-        Condition="'%(Filename)%(Extension)' == 'D3DCompiler_47_cor3.dll' Or '%(Filename)%(Extension)' == 'PenImc_cor3.dll' Or '%(Filename)%(Extension)' == 'PresentationNative_cor3.dll' Or '%(Filename)%(Extension)' == 'wpfgfx_cor3.dll' Or '%(Filename)%(Extension)' == 'vcruntime140_cor3.dll'" />
-    </ItemGroup>
-  </Target>
+  <ItemGroup>
+    <Content Include="PodpisPdf.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="PodpisPdf.ico" LogicalName="PodpisPdf.ico" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.9169" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.Segmented" Version="8.2.251219" />
+    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
   </ItemGroup>
 
   <ItemGroup>

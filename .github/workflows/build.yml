@@ -21,35 +21,47 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
+      # --blame: przy awarii procesu testów pokazuje, który test był wtedy wykonywany.
       - name: Testy
-        run: dotnet test tests/PodpisPdf.Tests -c Release
+        run: dotnet test tests/PodpisPdf.Tests -c Release --blame
 
       - name: Publikacja PodpisPdf.exe
-        run: dotnet publish src/PodpisPdf -c Release -r win-x64 -o publish
+        run: dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64 -o publish
 
       - name: Test uruchomienia PodpisPdf.exe (i czas startu)
         shell: pwsh
         run: |
           foreach ($proba in 1..2) {
             $czas = Measure-Command {
-              $p = Start-Process publish/PodpisPdf.exe -ArgumentList '--sprawdz' -Wait -PassThru
+              $p = Start-Process publish/PodpisPdf.exe -ArgumentList '--sprawdz' -PassThru
+              if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "PodpisPdf.exe --sprawdz nie zakończył się w 3 minuty" }
             }
             if ($p.ExitCode -ne 0) {
-              Get-Content "$env:TEMP/PodpisPdf-sprawdz.txt" -ErrorAction SilentlyContinue
+              Get-Content "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue
+              Get-WinEvent -LogName Application -MaxEvents 20 -ErrorAction SilentlyContinue |
+                Where-Object { $_.ProviderName -match 'Application Error|\.NET Runtime' } | Format-List TimeCreated, Message
               throw "PodpisPdf.exe --sprawdz zakończył się kodem $($p.ExitCode)"
             }
             "Uruchomienie $proba`: $([math]::Round($czas.TotalSeconds, 2)) s"
           }
           "Rozmiar: $([math]::Round((Get-Item publish/PodpisPdf.exe).Length / 1MB, 1)) MB"
 
-      - name: Zrzuty ekranu okien (jasny i ciemny motyw)
+      - name: Zrzuty ekranu (jasny i ciemny motyw)
         shell: pwsh
         run: |
-          $p = Start-Process publish/PodpisPdf.exe -ArgumentList '--zrzuty', "$PWD/zrzuty" -Wait -PassThru
-          if (Test-Path zrzuty/blad.txt) { Get-Content zrzuty/blad.txt }
-          if ($p.ExitCode -ne 0) { throw "Zrzuty ekranu: kod $($p.ExitCode)" }
+          Remove-Item "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue
+          $p = Start-Process publish/PodpisPdf.exe -ArgumentList '--zrzuty', "$PWD/zrzuty" -PassThru
+          if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "Zrzuty ekranu: brak zakończenia w 5 minut" }
+          Get-Content "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) {
+            Get-WinEvent -LogName Application -MaxEvents 20 -ErrorAction SilentlyContinue |
+              Where-Object { $_.ProviderName -match 'Application Error|\.NET Runtime' } | Format-List TimeCreated, Message
+            throw "Zrzuty ekranu: kod $($p.ExitCode)"
+          }
 
       # Zrzuty na osobnej gałęzi „zrzuty-ekranu” (do obejrzenia bez pobierania artefaktu).
       - name: Zrzuty ekranu na gałąź zrzuty-ekranu

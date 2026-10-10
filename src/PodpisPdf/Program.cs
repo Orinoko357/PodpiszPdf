@@ -1,66 +1,59 @@
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
+
 namespace PodpisPdf;
 
-internal static class Program
+/// <summary>Tryb pracy programu wynikający z parametrów wywołania.</summary>
+internal enum TrybUruchomienia { Normalny, Sprawdzenie, Zrzuty }
+
+public static class Program
 {
-    private const string Tytul = "PodpisPdf";
+    internal static TrybUruchomienia Tryb { get; private set; }
+    internal static string? PlikStartowy { get; private set; }
+    internal static bool Autostart { get; private set; }
+    internal static string? FolderZrzutow { get; private set; }
+    internal static JednaInstancja? Instancja { get; private set; }
 
     [STAThread]
-    private static void Main(string[] args)
+    private static int Main(string[] args)
     {
-        ApplicationConfiguration.Initialize();
+        WinRT.ComWrappersSupport.InitializeComWrappers();
 
-        if (args.Length >= 2 && args[0] == "--zrzuty")
-        {
-            try
-            {
-                Zrzuty.Wykonaj(args[1]);
-            }
-            catch (Exception e)
-            {
-                File.WriteAllText(Path.Combine(args[1], "blad.txt"), e.ToString());
-                Environment.ExitCode = 1;
-            }
-            return;
-        }
-
+        Autostart = args.Any(a => string.Equals(a, Instalacja.ParametrAutostartu, StringComparison.OrdinalIgnoreCase));
+        PlikStartowy = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal));
         if (args.Contains("--sprawdz"))
         {
-            Sprawdz();
-            return;
+            Tryb = TrybUruchomienia.Sprawdzenie;
+            PlikStartowy = null;
         }
-
-        var autostart = args.Any(a => string.Equals(a, Instalacja.ParametrAutostartu, StringComparison.OrdinalIgnoreCase));
-        var plik = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal));
-
-        var instancja = JednaInstancja.Przejmij() ?? ObsluzDzialajacaKopie(plik, autostart);
-        if (instancja == null)
-            return;
-
-        using (instancja)
+        else if (args.Length >= 2 && args[0] == "--zrzuty")
         {
-            var okno = new OknoGlowne(plik, autostart);
-            instancja.Nasluchuj(okno.PrzyjmijPolecenie);
-            Application.Run(okno);
+            Tryb = TrybUruchomienia.Zrzuty;
+            FolderZrzutow = args[1];
+            PlikStartowy = null;
         }
-    }
 
-    /// <summary>
-    /// Test uruchomienia (GitHub Actions): biblioteki PDF, podgląd i okno główne bez pokazywania.
-    /// Kod wyjścia 0 = program startuje poprawnie.
-    /// </summary>
-    private static void Sprawdz()
-    {
+        if (Tryb == TrybUruchomienia.Normalny)
+        {
+            Instancja = JednaInstancja.Przejmij() ?? ObsluzDzialajacaKopie(PlikStartowy, Autostart);
+            if (Instancja == null)
+                return 0;
+        }
+
         try
         {
-            PodpisPdf.Core.Rozgrzewka.Wykonaj(zglaszajBledy: true);
-            using var okno = new OknoGlowne(null);
-            okno.CreateControl();
+            Application.Start(_ =>
+            {
+                var kontekst = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
+                SynchronizationContext.SetSynchronizationContext(kontekst);
+                _ = new App();
+            });
         }
-        catch (Exception e)
+        finally
         {
-            File.WriteAllText(Path.Combine(Path.GetTempPath(), "PodpisPdf-sprawdz.txt"), e.ToString());
-            Environment.ExitCode = 1;
+            Instancja?.Dispose();
         }
+        return Environment.ExitCode;
     }
 
     /// <summary>
@@ -84,39 +77,33 @@ internal static class Program
 
         if (dzialajaca != null && dzialajaca > biezaca)
         {
-            MessageBox.Show(
+            Win32.Komunikat(
                 $"Uruchomiona jest nowsza wersja PodpisPdf ({dzialajaca}) niż ta, którą otwierasz ({biezaca}).\n\n" +
-                "Zostanie użyta uruchomiona, nowsza wersja.",
-                Tytul, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                "Zostanie użyta uruchomiona, nowsza wersja.", Win32.Ostrzezenie);
             JednaInstancja.Wyslij(polecenie);
             return null;
         }
 
         var opis = dzialajaca != null ? $"w wersji {dzialajaca}" : "w starszej wersji";
-        var odpowiedz = MessageBox.Show(
+        var odpowiedz = Win32.Komunikat(
             $"PodpisPdf {opis} jest już uruchomiony (np. ikona obok zegara).\n\n" +
             $"Aby uruchomić wersję {biezaca} i zaktualizować kopię programu w %APPDATA%\\PodpisPdf, " +
-            "działający program trzeba zamknąć.\n\nZamknąć go teraz?",
-            Tytul, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-        if (odpowiedz != DialogResult.Yes)
+            "działający program trzeba zamknąć.\n\nZamknąć go teraz?", Win32.Ostrzezenie, Win32.TakNie);
+        if (odpowiedz != Win32.Tak)
             return null;
 
         if (dzialajaca != null && JednaInstancja.Wyslij(JednaInstancja.Zakoncz) == JednaInstancja.Zajety)
         {
-            MessageBox.Show(
-                "Działający program jest w trakcie pracy (podpisywanie lub otwarte okno).\n" +
-                "Dokończ ją i uruchom tę wersję ponownie.",
-                Tytul, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            Win32.Komunikat("Działający program jest w trakcie pracy (podpisywanie lub otwarte okno).\n" +
+                            "Dokończ ją i uruchom tę wersję ponownie.", Win32.Ostrzezenie);
             return null;
         }
 
         var instancja = JednaInstancja.Przejmij(TimeSpan.FromSeconds(dzialajaca != null ? 15 : 0));
         if (instancja == null)
         {
-            MessageBox.Show(
-                "Nie udało się zamknąć działającego programu.\n\n" +
-                "Zamknij go ręcznie (ikona PodpisPdf obok zegara → Zakończ) i uruchom tę wersję ponownie.",
-                Tytul, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            Win32.Komunikat("Nie udało się zamknąć działającego programu.\n\n" +
+                            "Zamknij go ręcznie (ikona PodpisPdf obok zegara → Zakończ) i uruchom tę wersję ponownie.", Win32.Ostrzezenie);
         }
         return instancja;
     }

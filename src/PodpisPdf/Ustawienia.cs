@@ -93,9 +93,9 @@ internal sealed class Ustawienia
         }
         catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
         {
-            MessageBox.Show(
+            Win32.Komunikat(
                 $"Nie udało się odczytać ustawień z pliku:\n{SciezkaPliku}\n\nUżyte zostaną ustawienia domyślne.\n\nSzczegóły: {e.Message}",
-                "PodpisPdf", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Win32.Ostrzezenie);
         }
         return new Ustawienia();
     }
@@ -158,12 +158,6 @@ internal sealed class Ustawienia
         {
             // Zostaje oryginalna ścieżka — logo nadal działa, dopóki plik istnieje.
         }
-    }
-
-    public static Icon Ikona()
-    {
-        using var strumien = typeof(Ustawienia).Assembly.GetManifestResourceStream("PodpisPdf.ico")!;
-        return new Icon(strumien);
     }
 
     public OpcjePodpisu UtworzOpcjePodpisu() => new()
