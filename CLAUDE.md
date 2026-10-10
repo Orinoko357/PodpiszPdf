@@ -12,11 +12,11 @@ w GitHub **Releases** — bez pytania użytkownika:
    Wyższy numer jest konieczny: kopia programu w `%APPDATA%\PodpisPdf` (autostart) aktualizuje się tylko
    z nowszej wersji. Większa nowa funkcja może podnieść numer bardziej (np. użytkownik zażyczył sobie 1.5).
 2. Uruchom testy (`dotnet test tests/PodpisPdf.Tests`), zatwierdź i wypchnij zmiany na gałąź roboczą.
-3. Poczekaj, aż przebieg `Build` (po pushu) dla tego commita zakończy się sukcesem — buduje i testuje instalator.
-   Potem opublikuj wydanie: uruchom workflow `wydanie.yml` (`workflow_dispatch`) na tej gałęzi z wejściem
-   `wersja` = nowy numer (bez „v”, równy `<Version>`). Bierze gotowy instalator z przebiegu `Build` (ok. minuty),
-   tworzy znacznik `v<wersja>`, wydanie z `PodpisPdf.msi` i kopię w repozytorium aktualizacji. (Wypychanie
-   znaczników z sesji Claude Code bywa zablokowane — dlatego wydanie tworzy GitHub Actions.)
+3. Wydanie jest automatyczne: przebieg `Build` (po pushu) buduje i testuje instalator, a gdy `<Version>` nie ma
+   jeszcze znacznika `v<wersja>`, zadanie `wydanie` od razu tworzy znacznik, wydanie z `PodpisPdf.msi`
+   i kopię w repozytorium aktualizacji. Nic nie trzeba uruchamiać ręcznie — tylko poczekać na koniec przebiegu.
+   (Wypychanie znaczników z sesji Claude Code bywa zablokowane — dlatego wydanie tworzy GitHub Actions;
+   ręczne `workflow_dispatch` działa tylko dla workflowów z gałęzi `main`.)
 4. Sprawdź, że wydanie istnieje i ma plik `PodpisPdf.msi`, i podaj użytkownikowi link.
 
 Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagają wydania.

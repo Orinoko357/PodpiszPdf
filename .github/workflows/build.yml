@@ -2,7 +2,7 @@ name: Build
 
 # Jeden przebieg na commit: wynik budowania z „push” jest widoczny także w pull requeście
 # (osobny przebieg dla pull_request dublował maile o błędach).
-# Wydania publikuje osobny workflow wydanie.yml z gotowego instalatora z tego przebiegu.
+# Nowa wersja (<Version> bez znacznika v<wersja>) jest po udanym budowaniu od razu wydawana (zadanie „wydanie”).
 on:
   push:
   workflow_dispatch:
@@ -13,6 +13,9 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    outputs:
+      wersja: ${{ steps.wersja.outputs.wersja }}
+      nowa: ${{ steps.wersja.outputs.nowa }}
     env:
       # Sekrety repozytorium (opcjonalne — bez nich program buduje się, ale bez pakietu menu Windows 11
       # i bez publikacji w repozytorium wydań, z którego program pobiera aktualizacje).
@@ -20,6 +23,18 @@ jobs:
       TOKEN_WYDANIA: ${{ secrets.TOKEN_WYDANIA }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Wersja i czy jest już wydana
+        id: wersja
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          wersja=$(grep -oP '(?<=<Version>)[^<]+' src/PodpisPdf/PodpisPdf.csproj)
+          if gh api "repos/${{ github.repository }}/git/ref/tags/v$wersja" > /dev/null 2>&1; then nowa=nie; else nowa=tak; fi
+          echo "Wersja $wersja, nowa: $nowa"
+          echo "wersja=$wersja" >> "$GITHUB_OUTPUT"
+          echo "nowa=$nowa" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -285,3 +300,64 @@ jobs:
             wynik/PodpisPdf.msi.sha256
             pakiet/wynik/PodpisPdf.cer
           if-no-files-found: error
+
+  # Wydanie z przetestowanego instalatora tego przebiegu, gdy wersja z PodpisPdf.csproj nie ma jeszcze
+  # znacznika v<wersja> — podniesienie <Version> i push wystarczą, bez ręcznego uruchamiania.
+  wydanie:
+    needs: build
+    if: needs.build.outputs.nowa == 'tak'
+    runs-on: ubuntu-latest
+    env:
+      TOKEN_WYDANIA: ${{ secrets.TOKEN_WYDANIA }}
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: PodpisPdf
+          path: wynik
+
+      - name: Kontrola plików
+        run: |
+          ls -la wynik wynik/* 2>/dev/null || true
+          msi=$(find wynik -name PodpisPdf.msi | head -1); sum=$(find wynik -name PodpisPdf.msi.sha256 | head -1); cer=$(find wynik -name PodpisPdf.cer | head -1)
+          [ -n "$msi" ] && [ -n "$sum" ] && [ -n "$cer" ] || { echo "::error::Niepełny artefakt"; exit 1; }
+          oczekiwana=$(cut -d' ' -f1 "$sum"); faktyczna=$(sha256sum "$msi" | cut -d' ' -f1)
+          [ "$oczekiwana" = "$faktyczna" ] || { echo "::error::Suma SHA-256 instalatora się nie zgadza"; exit 1; }
+          mkdir -p pliki && cp "$msi" "$sum" "$cer" pliki/
+          ls -la pliki
+
+      - name: Wydanie (Release)
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ needs.build.outputs.wersja }}
+          target_commitish: ${{ github.sha }}
+          name: PodpisPdf v${{ needs.build.outputs.wersja }}
+          files: pliki/*
+          generate_release_notes: true
+
+      # Publiczne repozytorium wydań — stąd program pobiera aktualizacje.
+      - name: Wydanie w repozytorium aktualizacji
+        if: env.TOKEN_WYDANIA != ''
+        uses: softprops/action-gh-release@v3
+        with:
+          repository: Orinoko357/PodpisPdf-wydania
+          token: ${{ secrets.TOKEN_WYDANIA }}
+          tag_name: v${{ needs.build.outputs.wersja }}
+          name: PodpisPdf v${{ needs.build.outputs.wersja }}
+          body: |
+            Kwalifikowany podpis elektroniczny PAdES plików PDF. Pobierz i uruchom instalator **PodpisPdf.msi**
+            (Windows 10/11, 64-bit, instalacja dla całego komputera). Zainstalowany program aktualizuje się sam.
+            Cicha instalacja: `msiexec /i PodpisPdf.msi /qn`.
+
+            Certyfikat **PodpisPdf.cer** jest potrzebny tylko do pozycji w nowym menu kontekstowym Windows 11
+            (instalator dodaje go sam).
+          files: pliki/*
+
+      # Sprawdzenie tak, jak robi to program: najnowsze wydanie w repozytorium aktualizacji ma instalator i sumę.
+      - name: Kontrola repozytorium aktualizacji
+        if: env.TOKEN_WYDANIA != ''
+        run: |
+          sleep 5
+          curl -sf https://api.github.com/repos/Orinoko357/PodpisPdf-wydania/releases/latest -o najnowsze.json
+          jq -r '.tag_name, (.assets[].name)' najnowsze.json
+          [ "$(jq -r .tag_name najnowsze.json)" = "v${{ needs.build.outputs.wersja }}" ] || { echo "::error::Najnowsze wydanie w repozytorium aktualizacji to nie v${{ needs.build.outputs.wersja }}"; exit 1; }
+          jq -e '[.assets[].name] | index("PodpisPdf.msi") and index("PodpisPdf.msi.sha256")' najnowsze.json > /dev/null || { echo "::error::Brak instalatora lub sumy"; exit 1; }
