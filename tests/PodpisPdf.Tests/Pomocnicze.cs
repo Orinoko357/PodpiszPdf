@@ -149,6 +149,14 @@ internal static class PlikiTestowe
         return sciezka;
     }
 
+    /// <summary>Pionowy PNG 20x40 px (proporcje zbliżone do herbu).</summary>
+    public static string UtworzLogoPionowe(string folder)
+    {
+        var sciezka = Path.Combine(folder, "logo-pionowe.png");
+        File.WriteAllBytes(sciezka, Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAABQAAAAoCAIAAABxU02MAAAAIklEQVR4nGOQowAwjGoe1TyqeVTzqOZRzaOaRzWPaiYXAACtDBlQIWwIRQAAAABJRU5ErkJggg=="));
+        return sciezka;
+    }
+
     /// <summary>Mały PNG 40x20 px (dwa kolorowe pola).</summary>
     public static string UtworzLogo(string folder)
     {

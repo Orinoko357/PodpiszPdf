@@ -31,6 +31,11 @@ public static class Wizualizacja
 
     private const float Odstep = 3f;
     private const float OdstepLogo = 7f;
+    private const float MaksUdzialLogo = 0.35f;
+    // Położenie glifów w wierszu (ułamki rozmiaru czcionki), zmierzone dla DejaVu Sans przy interlinii 1,2:
+    // od góry wiersza do górnej krawędzi wielkich liter i od dołu wiersza do dolnej krawędzi znaków.
+    private const float GornyLuzWiersza = 0.27f;
+    private const float DolnyLuzWiersza = 0.29f;
     private const float MaksRozmiarCzcionki = 11f;
     private const float MinRozmiarCzcionki = 4f;
     private const float InterliniaWzgledna = 1.2f;
@@ -145,29 +150,25 @@ public static class Wizualizacja
         var wnetrzeW = szerokosc - 2 * Odstep;
         var wnetrzeH = wysokosc - 2 * Odstep;
 
-        float logoW = 0;
+        // Logo ma dokładnie wysokość bloku tekstu (góra herbu = góra pierwszego wiersza, dół = dół ostatniego).
+        // Wysokość tekstu zależy od rozmiaru czcionki, a ten od miejsca zajętego przez logo — stąd kilka przybliżeń.
+        float logoW = 0, logoH = wnetrzeH;
+        var tekstW = wnetrzeW;
+        var rozmiar = DobierzRozmiarCzcionki(linie, tekstW, wnetrzeH);
+        for (var krok = 0; logo != null && krok < 6; krok++)
+        {
+            logoW = Math.Min(logoH * logo.Value.Proporcje, wnetrzeW * MaksUdzialLogo);
+            tekstW = wnetrzeW - logoW - OdstepLogo;
+            rozmiar = DobierzRozmiarCzcionki(linie, tekstW, wnetrzeH);
+            logoH = Math.Min(wnetrzeH, WidocznaWysokoscTekstu(linie, rozmiar, tekstW));
+        }
         if (logo != null)
         {
-            // Logo w lewej kolumnie: pełna wysokość, nie więcej niż 35% szerokości.
-            logoW = Math.Min(wnetrzeH * logo.Value.Proporcje, wnetrzeW * 0.35f);
+            logoW = Math.Min(logoH * logo.Value.Proporcje, wnetrzeW * MaksUdzialLogo);
+            logoH = logoW / logo.Value.Proporcje;
         }
-        var tekstW = wnetrzeW - (logo != null ? logoW + OdstepLogo : 0);
 
-        var rozmiar = DobierzRozmiarCzcionki(linie, tekstW, wnetrzeH);
-
-        var tekst = new Div()
-            .SetPadding(0)
-            .SetMargin(0);
-        foreach (var (t, czcionka, skala, _) in linie)
-        {
-            tekst.Add(new Paragraph(t)
-                .SetFont(czcionka)
-                .SetFontSize(rozmiar * skala)
-                .SetFontColor(ColorConstants.BLACK)
-                .SetMultipliedLeading(InterliniaWzgledna)
-                .SetMargin(0)
-                .SetPadding(0));
-        }
+        var tekst = UtworzBlokTekstu(linie, rozmiar);
 
         var zawartosc = new Div()
             .SetMargin(0)
@@ -191,7 +192,7 @@ public static class Wizualizacja
             {
                 iText.Kernel.Pdf.Xobject.PdfFormXObject f => new Image(f),
                 var x => new Image((iText.Kernel.Pdf.Xobject.PdfImageXObject)x),
-            }).SetAutoScale(true);
+            }).SetWidth(logoW).SetHeight(logoH);
             tabela.AddCell(new Cell()
                 .Add(obraz)
                 .SetBorder(Border.NO_BORDER)
@@ -251,13 +252,60 @@ public static class Wizualizacja
                     miesci = false;
                     break;
                 }
-                lacznie += wiersze * r * InterliniaWzgledna;
+                lacznie += wiersze * WysokoscWiersza(w.Czcionka, r);
             }
             if (miesci && lacznie <= wysokosc)
                 return rozmiar;
         }
         // Przy bardzo długim tekście lepiej zawinąć wiersz niż użyć nieczytelnej czcionki.
         return MinRozmiarCzcionki;
+    }
+
+    /// <summary>Wysokość bloku tekstu wg silnika układu iText (z interlinią).</summary>
+    private static float WysokoscUkladu(List<Wiersz> linie, float rozmiar, float szerokosc)
+    {
+        using var pdf = new PdfDocument(new PdfWriter(Stream.Null));
+        using var dokument = new iText.Layout.Document(pdf);
+        var blok = UtworzBlokTekstu(linie, rozmiar);
+        var renderer = blok.CreateRendererSubTree().SetParent(dokument.GetRenderer());
+        var wynik = renderer.Layout(new iText.Layout.Layout.LayoutContext(
+            new iText.Layout.Layout.LayoutArea(1, new Rectangle(szerokosc, 10000))));
+        return wynik.GetOccupiedArea().GetBBox().GetHeight();
+    }
+
+    private static Div UtworzBlokTekstu(List<Wiersz> linie, float rozmiar)
+    {
+        var tekst = new Div().SetPadding(0).SetMargin(0);
+        foreach (var (t, czcionka, skala, _) in linie)
+        {
+            tekst.Add(new Paragraph(t)
+                .SetFont(czcionka)
+                .SetFontSize(rozmiar * skala)
+                .SetFontColor(ColorConstants.BLACK)
+                .SetMultipliedLeading(InterliniaWzgledna)
+                .SetMargin(0)
+                .SetPadding(0));
+        }
+        return tekst;
+    }
+
+    /// <summary>Wysokość od górnej krawędzi pierwszego wiersza tekstu do dolnej krawędzi ostatniego.</summary>
+    private static float WidocznaWysokoscTekstu(List<Wiersz> linie, float rozmiar, float szerokosc)
+    {
+        var wysokosc = 0f;
+        foreach (var w in linie)
+            wysokosc += LiczbaWierszy(w.Tekst, w.Czcionka, rozmiar * w.Skala, szerokosc * ZapasSzerokosci) *
+                        WysokoscWiersza(w.Czcionka, rozmiar * w.Skala);
+        var pierwszy = rozmiar * linie[0].Skala;
+        var ostatni = rozmiar * linie[^1].Skala;
+        return wysokosc - GornyLuzWiersza * pierwszy - DolnyLuzWiersza * ostatni;
+    }
+
+    /// <summary>Wysokość wiersza tak, jak liczy ją iText: interlinia × (ascender − descender) czcionki.</summary>
+    private static float WysokoscWiersza(PdfFont czcionka, float rozmiar)
+    {
+        var m = czcionka.GetFontProgram().GetFontMetrics();
+        return InterliniaWzgledna * (m.GetAscender() - m.GetDescender()) / 1000f * rozmiar;
     }
 
     /// <summary>Liczba wierszy po zawinięciu tekstu na granicach słów (int.MaxValue, gdy słowo się nie mieści).</summary>

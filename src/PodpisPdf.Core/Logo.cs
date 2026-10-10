@@ -18,7 +18,7 @@ internal static class Logo
     // Minimalny zysk, przy którym warto przycinać (ułamek wymiaru).
     private const float MinimalnyMargines = 0.02f;
     // Zostawiany zapas wokół treści (ułamek wymiaru), żeby nie ściąć antyaliasingu krawędzi.
-    private const float Zapas = 0.01f;
+    private const float Zapas = 0.003f;
     private const int RozdzielczoscAnalizy = 800;
 
     /// <summary>Obszar treści logo jako ułamki szerokości/wysokości, licząc od lewego górnego rogu.</summary>
