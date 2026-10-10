@@ -178,3 +178,51 @@ public class PodpisywaczPdfTesty
         Assert.Null(KlientZnacznikaCzasu.PobierzCzas(new TestowyTsa { Awaria = true }));
     }
 }
+
+public class WizualizacjaTesty
+{
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("Kierownik", false)]
+    [InlineData("Kierownik", true)]
+    public void ImieINazwiskoZawszePogrubione(string? stanowisko, bool zLogo)
+    {
+        var folder = PlikiTestowe.Folder();
+        var wejscie = PlikiTestowe.UtworzPdf(folder);
+        var wyjscie = Path.Combine(folder, "w.pdf");
+        using var cert = CertyfikatyTestowe.Utworz(imie: "Anna", nazwisko: "Nowak");
+        var opcje = new OpcjePodpisu { Stanowisko = stanowisko, SciezkaLogo = zLogo ? PlikiTestowe.UtworzLogo(folder) : null };
+
+        new PodpisywaczPdf(new TestowyTsa()).Podpisz(wejscie, wyjscie, cert, opcje);
+
+        using var pdf = new PdfDocument(new PdfReader(wyjscie));
+        var nazwa = new SignatureUtil(pdf).GetSignatureNames()[0];
+        var wyglad = PdfAcroForm.GetAcroForm(pdf, false).GetField(nazwa).GetWidgets()[0].GetNormalAppearanceObject();
+        var czcionki = new List<string>();
+        ZbierzCzcionki(wyglad, czcionki, new HashSet<PdfObject>());
+
+        // Pogrubiona czcionka jest używana wyłącznie dla imienia i nazwiska.
+        Assert.Contains(czcionki, c => c.Contains("DejaVuSans-Bold"));
+        Assert.Contains(czcionki, c => c.EndsWith("DejaVuSans"));
+    }
+
+    private static void ZbierzCzcionki(PdfObject? obiekt, List<string> wynik, HashSet<PdfObject> odwiedzone)
+    {
+        if (obiekt is PdfIndirectReference r)
+            obiekt = r.GetRefersTo();
+        if (obiekt == null || !odwiedzone.Add(obiekt))
+            return;
+        if (obiekt is PdfDictionary d)
+        {
+            if (PdfName.Font.Equals(d.GetAsName(PdfName.Type)) && d.GetAsName(PdfName.BaseFont) is { } bf)
+                wynik.Add(bf.GetValue());
+            foreach (var klucz in d.KeySet())
+                ZbierzCzcionki(d.Get(klucz, false), wynik, odwiedzone);
+        }
+        else if (obiekt is PdfArray a)
+        {
+            for (var i = 0; i < a.Size(); i++)
+                ZbierzCzcionki(a.Get(i, false), wynik, odwiedzone);
+        }
+    }
+}
