@@ -341,14 +341,24 @@ public static class Wizualizacja
 
     private sealed record Wiersz(string Tekst, PdfFont Czcionka, float Skala, int MaksWierszy = 1);
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte[]> DaneCzcionek = new();
+
+    /// <summary>
+    /// Nowa czcionka dla każdego dokumentu. Bez pamięci podręcznej iText: wspólny obiekt czcionki czyta
+    /// plik ze wspólnego bufora i nie może być używany przez kilka wątków naraz (np. podpis i podgląd).
+    /// </summary>
     private static PdfFont UtworzCzcionke(string zasob)
     {
-        using var strumien = typeof(Wizualizacja).Assembly.GetManifestResourceStream(zasob)
-                             ?? throw new InvalidOperationException($"Brak zasobu czcionki {zasob}.");
-        using var ms = new MemoryStream();
-        strumien.CopyTo(ms);
-        return PdfFontFactory.CreateFont(ms.ToArray(), PdfEncodings.IDENTITY_H,
-            PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED);
+        var dane = DaneCzcionek.GetOrAdd(zasob, z =>
+        {
+            using var strumien = typeof(Wizualizacja).Assembly.GetManifestResourceStream(z)
+                                 ?? throw new InvalidOperationException($"Brak zasobu czcionki {z}.");
+            using var ms = new MemoryStream();
+            strumien.CopyTo(ms);
+            return ms.ToArray();
+        });
+        var program = FontProgramFactory.CreateFont(dane, cached: false);
+        return PdfFontFactory.CreateFont(program, PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED);
     }
 
     private static (iText.Kernel.Pdf.Xobject.PdfXObject Obraz, float Proporcje)? WczytajLogo(string? sciezka)

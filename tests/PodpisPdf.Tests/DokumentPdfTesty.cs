@@ -165,3 +165,29 @@ public class SkalowanieWizualizacjiTesty
         Assert.Equal(0, y, 0.01);
     }
 }
+
+public class WspolbieznoscTesty
+{
+    /// <summary>
+    /// Kilka wizualizacji jednocześnie (np. podpis w trakcie przygotowywania podglądu) — czcionki nie mogą
+    /// być współdzielone między wątkami (iText czyta je ze wspólnego bufora).
+    /// </summary>
+    [Fact]
+    public void WizualizacjeRownolegle()
+    {
+        var bledy = new System.Collections.Concurrent.ConcurrentBag<Exception>();
+        Parallel.For(0, 64, new ParallelOptions { MaxDegreeOfParallelism = 16 }, i =>
+        {
+            try
+            {
+                var dane = new DaneWizualizacji($"Osoba {i} Zażółć Gęślą Jaźń", "Kierownik Biura Informatyki\nUrzędu Miasta Wodzisławia Śląskiego " + i, null, DateTimeOffset.Now);
+                Wizualizacja.PodgladPdf(dane, 1f + i % 3 * 0.5f);
+            }
+            catch (Exception e)
+            {
+                bledy.Add(e);
+            }
+        });
+        Assert.Empty(bledy);
+    }
+}
