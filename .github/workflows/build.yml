@@ -1,8 +1,9 @@
 name: Build
 
+# Jeden przebieg na commit: wynik budowania z „push” jest widoczny także w pull requeście
+# (osobny przebieg dla pull_request dublował maile o błędach).
 on:
   push:
-  pull_request:
   workflow_dispatch:
     inputs:
       wersja:
@@ -65,7 +66,6 @@ jobs:
 
       # Zrzuty na osobnej gałęzi „zrzuty-ekranu” (do obejrzenia bez pobierania artefaktu).
       - name: Zrzuty ekranu na gałąź zrzuty-ekranu
-        if: github.event_name != 'pull_request'
         shell: pwsh
         run: |
           $zrodlo = "${{ github.sha }}".Substring(0, 7)

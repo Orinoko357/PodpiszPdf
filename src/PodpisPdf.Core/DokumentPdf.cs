@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Docnet.Core;
 using Docnet.Core.Models;
 using iText.Kernel.Pdf;
@@ -18,8 +19,46 @@ public sealed record ObrazStrony(byte[] Bgra, int Szerokosc, int Wysokosc);
 /// <summary>Odczyt stron i renderowanie podglądu dokumentu PDF (silnik PDFium).</summary>
 public static class DokumentPdf
 {
-    // PDFium nie jest bezpieczny wątkowo.
-    private static readonly object Blokada = new();
+    // PDFium nie jest bezpieczny wątkowo i źle znosi wywołania z różnych wątków (nawet kolejno, pod blokadą),
+    // dlatego wszystkie wywołania wykonuje jeden stały wątek.
+    private static readonly BlockingCollection<Action> Kolejka = new();
+
+    private static readonly Thread WatekPdfium = UtworzWatek();
+
+    private static Thread UtworzWatek()
+    {
+        var watek = new Thread(() =>
+        {
+            foreach (var zadanie in Kolejka.GetConsumingEnumerable())
+                zadanie();
+        })
+        {
+            IsBackground = true,
+            Name = "PDFium",
+        };
+        watek.Start();
+        return watek;
+    }
+
+    /// <summary>Wykonuje funkcję na wątku PDFium i czeka na wynik (wyjątki przechodzą do wywołującego).</summary>
+    private static T NaWatkuPdfium<T>(Func<T> funkcja)
+    {
+        if (Thread.CurrentThread == WatekPdfium)
+            return funkcja();
+        var wynik = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Kolejka.Add(() =>
+        {
+            try
+            {
+                wynik.SetResult(funkcja());
+            }
+            catch (Exception e)
+            {
+                wynik.SetException(e);
+            }
+        });
+        return wynik.Task.GetAwaiter().GetResult();
+    }
 
     public static IReadOnlyList<StronaPdf> Strony(string sciezka)
     {
@@ -40,17 +79,15 @@ public static class DokumentPdf
     /// </summary>
     public static ObrazStrony Renderuj(byte[] pdf, int indeks, double skala, bool bialeTlo = true)
     {
-        lock (Blokada)
+        var (bgra, w, h) = NaWatkuPdfium(() =>
         {
             using var czytnik = DocLib.Instance.GetDocReader(pdf, new PageDimensions(skala));
             using var strona = czytnik.GetPageReader(indeks);
-            var w = strona.GetPageWidth();
-            var h = strona.GetPageHeight();
-            var bgra = strona.GetImage(RenderFlags.RenderAnnotations);
-            if (bialeTlo)
-                NaBialymTle(bgra);
-            return new ObrazStrony(bgra, w, h);
-        }
+            return (strona.GetImage(RenderFlags.RenderAnnotations), strona.GetPageWidth(), strona.GetPageHeight());
+        });
+        if (bialeTlo)
+            NaBialymTle(bgra);
+        return new ObrazStrony(bgra, w, h);
     }
 
     /// <summary>PDFium zwraca przezroczyste tło — nakładamy obraz na białą kartkę.</summary>

@@ -190,4 +190,27 @@ public class WspolbieznoscTesty
         });
         Assert.Empty(bledy);
     }
+
+    /// <summary>Renderowanie z wielu wątków naraz (podgląd, miniatury, podpis) — PDFium działa na jednym wątku.</summary>
+    [Fact]
+    public void RenderowanieRownolegle()
+    {
+        var pdf = File.ReadAllBytes(PlikiTestowe.UtworzPdf(PlikiTestowe.Folder(), strony: 3));
+        var bledy = new System.Collections.Concurrent.ConcurrentBag<Exception>();
+        Parallel.For(0, 48, new ParallelOptions { MaxDegreeOfParallelism = 12 }, i =>
+        {
+            try
+            {
+                var obraz = DokumentPdf.Renderuj(pdf, i % 3, 0.3 + i % 4 * 0.2, bialeTlo: i % 2 == 0);
+                Assert.Equal(obraz.Szerokosc * obraz.Wysokosc * 4, obraz.Bgra.Length);
+            }
+            catch (Exception e)
+            {
+                bledy.Add(e);
+            }
+        });
+        Assert.Empty(bledy);
+        Assert.ThrowsAny<Exception>(() => DokumentPdf.Renderuj(pdf, 99, 1)); // błąd wraca do wywołującego, wątek działa dalej
+        Assert.True(DokumentPdf.Renderuj(pdf, 0, 0.2).Szerokosc > 0);
+    }
 }
