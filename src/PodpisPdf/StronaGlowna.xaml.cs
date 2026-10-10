@@ -100,7 +100,7 @@ public sealed partial class StronaGlowna : Page
 
     internal void PrzetworzZlecenia()
     {
-        if (_trwaPodpisywanie || Okno.Ramka_.Content != this || !Okno.PobierzZlecenie(out var plik))
+        if (_trwaPodpisywanie || !ReferenceEquals(Okno.Ramka_.Content, this) || !Okno.PobierzZlecenie(out var plik))
             return;
         Okno.Przywroc();
         if (string.IsNullOrEmpty(plik))
@@ -117,7 +117,7 @@ public sealed partial class StronaGlowna : Page
 
     internal async void WybierzIPodpisz()
     {
-        if (_trwaPodpisywanie || Okno.Ramka_.Content != this)
+        if (_trwaPodpisywanie || !ReferenceEquals(Okno.Ramka_.Content, this))
             return;
         await WybierzPlik();
         if (_plik != null)

@@ -149,7 +149,7 @@ public sealed partial class OknoGlowne : Window
             var wynik = new TaskCompletionSource<bool>();
             DispatcherQueue.TryEnqueue(() =>
             {
-                var zajety = StronaGlowna == null || StronaGlowna.Zajeta || Ramka.Content is not StronaGlowna;
+                var zajety = StronaGlowna == null || StronaGlowna.Zajeta || Ramka.Content is not PodpisPdf.StronaGlowna;
                 if (!zajety)
                     ZamknijProgram();
                 wynik.TrySetResult(zajety);

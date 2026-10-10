@@ -42,7 +42,7 @@ public static class Program
 
         try
         {
-            Application.Start(_ =>
+            Application.Start(parametry =>
             {
                 var kontekst = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
                 SynchronizationContext.SetSynchronizationContext(kontekst);

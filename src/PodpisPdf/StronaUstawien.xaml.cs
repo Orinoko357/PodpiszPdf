@@ -81,10 +81,10 @@ public sealed partial class StronaUstawien : Page
         AdresTsa.Text = u.AdresTsa;
         LoginTsa.Text = u.LoginTsa ?? "";
         HasloTsa.Password = u.HasloTsa ?? "";
-        Strona.SelectedIndex = Math.Max(0, Array.IndexOf(Strony, p.Strona));
+        ListaStron.SelectedIndex = Math.Max(0, Array.IndexOf(Strony, p.Strona));
         NumerStrony.Value = Math.Clamp(p.NumerStrony, 1, 9999);
         NumerStrony.IsEnabled = p.Strona == WyborStrony.Numer;
-        Naroznik.SelectedIndex = Math.Max(0, Array.IndexOf(Narozniki, p.Naroznik));
+        ListaNaroznikow.SelectedIndex = Math.Max(0, Array.IndexOf(Narozniki, p.Naroznik));
         MarginesX.Value = Math.Clamp(p.MarginesPoziomyMm, 0, 500);
         MarginesY.Value = Math.Clamp(p.MarginesPionowyMm, 0, 500);
         Przyrostek.Text = u.Przyrostek;
@@ -96,7 +96,7 @@ public sealed partial class StronaUstawien : Page
     }
 
     private void PrzyZmianieStrony(object sender, SelectionChangedEventArgs e) =>
-        NumerStrony.IsEnabled = Strona.SelectedIndex >= 0 && Strony[Strona.SelectedIndex] == WyborStrony.Numer;
+        NumerStrony.IsEnabled = ListaStron.SelectedIndex >= 0 && Strony[ListaStron.SelectedIndex] == WyborStrony.Numer;
 
     private void PrzyZmianieStanowiska(object sender, TextChangedEventArgs e) => OdswiezPodglad();
 
@@ -298,9 +298,9 @@ public sealed partial class StronaUstawien : Page
         u.HasloTsa = HasloTsa.Password;
         u.Polozenie = new PolozenieWizualizacji
         {
-            Strona = Strony[Math.Max(0, Strona.SelectedIndex)],
+            Strona = Strony[Math.Max(0, ListaStron.SelectedIndex)],
             NumerStrony = double.IsNaN(NumerStrony.Value) ? 1 : (int)NumerStrony.Value,
-            Naroznik = Narozniki[Math.Max(0, Naroznik.SelectedIndex)],
+            Naroznik = Narozniki[Math.Max(0, ListaNaroznikow.SelectedIndex)],
             MarginesPoziomyMm = double.IsNaN(MarginesX.Value) ? 15 : (float)MarginesX.Value,
             MarginesPionowyMm = double.IsNaN(MarginesY.Value) ? 15 : (float)MarginesY.Value,
         };

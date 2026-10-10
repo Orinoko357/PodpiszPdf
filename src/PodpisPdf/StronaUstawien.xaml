@@ -89,13 +89,13 @@
                                     <FontIcon Glyph="&#xE81E;" />
                                 </ctk:SettingsCard.HeaderIcon>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <ComboBox x:Name="Strona" Width="170" SelectionChanged="PrzyZmianieStrony">
+                                    <ComboBox x:Name="ListaStron" Width="170" SelectionChanged="PrzyZmianieStrony">
                                         <x:String>Ostatnia strona</x:String>
                                         <x:String>Pierwsza strona</x:String>
                                         <x:String>Strona o numerze</x:String>
                                     </ComboBox>
                                     <NumberBox x:Name="NumerStrony" Minimum="1" Maximum="9999" SmallChange="1" Width="100" SpinButtonPlacementMode="Compact" />
-                                    <ComboBox x:Name="Naroznik" Width="170">
+                                    <ComboBox x:Name="ListaNaroznikow" Width="170">
                                         <x:String>Prawy dolny róg</x:String>
                                         <x:String>Lewy dolny róg</x:String>
                                         <x:String>Prawy górny róg</x:String>

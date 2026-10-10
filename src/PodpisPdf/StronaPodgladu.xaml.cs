@@ -173,7 +173,7 @@ public sealed partial class StronaPodgladu : Page
         _zadanie = (ZadaniePodgladu)e.Parameter;
         _strony = _zadanie.Strony;
         _skalaPodpisu = Math.Clamp(_zadanie.Skala, Wizualizacja.MinSkala, Wizualizacja.MaksSkala);
-        Okno.UstawPodtytul($"Wskaż miejsce podpisu — {Path.GetFileName(_zadanie.Plik)}");
+        Okno.UstawPodtytul($"Wskaż miejsce podpisu — {System.IO.Path.GetFileName(_zadanie.Plik)}");
         Okno.PowiekszDoPodgladu();
         Utworz();
         if (_zadanie.TrybRysowania)
