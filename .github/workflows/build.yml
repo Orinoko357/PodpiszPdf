@@ -207,10 +207,13 @@ jobs:
 
       - name: Test instalatora (aktualizacja, start, menu, certyfikat, odinstalowanie)
         shell: pwsh
+        env:
+          # Zapytania API z tokenem — bez niego wspólny adres IP runnera wyczerpuje limit (błąd 403).
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Aktualizacja: najpierw opublikowane wydanie, na nie nowy instalator (gdy ma wyższy numer).
           $wersja = [version](([xml](Get-Content src/PodpisPdf/PodpisPdf.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
-          $najnowsze = Invoke-RestMethod https://api.github.com/repos/Orinoko357/PodpisPdf-wydania/releases/latest -ErrorAction SilentlyContinue
+          $najnowsze = Invoke-RestMethod https://api.github.com/repos/Orinoko357/PodpisPdf-wydania/releases/latest -Headers @{ Authorization = "Bearer $env:GH_TOKEN" }
           $poprzednia = if ($najnowsze) { [version]($najnowsze.tag_name.TrimStart('v')) } else { $null }
           $testAktualizacji = $poprzednia -and $poprzednia -lt $wersja -and ($najnowsze.assets.name -contains 'PodpisPdf.msi')
           if ($testAktualizacji) {
@@ -357,7 +360,7 @@ jobs:
         if: env.TOKEN_WYDANIA != ''
         run: |
           sleep 5
-          curl -sf https://api.github.com/repos/Orinoko357/PodpisPdf-wydania/releases/latest -o najnowsze.json
+          curl -sf -H "Authorization: Bearer $TOKEN_WYDANIA" https://api.github.com/repos/Orinoko357/PodpisPdf-wydania/releases/latest -o najnowsze.json
           jq -r '.tag_name, (.assets[].name)' najnowsze.json
           [ "$(jq -r .tag_name najnowsze.json)" = "v${{ needs.build.outputs.wersja }}" ] || { echo "::error::Najnowsze wydanie w repozytorium aktualizacji to nie v${{ needs.build.outputs.wersja }}"; exit 1; }
           jq -e '[.assets[].name] | index("PodpisPdf.msi") and index("PodpisPdf.msi.sha256")' najnowsze.json > /dev/null || { echo "::error::Brak instalatora lub sumy"; exit 1; }
