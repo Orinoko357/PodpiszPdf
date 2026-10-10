@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Tylko biblioteka natywna PDFium (wywołania w DokumentPdf.Pdfium). -->
     <PackageReference Include="Docnet.Core" Version="2.6.0" />
     <PackageReference Include="itext" Version="9.3.0" />
     <PackageReference Include="itext.bouncy-castle-adapter" Version="9.3.0" />

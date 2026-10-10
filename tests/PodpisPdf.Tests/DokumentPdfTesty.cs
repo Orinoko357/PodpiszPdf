@@ -195,13 +195,21 @@ public class WspolbieznoscTesty
     [Fact]
     public void RenderowanieRownolegle()
     {
-        var pdf = File.ReadAllBytes(PlikiTestowe.UtworzPdf(PlikiTestowe.Folder(), strony: 3));
+        var folder = PlikiTestowe.Folder();
+        var pdf = File.ReadAllBytes(PlikiTestowe.UtworzPdf(folder, strony: 3));
+        // Podpisany dokument: wizualizacja jest polem formularza (rysowanym przez środowisko formularzy PDFium).
+        var podpisany = Path.Combine(folder, "podpisany.pdf");
+        using (var cert = CertyfikatyTestowe.Utworz())
+            new PodpisywaczPdf(new TestowyTsa()).Podpisz(PlikiTestowe.UtworzPdf(folder, nazwa: "do-podpisu.pdf"), podpisany, cert, new OpcjePodpisu());
+        var pdfPodpisany = File.ReadAllBytes(podpisany);
         var bledy = new System.Collections.Concurrent.ConcurrentBag<Exception>();
-        Parallel.For(0, 48, new ParallelOptions { MaxDegreeOfParallelism = 12 }, i =>
+        Parallel.For(0, 96, new ParallelOptions { MaxDegreeOfParallelism = 12 }, i =>
         {
             try
             {
-                var obraz = DokumentPdf.Renderuj(pdf, i % 3, 0.3 + i % 4 * 0.2, bialeTlo: i % 2 == 0);
+                var obraz = i % 2 == 0
+                    ? DokumentPdf.Renderuj(pdf, i % 3, 0.3 + i % 4 * 0.2, bialeTlo: i % 4 == 0)
+                    : DokumentPdf.Renderuj(pdfPodpisany, 1, 0.5 + i % 3 * 0.25);
                 Assert.Equal(obraz.Szerokosc * obraz.Wysokosc * 4, obraz.Bgra.Length);
             }
             catch (Exception e)
