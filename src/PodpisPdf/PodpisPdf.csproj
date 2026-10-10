@@ -22,6 +22,8 @@
     <!-- Aplikacja bez pakietu MSIX, z własnym środowiskiem Windows App SDK (nie wymaga instalacji). -->
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- Wbudowany resources.pri w jednym pliku exe. -->
+    <EnableMsixTooling>true</EnableMsixTooling>
     <!-- Własna metoda Main: jedna kopia programu i obsługa parametrów przed startem interfejsu. -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
