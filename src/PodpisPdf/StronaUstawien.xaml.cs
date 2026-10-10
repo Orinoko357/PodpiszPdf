@@ -131,7 +131,8 @@ public sealed partial class StronaUstawien : Page
         var numer = ++_numerPodgladu;
         var stanowisko = StanowiskoZPola();
         var logo = _sciezkaLogo;
-        var pikseli = PodgladWizualizacji.Height * (XamlRoot?.RasterizationScale ?? 1.5);
+        var gestosc = XamlRoot?.RasterizationScale ?? 1.5;
+        var (maksW, maksH) = (PodgladWizualizacji.Width * gestosc, PodgladWizualizacji.Height * gestosc);
         try
         {
             await Task.Delay(250); // przy pisaniu odświeżamy dopiero po chwili
@@ -140,7 +141,9 @@ public sealed partial class StronaUstawien : Page
             var obraz = await Task.Run(() =>
             {
                 var dane = new DaneWizualizacji("Imię Nazwisko", stanowisko, logo, DateTimeOffset.Now);
-                return DokumentPdf.Renderuj(Wizualizacja.PodgladPdf(dane), 0, pikseli / Wizualizacja.WysokoscPt);
+                var rozmiar = Wizualizacja.Rozmiar(dane);
+                return DokumentPdf.Renderuj(Wizualizacja.PodgladPdf(dane), 0,
+                    Math.Min(maksW / rozmiar.Szerokosc, maksH / rozmiar.Wysokosc));
             });
             if (numer == _numerPodgladu)
                 PodgladWizualizacji.Source = Obrazy.NaObraz(obraz);

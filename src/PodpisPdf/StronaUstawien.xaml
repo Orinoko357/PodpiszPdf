@@ -242,7 +242,7 @@
                                 </ctk:SettingsCard.HeaderIcon>
                                 <Button Content="Otwórz folder" Click="PrzyOtwarciuFolderu" />
                             </ctk:SettingsCard>
-                            <ctk:SettingsCard Header="Licencje" Description="iText 9 i BouncyCastle (AGPL / MIT), PDFium (BSD), Windows App SDK i Windows Community Toolkit (MIT), H.NotifyIcon (MIT), czcionka DejaVu Sans">
+                            <ctk:SettingsCard Header="Licencje" Description="iText 9 i BouncyCastle (AGPL / MIT), PDFium (BSD), Windows App SDK i Windows Community Toolkit (MIT), H.NotifyIcon (MIT), czcionka Liberation Sans (OFL, gdy brak Ariala)">
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE8F1;" />
                                 </ctk:SettingsCard.HeaderIcon>

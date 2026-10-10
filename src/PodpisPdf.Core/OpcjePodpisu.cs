@@ -32,7 +32,7 @@ public sealed class PolozenieWizualizacji
 
 /// <summary>
 /// Miejsce wskazane na podglądzie: numer strony (od 1), lewy dolny róg wizualizacji w punktach
-/// (układ współrzędnych strony PDF) i skala (1 = 85 × 25 mm; proporcje zawsze stałe).
+/// (układ współrzędnych strony PDF) i skala (1 = rozmiar podstawowy, imię i nazwisko 11 pt; proporcje zawsze stałe).
 /// </summary>
 public sealed record MiejscePodpisu(int NumerStrony, float X, float Y, float Skala = 1f);
 

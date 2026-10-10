@@ -69,13 +69,15 @@ Okno **Ustawienia…**; zapis w `%APPDATA%\PodpisPdf\config.json`:
 | Po otwarciu pliku PDF (gdy PodpisPdf jest aplikacją domyślną): pytaj / podpisuj / przeglądaj | pytaj |
 | Codzienne sprawdzanie aktualizacji | włączone |
 
-Wizualizacja ma rozmiar podstawowy **85 × 25 mm** (można go zmienić, rysując podpis na podglądzie — całość
-skaluje się proporcjonalnie), bez ramki i z przezroczystym tłem (nie zasłania formularza).
+Wizualizacja jest pisana **Arialem**: imię i nazwisko 11 pt (pogrubione), nagłówek i data 8 pt, stanowisko 7–9 pt
+(jak największe, byle nie szersze od pozostałych wierszy). Rozmiar prostokąta wynika z treści; rysując podpis
+na podglądzie, można go powiększyć lub pomniejszyć (0,6–3×) — całość skaluje się proporcjonalnie. Bez ramki
+i z przezroczystym tłem (nie zasłania formularza).
 Logo wektorowe (SVG lub PDF — pierwsza strona) trafia do podpisu jako grafika wektorowa, ostra przy każdym
 powiększeniu. Napisy w SVG najlepiej zamienić na krzywe (w SVG bez osadzonych czcionek użyta zostanie czcionka zastępcza).
 Logo PNG/JPG jest osadzane w oryginalnej rozdzielczości, bez stratnej kompresji. Białe lub przezroczyste marginesy
 w pliku logo są pomijane (przycięcie w PDF, obraz pozostaje nienaruszony), więc logo zajmuje całe dostępne miejsce.
-Stanowisko można podzielić na wiersze klawiszem Enter; bez tego zawija się samo.
+Stanowisko można podzielić na wiersze klawiszem Enter; bez tego zawija się samo (najwyżej do dwóch wierszy).
 
 **Instalacja i autostart.** Instalator MSI (dla całego komputera) umieszcza program w `C:\Program Files\PodpisPdf`,
 dodaje skrót w menu Start i certyfikat PodpisPdf do magazynu *Zaufane osoby* komputera (dla nowego menu Windows 11).
@@ -133,7 +135,7 @@ dotnet run --project tools/PodpisTestowy -- podpisz wniosek.pdf test.pfx haslo
 - iText 9 — AGPL. Użytek wewnętrzny albo udostępnienie kodu źródłowego nie stanowi problemu.
 - PDFium (BSD/Apache 2.0, biblioteka z pakietu Docnet.Core, MIT) — podgląd stron.
 - Windows App SDK / WinUI 3, Windows Community Toolkit, H.NotifyIcon — MIT.
-- Czcionka DejaVu Sans (wbudowana, obsługa polskich znaków) — licencja Bitstream Vera, zob. `src/PodpisPdf.Core/Zasoby/DejaVu-LICENSE.txt`.
+- Czcionka Arial z systemu Windows; gdy jej brak — wbudowana Liberation Sans (metrycznie zgodna z Arialem), licencja SIL OFL 1.1, zob. `src/PodpisPdf.Core/Zasoby/LiberationSans-LICENSE.txt`.
 
 ## Wydania
 

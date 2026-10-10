@@ -48,8 +48,9 @@ Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagaj�
 
 ## Wizualizacja podpisu
 
-Rozmiar podstawowy 85 × 25 mm, stałe proporcje; na podglądzie można go narysować w skali 0,6–3× (cała treść
-skaluje się proporcjonalnie, `MiejscePodpisu.Skala`). Bez ramki, przezroczyste tło. Kolejność: „Podpisano elektronicznie przez:”,
+Arial (z `C:\Windows\Fonts`, zastępczo wbudowana Liberation Sans): imię i nazwisko 11 pt, nagłówek i data 8 pt,
+stanowisko 7–9 pt. Rozmiar prostokąta wynika z treści (`Wizualizacja.Rozmiar(dane)`, bez stałego 85 × 25 mm);
+na podglądzie można go narysować w skali 0,6–3× (cała treść skaluje się proporcjonalnie, `MiejscePodpisu.Skala`). Bez ramki, przezroczyste tło. Kolejność: „Podpisano elektronicznie przez:”,
 imię i nazwisko (zawsze pogrubione), stanowisko (Enter = podział wiersza), data bez sekund. Logo po lewej,
 wyrównane do góry i dołu bloku tekstu; SVG/PDF zostają wektorowe, PNG/JPG w oryginalnej rozdzielczości.
 Zmiany wyglądu sprawdzaj na wyrenderowanym podglądzie (np. `pdftoppm`) przed wypchnięciem.

@@ -201,7 +201,7 @@ jobs:
           if ($testAktualizacji) {
             Invoke-WebRequest ($najnowsze.assets | Where-Object name -eq 'PodpisPdf.msi').browser_download_url -OutFile "$env:RUNNER_TEMP\poprzednia.msi"
             $p0 = Start-Process msiexec.exe -ArgumentList '/i', "`"$env:RUNNER_TEMP\poprzednia.msi`"", '/qn' -Wait -PassThru
-            if ($p0.ExitCode -ne 0) { throw "Instalacja poprzedniej wersji $poprzednia: kod $($p0.ExitCode)" }
+            if ($p0.ExitCode -ne 0) { throw "Instalacja poprzedniej wersji ${poprzednia}: kod $($p0.ExitCode)" }
             "Zainstalowano poprzednią wersję $poprzednia"
           } else { "Bez testu aktualizacji (opublikowana: $poprzednia, budowana: $wersja)" }
 
@@ -213,7 +213,7 @@ jobs:
           if ($wersjaPliku -ne $wersja) { throw "Zainstalowana wersja $wersjaPliku zamiast $wersja" }
           $wpisy = @(Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | Get-ItemProperty | Where-Object DisplayName -eq 'PodpisPdf')
           if ($wpisy.Count -ne 1) { throw "Wpisów PodpisPdf w Aplikacjach: $($wpisy.Count) (oczekiwano 1)" }
-          if ($testAktualizacji) { "Aktualizacja $poprzednia → $wersja: działa (jeden wpis w Aplikacjach)" }
+          if ($testAktualizacji) { "Aktualizacja $poprzednia → ${wersja}: działa (jeden wpis w Aplikacjach)" }
           $cer = if (Test-Path pakiet/wynik/PodpisPdf.cer) { 'pakiet/wynik/PodpisPdf.cer' } else { 'pakiet/test/PodpisPdf.cer' }
           $odcisk = ([Security.Cryptography.X509Certificates.X509Certificate2]::new((Resolve-Path $cer).Path)).Thumbprint
           if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople | Where-Object Thumbprint -eq $odcisk)) { throw "Instalator nie dodał certyfikatu" }

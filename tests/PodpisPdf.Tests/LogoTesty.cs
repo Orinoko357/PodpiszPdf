@@ -70,7 +70,7 @@ public class LogoWektoroweTesty
         {
             var strona = pdf.AddNewPage(new iText.Kernel.Geom.PageSize(400, 400));
             strona.SetCropBox(new iText.Kernel.Geom.Rectangle(50, 50, 300, 300));
-            using var zasob = typeof(Wizualizacja).Assembly.GetManifestResourceStream("PodpisPdf.Core.DejaVuSans.ttf")!;
+            using var zasob = typeof(Wizualizacja).Assembly.GetManifestResourceStream("PodpisPdf.Core.LiberationSans-Regular.ttf")!;
             using var bajty = new MemoryStream();
             zasob.CopyTo(bajty);
             var czcionka = iText.Kernel.Font.PdfFontFactory.CreateFont(bajty.ToArray(), iText.IO.Font.PdfEncodings.IDENTITY_H,
@@ -130,8 +130,9 @@ public class LogoWektoroweTesty
         // Logo widoczne na wyrenderowanej stronie: lewa część prostokąta podpisu nie jest pusta.
         const double skala = 2;
         var o = DokumentPdf.Renderuj(File.ReadAllBytes(wyjscie), 0, skala);
-        int x0 = (int)(100 * skala), x1 = (int)((100 + Wizualizacja.SzerokoscPt * 0.3) * skala);
-        int y0 = o.Wysokosc - (int)((100 + Wizualizacja.WysokoscPt) * skala), y1 = o.Wysokosc - (int)(100 * skala);
+        var rozmiar = Wizualizacja.Rozmiar(new DaneWizualizacji(CertyfikatInfo.PobierzImieNazwisko(cert), null, logo, DateTimeOffset.Now));
+        int x0 = (int)(100 * skala), x1 = (int)((100 + rozmiar.Szerokosc * 0.3) * skala);
+        int y0 = o.Wysokosc - (int)((100 + rozmiar.Wysokosc) * skala), y1 = o.Wysokosc - (int)(100 * skala);
         var kolorowe = 0;
         for (var y = y0; y < y1; y++)
             for (var x = x0; x < x1; x++)

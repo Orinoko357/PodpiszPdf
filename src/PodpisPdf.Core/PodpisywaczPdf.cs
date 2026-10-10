@@ -51,14 +51,14 @@ public sealed class PodpisywaczPdf
             throw new BladPodpisu("Wybrany certyfikat nie ma klucza prywatnego.");
 
         var podpis = new PodpisKluczemCertyfikatu(certyfikat, opcje.PrzygotujKlucz);
-        var (numerStrony, prostokat) = UstalMiejscePodpisu(wejscie, opcje);
-        var lancuch = ZbudujLancuch(certyfikat);
-
         var czasSerwera = _czasSerwera();
         var czas = czasSerwera ?? DateTimeOffset.Now;
 
         var dane = new DaneWizualizacji(
             CertyfikatInfo.PobierzImieNazwisko(certyfikat), opcje.Stanowisko, opcje.SciezkaLogo, czas);
+        var (numerStrony, prostokat) = UstalMiejscePodpisu(wejscie, opcje, Wizualizacja.Rozmiar(dane));
+        var lancuch = ZbudujLancuch(certyfikat);
+
         var wyglad = Wizualizacja.Utworz(dane, opcje.Miejsce?.Skala ?? 1f);
 
         var wlasciwosci = new SignerProperties()
@@ -107,7 +107,7 @@ public sealed class PodpisywaczPdf
         return new WynikPodpisu(wyjscie, czas, czasSerwera != null);
     }
 
-    private static (int Numer, Rectangle Prostokat) UstalMiejscePodpisu(string wejscie, OpcjePodpisu opcje)
+    private static (int Numer, Rectangle Prostokat) UstalMiejscePodpisu(string wejscie, OpcjePodpisu opcje, RozmiarWizualizacji rozmiar)
     {
         using var czytnik = new PdfReader(wejscie);
         using var dokument = new PdfDocument(czytnik);
@@ -118,7 +118,7 @@ public sealed class PodpisywaczPdf
             if (miejsce.NumerStrony < 1 || miejsce.NumerStrony > liczbaStron)
                 throw new BladPodpisu($"Dokument ma {liczbaStron} str., a wskazano stronę {miejsce.NumerStrony}.");
             var cropBox = dokument.GetPage(miejsce.NumerStrony).GetCropBox();
-            return (miejsce.NumerStrony, Wizualizacja.ProstokatWMiejscu(cropBox, miejsce));
+            return (miejsce.NumerStrony, Wizualizacja.ProstokatWMiejscu(cropBox, miejsce, rozmiar));
         }
 
         var polozenie = opcje.Polozenie;
@@ -134,7 +134,7 @@ public sealed class PodpisywaczPdf
                 $"Dokument ma {liczbaStron} str., a w ustawieniach wybrano stronę {numer} na podpis. Popraw numer strony w ustawieniach.");
 
         var strona = dokument.GetPage(numer).GetCropBox();
-        return (numer, Wizualizacja.ObliczProstokat(strona, polozenie));
+        return (numer, Wizualizacja.ObliczProstokat(strona, polozenie, rozmiar));
     }
 
     /// <summary>Certyfikat podpisującego i (o ile system je zna) certyfikaty wystawców.</summary>

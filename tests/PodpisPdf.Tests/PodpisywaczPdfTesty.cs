@@ -174,8 +174,9 @@ public class PodpisywaczPdfTesty
         var rect = widget.GetRectangle().ToRectangle();
         Assert.Equal(100, rect.GetX(), 0.01);
         Assert.Equal(400, rect.GetY(), 0.01);
-        Assert.Equal(Wizualizacja.SzerokoscPt, rect.GetWidth(), 0.01);
-        Assert.Equal(Wizualizacja.WysokoscPt, rect.GetHeight(), 0.01);
+        var rozmiar = Wizualizacja.Rozmiar(new DaneWizualizacji(CertyfikatInfo.PobierzImieNazwisko(cert), null, null, DateTimeOffset.Now));
+        Assert.Equal(rozmiar.Szerokosc, rect.GetWidth(), 0.01);
+        Assert.Equal(rozmiar.Wysokosc, rect.GetHeight(), 0.01);
     }
 
     [Fact]
@@ -195,12 +196,13 @@ public class PodpisywaczPdfTesty
     public void DopasowanieKliknieciaDoKrawedziStrony()
     {
         var strona = new iText.Kernel.Geom.Rectangle(0, 0, 595, 842);
-        var (x, y) = Wizualizacja.DopasujDoStrony(strona, 590, 5);
-        Assert.Equal(595 - Wizualizacja.SzerokoscPt, x, 0.01);
+        var rozmiar = new RozmiarWizualizacji(140, 50);
+        var (x, y) = Wizualizacja.DopasujDoStrony(strona, 590, 5, rozmiar);
+        Assert.Equal(595 - 140, x, 0.01);
         Assert.Equal(0, y, 0.01);
-        (x, y) = Wizualizacja.DopasujDoStrony(strona, 300, 400);
-        Assert.Equal(300 - Wizualizacja.SzerokoscPt / 2, x, 0.01);
-        Assert.Equal(400 - Wizualizacja.WysokoscPt / 2, y, 0.01);
+        (x, y) = Wizualizacja.DopasujDoStrony(strona, 300, 400, rozmiar);
+        Assert.Equal(300 - 140 / 2, x, 0.01);
+        Assert.Equal(400 - 50 / 2, y, 0.01);
     }
 
     [Fact]
@@ -236,19 +238,19 @@ public class WizualizacjaTesty
         ZbierzCzcionki(wyglad, czcionki, new HashSet<PdfObject>());
 
         // Pogrubiona czcionka jest używana wyłącznie dla imienia i nazwiska.
-        Assert.Contains(czcionki, c => c.Contains("DejaVuSans-Bold"));
-        Assert.Contains(czcionki, c => c.EndsWith("DejaVuSans"));
+        // Arial (Windows) albo metrycznie zgodna Liberation Sans (Linux).
+        Assert.Contains(czcionki, c => c.Contains("Arial-Bold") || c.Contains("LiberationSans-Bold"));
+        Assert.Contains(czcionki, c => c.EndsWith("ArialMT") || c.EndsWith("LiberationSans"));
     }
 
     [Fact]
     public void ZawijanieWierszyNaGranicachSlow()
     {
         var czcionka = iText.Kernel.Font.PdfFontFactory.CreateFont(iText.IO.Font.Constants.StandardFonts.HELVETICA);
-        var slowo = czcionka.GetWidth("abcd", 10);
-        var spacja = czcionka.GetWidth(" ", 10);
-        Assert.Equal(1, Wizualizacja.LiczbaWierszy("abcd abcd", czcionka, 10, 2 * slowo + spacja));
-        Assert.Equal(2, Wizualizacja.LiczbaWierszy("abcd abcd abcd", czcionka, 10, 2 * slowo + spacja));
-        Assert.Equal(int.MaxValue, Wizualizacja.LiczbaWierszy("abcdabcd", czcionka, 10, slowo));
+        var dwa = czcionka.GetWidth("abcd abcd", 10);
+        Assert.Equal(new[] { "abcd abcd" }, Wizualizacja.Zawin("abcd abcd", czcionka, 10, dwa));
+        Assert.Equal(new[] { "abcd abcd", "abcd" }, Wizualizacja.Zawin("abcd abcd abcd", czcionka, 10, dwa));
+        Assert.Equal(new[] { "abcdabcd", "x" }, Wizualizacja.Zawin("abcdabcd x", czcionka, 10, 10));
     }
 
     [Fact]
