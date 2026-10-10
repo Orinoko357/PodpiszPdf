@@ -50,13 +50,22 @@ jobs:
           $p = Start-Process publish/PodpisPdf.exe -ArgumentList '--zrzuty', "$PWD/zrzuty" -Wait -PassThru
           if (Test-Path zrzuty/blad.txt) { Get-Content zrzuty/blad.txt }
           if ($p.ExitCode -ne 0) { throw "Zrzuty ekranu: kod $($p.ExitCode)" }
-          # Obrazy w logu (base64), żeby można je było obejrzeć bez pobierania artefaktu.
-          foreach ($plik in Get-ChildItem zrzuty -Filter *.png | Sort-Object Name) {
-            $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($plik.FullName))
-            for ($i = 0; $i -lt $b64.Length; $i += 3000) {
-              "ZRZUT $($plik.Name) " + $b64.Substring($i, [Math]::Min(3000, $b64.Length - $i))
-            }
-          }
+
+      # Zrzuty na osobnej gałęzi „zrzuty-ekranu” (do obejrzenia bez pobierania artefaktu).
+      - name: Zrzuty ekranu na gałąź zrzuty-ekranu
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: |
+          $zrodlo = "${{ github.sha }}".Substring(0, 7)
+          New-Item -ItemType Directory -Force -Path ../zrzuty-galaz | Out-Null
+          Copy-Item zrzuty/*.png ../zrzuty-galaz/
+          Set-Location ../zrzuty-galaz
+          git init -q -b zrzuty-ekranu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add *.png
+          git commit -q -m "Zrzuty ekranu z $zrodlo (${{ github.ref_name }})"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" zrzuty-ekranu
 
       - uses: actions/upload-artifact@v4
         with:
