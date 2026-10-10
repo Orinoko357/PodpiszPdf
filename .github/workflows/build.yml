@@ -86,6 +86,15 @@ jobs:
           }
           "Rozmiar: $([math]::Round((Get-Item publish/PodpisPdf.exe).Length / 1MB, 1)) MB"
 
+      # Windows App Runtime zainstalowany w systemie (jak na wielu komputerach z Windows 11) — program musi
+      # mimo to używać własnych bibliotek z pliku exe.
+      - name: Instalacja Windows App Runtime (jak u użytkowników)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://aka.ms/windowsappsdk/1.8/latest/windowsappruntimeinstall-x64.exe -OutFile "$env:RUNNER_TEMP/wasr.exe"
+          & "$env:RUNNER_TEMP/wasr.exe" --quiet --force
+          Get-AppxPackage *WindowsAppRuntime* | Select-Object -ExpandProperty PackageFullName
+
       # Zwykły start (jak u użytkownika: ikona w zasobniku, tło Mica, ustawienia, rejestr) — tryb --sprawdz
       # tego nie obejmuje. Program ma działać po 15 s i nie zapisać pliku błędu.
       - name: Test zwykłego startu PodpisPdf.exe

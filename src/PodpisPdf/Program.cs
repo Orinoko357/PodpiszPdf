@@ -22,6 +22,11 @@ public static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        // Jeden plik exe: biblioteki i zasoby Windows App SDK są wypakowane do AppContext.BaseDirectory.
+        // Bez tej zmiennej WinUI szuka ich obok PodpisPdf.exe albo bierze Windows App Runtime zainstalowany
+        // w systemie (inna wersja) — „XAML parsing failed” przy tworzeniu okna.
+        Environment.SetEnvironmentVariable("MICROSOFT_WINDOWSAPPRUNTIME_BASE_DIRECTORY", AppContext.BaseDirectory);
+
         // Serwer COM dla nowego menu kontekstowego Windows 11 — bez interfejsu i bez blokady jednej kopii.
         if (args.Any(a => string.Equals(a, SerwerMenu.ParametrSerwera, StringComparison.OrdinalIgnoreCase)))
             return SerwerMenu.Uruchom();

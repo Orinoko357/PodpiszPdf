@@ -16,7 +16,7 @@
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <Product>PodpisPdf</Product>
-    <Version>3.0.0.3</Version>
+    <Version>3.0.0.4</Version>
     <Description>Kwalifikowany podpis elektroniczny PAdES dla plików PDF</Description>
 
     <!-- Aplikacja bez pakietu MSIX, z własnym środowiskiem Windows App SDK (nie wymaga instalacji). -->
@@ -24,6 +24,8 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <!-- Wbudowany resources.pri w jednym pliku exe. -->
     <EnableMsixTooling>true</EnableMsixTooling>
+    <!-- Rejestracja klas WinRT z bibliotek programu (wymagane przy jednym pliku exe, zob. Program.Main). -->
+    <WindowsAppSdkUndockedRegFreeWinRTInitialize>true</WindowsAppSdkUndockedRegFreeWinRTInitialize>
     <!-- Własna metoda Main: jedna kopia programu i obsługa parametrów przed startem interfejsu. -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
