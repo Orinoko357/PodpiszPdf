@@ -37,7 +37,7 @@
     <PublishReadyToRun>true</PublishReadyToRun>
     <!-- Przycinanie częściowe: z bibliotek oznaczonych jako bezpieczne (m.in. projekcja Windows SDK, 53 MB)
          zostaje tylko używany kod; iText, BouncyCastle i kod programu zostają w całości. Pełny podpis
-         próbny (--sprawdz), zrzuty i test menu w GitHub Actions sprawdzają wynik. -->
+         próbny (tryb sprawdzania), zrzuty i test menu w GitHub Actions sprawdzają wynik. -->
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>partial</TrimMode>
     <!-- Serwer COM menu Windows 11 (IExplorerCommand) i odczyt ustawień JSON przez odbicie. -->
