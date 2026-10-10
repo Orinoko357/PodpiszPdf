@@ -2,7 +2,7 @@
 <!--
   Instalator PodpisPdf (MSI, dla całego komputera): program w C:\Program Files\PodpisPdf, skrót w menu Start,
   certyfikat pakietu menu Windows 11 w magazynie „Zaufane osoby” komputera.
-  Zmienne z GitHub Actions: Wersja (np. 3.1.0), Zrodlo (folder publikacji), Certyfikat (plik .cer).
+  Zmienne z GitHub Actions: Wersja (np. 3.1.0), Zrodlo (folder publikacji), Certyfikat (plik .cer), Ikona.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:iis="http://wixtoolset.org/schemas/v4/wxs/iis">
@@ -20,7 +20,7 @@
     <MajorUpgrade DowngradeErrorMessage="Zainstalowana jest nowsza wersja PodpisPdf." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
-    <Icon Id="IkonaPodpisPdf" SourceFile="..\src\PodpisPdf\PodpisPdf.ico" />
+    <Icon Id="IkonaPodpisPdf" SourceFile="$(var.Ikona)" />
     <Property Id="ARPPRODUCTICON" Value="IkonaPodpisPdf" />
     <Property Id="ARPHELPLINK" Value="https://github.com/Orinoko357/PodpisPdf-wydania" />
 

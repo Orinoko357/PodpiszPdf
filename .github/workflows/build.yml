@@ -182,7 +182,7 @@ jobs:
           $cer = if (Test-Path pakiet/wynik/PodpisPdf.cer) { 'pakiet/wynik/PodpisPdf.cer' } else { 'pakiet/test/PodpisPdf.cer' }
           New-Item -ItemType Directory -Force wynik | Out-Null
           wix build instalator/PodpisPdf.wxs -arch x64 -ext WixToolset.Iis.wixext `
-            -d Wersja=$wersjaMsi -d "Zrodlo=$((Resolve-Path publish).Path)" -d "Certyfikat=$((Resolve-Path $cer).Path)" `
+            -d Wersja=$wersjaMsi -d "Zrodlo=$((Resolve-Path publish).Path)" -d "Certyfikat=$((Resolve-Path $cer).Path)" -d "Ikona=$((Resolve-Path src/PodpisPdf/PodpisPdf.ico).Path)" `
             -o wynik/PodpisPdf.msi
           if ($LASTEXITCODE -ne 0) { throw "wix build: $LASTEXITCODE" }
           "Instalator: $([math]::Round((Get-Item wynik/PodpisPdf.msi).Length / 1MB, 1)) MB, wersja MSI $wersjaMsi"
