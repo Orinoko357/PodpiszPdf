@@ -22,12 +22,12 @@ internal sealed class OknoUstawien : Form
         (Naroznik.LewyGorny, "Lewy górny róg"),
     };
 
-    private readonly FluentPole _stanowisko = new(wieleWierszy: true) { Width = 340, Height = 62 };
-    private readonly PictureBox _podgladWizualizacji = new() { SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(340, 100) };
-    private readonly FluentEtykieta _opisLogo = new("", StylEtykiety.Drugi) { AutoEllipsis = true, AutoSize = false, Size = new Size(300, 22) };
-    private readonly FluentPole _adresTsa = new() { Width = 340 };
-    private readonly FluentPole _loginTsa = new() { Width = 340 };
-    private readonly FluentPole _hasloTsa = new() { Width = 340 };
+    private readonly FluentPole _stanowisko = new(wieleWierszy: true) { Width = 320, Height = 62 };
+    private readonly PictureBox _podgladWizualizacji = new() { SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(320, 94) };
+    private readonly FluentEtykieta _opisLogo = new("", StylEtykiety.Drugi) { AutoEllipsis = true, AutoSize = false, Size = new Size(190, 22), TextAlign = ContentAlignment.MiddleLeft };
+    private readonly FluentPole _adresTsa = new() { Width = 320 };
+    private readonly FluentPole _loginTsa = new() { Width = 320 };
+    private readonly FluentPole _hasloTsa = new() { Width = 320 };
     private readonly FluentLista _strona = new() { Width = 170 };
     private readonly NumericUpDown _numerStrony = new() { Minimum = 1, Maximum = 9999, Width = 64, BorderStyle = BorderStyle.FixedSingle };
     private readonly FluentLista _naroznik = new() { Width = 160 };
@@ -96,6 +96,7 @@ internal sealed class OknoUstawien : Form
 
         WczytajDoPol();
         PokazStrone(0);
+        ActiveControl = _strony[0].Element; // bez zaznaczania tekstu w pierwszym polu
         Motyw.Zastosuj(this);
         Motyw.Zmieniono += PrzyZmianieMotywu;
 
@@ -159,7 +160,7 @@ internal sealed class OknoUstawien : Form
         var usun = new FluentPrzycisk { Text = "Usuń", AutoSize = true, Margin = new Padding(8, 0, 0, 0) };
         usun.Click += (_, _) => { _sciezkaLogo = null; OdswiezLogo(); };
         Dodaj(s, Karta("Logo", "SVG lub PDF (wektorowe — najlepsza jakość), PNG albo JPG. Kopia jest zapisywana razem z ustawieniami.",
-            Poziomo(_opisLogo, zmien, usun), wysokosc: 84));
+            Poziomo(_opisLogo, zmien, usun), wysokosc: 92));
 
         _strona.Items.AddRange(Strony.Select(x => (object)x.Opis).ToArray());
         _strona.SelectedIndexChanged += (_, _) => _numerStrony.Enabled = Strony[_strona.SelectedIndex].Wartosc == WyborStrony.Numer;
@@ -243,7 +244,10 @@ internal sealed class OknoUstawien : Form
         teksty.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         teksty.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         teksty.Controls.Add(new FluentEtykieta(tytul, StylEtykiety.Zwykly) { Margin = new Padding(0, 0, 0, 2) }, 0, 1);
-        teksty.Controls.Add(new FluentEtykieta(opis, StylEtykiety.Drugi) { AutoEllipsis = true }, 0, 2);
+        // Opis zawija się do szerokości kolumny zamiast być ucinany.
+        var etykietaOpisu = new FluentEtykieta(opis, StylEtykiety.Drugi);
+        teksty.Controls.Add(etykietaOpisu, 0, 2);
+        teksty.Resize += (_, _) => etykietaOpisu.MaximumSize = new Size(Math.Max(50, teksty.Width), 0);
         kontrolka.Anchor = AnchorStyles.Right;
         kontrolka.Margin = new Padding(0);
         uklad.Controls.Add(teksty, 0, 0);

@@ -66,7 +66,10 @@ internal sealed class FluentPrzycisk : Button, IFluentKontrolka, IButtonControl
     {
         var tekst = TextRenderer.MeasureText(Text, Font);
         var ikona = Ikona != null ? (int)(22 * Dpi) : 0;
-        return new Size(tekst.Width + Padding.Horizontal + ikona, Math.Max((int)(32 * Dpi), tekst.Height + (int)(12 * Dpi)));
+        var w = tekst.Width + Padding.Horizontal + ikona;
+        var h = Math.Max((int)(32 * Dpi), tekst.Height + (int)(12 * Dpi));
+        // Układy (TableLayoutPanel, FlowLayoutPanel) biorą rozmiar preferowany — musi uwzględniać minimalny.
+        return new Size(Math.Max(w, MinimumSize.Width), Math.Max(h, MinimumSize.Height));
     }
 
     protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); _najechany = true; Invalidate(); }

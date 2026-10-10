@@ -159,10 +159,20 @@ internal static class Motyw
                 case IFluentKontrolka:
                     k.Invalidate();
                     break;
-                case TextBox or NumericUpDown or ComboBox:
+                case NumericUpDown n:
+                    n.BackColor = p.PoleTekstowe;
+                    n.ForeColor = p.Tekst;
+                    foreach (Control c in n.Controls)
+                    {
+                        c.BackColor = p.PoleTekstowe;
+                        c.ForeColor = p.Tekst;
+                        MotywSystemowy(c, p, "DarkMode_CFD", "CFD");
+                    }
+                    continue; // wewnętrzne kontrolki już ustawione
+                case TextBox or ComboBox:
                     k.BackColor = p.PoleTekstowe;
                     k.ForeColor = p.Tekst;
-                    MotywSystemowy(k, p);
+                    MotywSystemowy(k, p, "DarkMode_CFD", "CFD");
                     break;
                 case Label l:
                     l.ForeColor = l.Tag as string == "drugi" ? p.TekstDrugi : p.Tekst;
@@ -177,13 +187,12 @@ internal static class Motyw
     }
 
     /// <summary>Ciemne paski przewijania i listy rozwijane standardowych kontrolek Windows.</summary>
-    private static void MotywSystemowy(Control k, Paleta p)
+    private static void MotywSystemowy(Control k, Paleta p, string ciemny = "DarkMode_Explorer", string jasny = "Explorer")
     {
-        void Ustaw() => SetWindowTheme(k.Handle, p.Ciemna ? "DarkMode_Explorer" : "Explorer", null);
         if (k.IsHandleCreated)
-            Ustaw();
+            SetWindowTheme(k.Handle, p.Ciemna ? ciemny : jasny, null);
         else
-            k.HandleCreated += (_, _) => SetWindowTheme(k.Handle, Biezaca.Ciemna ? "DarkMode_Explorer" : "Explorer", null);
+            k.HandleCreated += (_, _) => SetWindowTheme(k.Handle, Biezaca.Ciemna ? ciemny : jasny, null);
     }
 
     private static void UstawRamke(IntPtr okno, Paleta p)
