@@ -6,14 +6,18 @@ using PodpisPdf.Core;
 namespace PodpisPdf;
 
 /// <summary>
-/// Podgląd wszystkich stron dokumentu. Kliknięcie wskazuje miejsce wizualizacji podpisu (rozmiar jest stały).
+/// Podgląd wszystkich stron dokumentu. Kliknięcie wskazuje miejsce wizualizacji podpisu, a przeciągnięcie
+/// rysuje ją w wybranym rozmiarze — zawsze w stałych proporcjach (85 : 25).
 /// </summary>
 internal sealed class OknoPodgladu : Form
 {
     private const int OdstepStron = 16;
     private const int MarginesBoczny = 16;
     private const float MaksSkala = 2f;
-    private const int SkalaPodgladuWizualizacji = 4;
+    // Rozdzielczość podglądu wizualizacji (piksele na punkt przy skali 1) — wystarcza także dla największej skali.
+    private const int SkalaPodgladuWizualizacji = 8;
+    // Przesunięcie myszy (piksele), od którego kliknięcie staje się rysowaniem.
+    private const int ProgPrzeciagania = 5;
 
     private readonly byte[] _pdf;
     private readonly IReadOnlyList<StronaPdf> _strony;
@@ -28,13 +32,20 @@ internal sealed class OknoPodgladu : Form
     private float _skala;
 
     private MiejscePodpisu? _miejsce;
-    private (int Indeks, float X, float Y)? _podMysza;
+    private MiejscePodpisu? _podMysza;
+    // Skala podpisu przy kliknięciu (ostatnio narysowany rozmiar).
+    private float _skalaPodpisu;
+    // Rysowanie: strona i punkt zaczepienia (punkty PDF) oraz miejsce wciśnięcia przycisku (piksele).
+    private (int Indeks, float X, float Y, Point Start)? _przeciaganie;
+    private MiejscePodpisu? _rysowane;
 
-    private OknoPodgladu(string plik, byte[] pdf, IReadOnlyList<StronaPdf> strony, Bitmap wizualizacja, PolozenieWizualizacji domyslne)
+    private OknoPodgladu(string plik, byte[] pdf, IReadOnlyList<StronaPdf> strony, Bitmap wizualizacja,
+        PolozenieWizualizacji domyslne, float skalaPodpisu)
     {
         _pdf = pdf;
         _strony = strony;
         _wizualizacja = wizualizacja;
+        _skalaPodpisu = Math.Clamp(skalaPodpisu, Wizualizacja.MinSkala, Wizualizacja.MaksSkala);
 
         Text = $"Wskaż miejsce podpisu — {Path.GetFileName(plik)}";
         Font = SystemFonts.MessageBoxFont ?? Font;
@@ -90,7 +101,8 @@ internal sealed class OknoPodgladu : Form
     public MiejscePodpisu? Miejsce => DialogResult == DialogResult.OK ? _miejsce : null;
 
     /// <summary>Pokazuje podgląd i zwraca wskazane miejsce albo null, gdy użytkownik zrezygnował.</summary>
-    public static MiejscePodpisu? WskazMiejsce(IWin32Window wlasciciel, string plik, DaneWizualizacji dane, PolozenieWizualizacji domyslne)
+    public static MiejscePodpisu? WskazMiejsce(IWin32Window wlasciciel, string plik, DaneWizualizacji dane,
+        PolozenieWizualizacji domyslne, float skalaPodpisu = 1f)
     {
         byte[] pdf;
         IReadOnlyList<StronaPdf> strony;
@@ -109,7 +121,7 @@ internal sealed class OknoPodgladu : Form
             Cursor.Current = Cursors.Default;
         }
 
-        using var okno = new OknoPodgladu(plik, pdf, strony, wizualizacja, domyslne);
+        using var okno = new OknoPodgladu(plik, pdf, strony, wizualizacja, domyslne, skalaPodpisu);
         okno.ShowDialog(wlasciciel);
         return okno.Miejsce;
     }
@@ -139,14 +151,14 @@ internal sealed class OknoPodgladu : Form
             return null;
         try
         {
-            var r = Wizualizacja.ObliczProstokat(strona.Prostokat, p);
-            return new MiejscePodpisu(numer, r.GetX(), r.GetY());
+            var r = Wizualizacja.ObliczProstokat(strona.Prostokat, p, _skalaPodpisu);
+            return new MiejscePodpisu(numer, r.GetX(), r.GetY(), _skalaPodpisu);
         }
         catch (BladPodpisu)
         {
             // Położenie z ustawień nie mieści się na tej stronie — użytkownik wskaże je kliknięciem.
-            var (x, y) = Wizualizacja.DopasujDoStrony(strona.Prostokat, strona.Prawo, strona.Dol);
-            return new MiejscePodpisu(numer, x, y);
+            var (x, y) = Wizualizacja.DopasujDoStrony(strona.Prostokat, strona.Prawo, strona.Dol, _skalaPodpisu);
+            return new MiejscePodpisu(numer, x, y, _skalaPodpisu);
         }
     }
 
@@ -191,7 +203,7 @@ internal sealed class OknoPodgladu : Form
     {
         if (_miejsce == null || _uklad.Count == 0)
             return;
-        var r = ProstokatNaEkranie(_miejsce.NumerStrony - 1, _miejsce.X, _miejsce.Y);
+        var r = ProstokatNaEkranie(_miejsce);
         var cel = Math.Max(0, r.Top - _przewijanie.ClientSize.Height / 2);
         _przewijanie.AutoScrollPosition = new Point(0, cel);
         OdswiezInformacje();
@@ -204,68 +216,141 @@ internal sealed class OknoPodgladu : Form
         if (biezaca <= 0)
             biezaca = _strony.Count;
         var miejsce = _miejsce == null
-            ? "Kliknij na stronie, aby wskazać miejsce podpisu."
-            : $"Podpis na stronie {_miejsce.NumerStrony}. Kliknij w innym miejscu, aby go przesunąć.";
+            ? "Kliknij na stronie, aby wskazać miejsce podpisu, albo przeciągnij, aby go narysować."
+            : $"Podpis na stronie {_miejsce.NumerStrony}, {OpisRozmiaru(_miejsce.Skala)}. " +
+              "Kliknij, aby przesunąć, albo przeciągnij, aby narysować w innym rozmiarze.";
         _informacja.Text = $"Strona {biezaca} z {_strony.Count}.   {miejsce}";
         _przyciskPodpisz.Enabled = _miejsce != null;
     }
 
+    private static string OpisRozmiaru(float skala) =>
+        $"{Wizualizacja.SzerokoscMm * skala:0} × {Wizualizacja.WysokoscMm * skala:0} mm";
+
     // ---- Przeliczanie współrzędnych (piksele podglądu ↔ punkty PDF) ----
 
-    private Rectangle ProstokatNaEkranie(int indeks, float x, float y)
+    private Rectangle ProstokatNaEkranie(MiejscePodpisu m)
+    {
+        var s = _strony[m.NumerStrony - 1];
+        var r = _uklad[m.NumerStrony - 1];
+        var w = Wizualizacja.SzerokoscPt * m.Skala;
+        var h = Wizualizacja.WysokoscPt * m.Skala;
+        var lewo = r.X + (m.X - s.Lewo) * _skala;
+        var gora = r.Y + (s.Gora - (m.Y + h)) * _skala;
+        return Rectangle.Round(new RectangleF(lewo, gora, w * _skala, h * _skala));
+    }
+
+    /// <summary>Punkt PDF pod kursorem na stronie o danym indeksie (bez ograniczania do strony).</summary>
+    private (float X, float Y) PunktPdf(int indeks, Point p)
     {
         var s = _strony[indeks];
         var r = _uklad[indeks];
-        var lewo = r.X + (x - s.Lewo) * _skala;
-        var gora = r.Y + (s.Gora - (y + Wizualizacja.WysokoscPt)) * _skala;
-        return Rectangle.Round(new RectangleF(lewo, gora, Wizualizacja.SzerokoscPt * _skala, Wizualizacja.WysokoscPt * _skala));
+        return (s.Lewo + (p.X - r.X) / _skala, s.Gora - (p.Y - r.Y) / _skala);
     }
 
-    private (int Indeks, float X, float Y)? MiejscePodKursorem(Point p)
+    private int StronaPod(Point p) => _uklad.FindIndex(r => r.Contains(p));
+
+    /// <summary>Podpis w bieżącej skali, wyśrodkowany pod kursorem.</summary>
+    private MiejscePodpisu? MiejscePodKursorem(Point p)
     {
         if (_uklad.Count == 0)
             return null;
-        var indeks = _uklad.FindIndex(r => r.Contains(p));
+        var indeks = StronaPod(p);
         if (indeks < 0 || _strony[indeks].Obrot != 0)
             return null;
+        var (srodekX, srodekY) = PunktPdf(indeks, p);
+        var (x, y) = Wizualizacja.DopasujDoStrony(_strony[indeks].Prostokat, srodekX, srodekY, _skalaPodpisu);
+        return new MiejscePodpisu(indeks + 1, x, y, _skalaPodpisu);
+    }
+
+    /// <summary>
+    /// Prostokąt rysowany od punktu zaczepienia do kursora: proporcje stałe, rozmiar w granicach skali
+    /// i strony; kierunek rysowania dowolny.
+    /// </summary>
+    private MiejscePodpisu ProstokatRysowany(int indeks, float ax, float ay, Point kursor)
+    {
         var s = _strony[indeks];
-        var r = _uklad[indeks];
-        var srodekX = s.Lewo + (p.X - r.X) / _skala;
-        var srodekY = s.Gora - (p.Y - r.Y) / _skala;
-        var (x, y) = Wizualizacja.DopasujDoStrony(s.Prostokat, srodekX, srodekY);
-        return (indeks, x, y);
+        var (cx, cy) = PunktPdf(indeks, kursor);
+        cx = Math.Clamp(cx, s.Lewo, s.Prawo);
+        cy = Math.Clamp(cy, s.Dol, s.Gora);
+        float dx = cx - ax, dy = cy - ay;
+        var proporcje = Wizualizacja.Proporcje;
+        var bazowa = Wizualizacja.SzerokoscPt;
+
+        var w = Math.Max(Math.Abs(dx), Math.Abs(dy) * proporcje);
+        var dostepnaX = dx >= 0 ? s.Prawo - ax : ax - s.Lewo;
+        var dostepnaY = (dy >= 0 ? s.Gora - ay : ay - s.Dol) * proporcje;
+        w = Math.Min(w, Math.Min(dostepnaX, dostepnaY));
+        w = Math.Clamp(w, bazowa * Wizualizacja.MinSkala, bazowa * Wizualizacja.MaksSkala);
+        var h = w / proporcje;
+
+        var x = dx >= 0 ? ax : ax - w;
+        var y = dy >= 0 ? ay : ay - h;
+        var skala = w / bazowa;
+        // Przy krawędzi strony minimalny rozmiar może nie zmieścić się od punktu zaczepienia — dosuwamy.
+        (x, y) = Wizualizacja.DopasujDoStrony(s.Prostokat, x + w / 2, y + h / 2, skala);
+        return new MiejscePodpisu(indeks + 1, x, y, skala);
     }
 
     // ---- Obsługa myszy ----
 
+    private void PrzyWcisnieciu(Point p)
+    {
+        var indeks = StronaPod(p);
+        if (indeks < 0)
+            return;
+        if (_strony[indeks].Obrot != 0)
+        {
+            MessageBox.Show(this, "Ta strona jest obrócona — podpisu nie można na niej umieścić. Wskaż miejsce na innej stronie.",
+                Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var (x, y) = PunktPdf(indeks, p);
+        _przeciaganie = (indeks, x, y, p);
+        _rysowane = null;
+    }
+
     private void PrzyRuchuMyszy(Point p)
     {
+        if (_przeciaganie is { } d)
+        {
+            if (_rysowane == null && Math.Abs(p.X - d.Start.X) < ProgPrzeciagania && Math.Abs(p.Y - d.Start.Y) < ProgPrzeciagania)
+                return;
+            Uniewaznij(_podMysza);
+            _podMysza = null;
+            if (_rysowane == null)
+                Uniewaznij(_miejsce); // dotychczasowy podpis przygasa na czas rysowania
+            Uniewaznij(_rysowane);
+            _rysowane = ProstokatRysowany(d.Indeks, d.X, d.Y, p);
+            Uniewaznij(_rysowane);
+            _informacja.Text = $"Rozmiar podpisu: {OpisRozmiaru(_rysowane.Skala)}";
+            return;
+        }
+
         var nowe = MiejscePodKursorem(p);
         if (nowe == _podMysza)
             return;
         Uniewaznij(_podMysza);
         _podMysza = nowe;
         Uniewaznij(_podMysza);
-        var indeks = _uklad.FindIndex(r => r.Contains(p));
+        var indeks = StronaPod(p);
         _powierzchnia.Cursor = indeks >= 0 && _strony[indeks].Obrot == 0 ? Cursors.Cross : Cursors.Default;
     }
 
-    private void PrzyKliknieciu(Point p)
+    private void PrzyZwolnieniu(Point p)
     {
-        var indeks = _uklad.FindIndex(r => r.Contains(p));
-        if (indeks >= 0 && _strony[indeks].Obrot != 0)
-        {
-            MessageBox.Show(this, "Ta strona jest obrócona — podpisu nie można na niej umieścić. Wskaż miejsce na innej stronie.",
-                Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        if (_przeciaganie is not { } d)
             return;
-        }
-        var nowe = MiejscePodKursorem(p);
+        _przeciaganie = null;
+
+        // Bez przeciągnięcia — zwykłe kliknięcie: podpis w ostatnim rozmiarze, wyśrodkowany w punkcie kliknięcia.
+        var nowe = _rysowane ?? MiejscePodKursorem(d.Start);
+        _rysowane = null;
         if (nowe == null)
             return;
-        if (_miejsce != null)
-            Uniewaznij((_miejsce.NumerStrony - 1, _miejsce.X, _miejsce.Y));
-        _miejsce = new MiejscePodpisu(nowe.Value.Indeks + 1, nowe.Value.X, nowe.Value.Y);
-        Uniewaznij(nowe);
+        Uniewaznij(_miejsce);
+        _miejsce = nowe;
+        _skalaPodpisu = nowe.Skala;
+        Uniewaznij(_miejsce);
         OdswiezInformacje();
     }
 
@@ -275,12 +360,13 @@ internal sealed class OknoPodgladu : Form
         _podMysza = null;
     }
 
-    private void Uniewaznij((int Indeks, float X, float Y)? m)
+    private void Uniewaznij(MiejscePodpisu? m)
     {
-        if (m is { } v && v.Indeks < _uklad.Count)
+        if (m != null && m.NumerStrony - 1 < _uklad.Count)
         {
-            var r = ProstokatNaEkranie(v.Indeks, v.X, v.Y);
+            var r = ProstokatNaEkranie(m);
             r.Inflate(4, 4);
+            r.Height += 24; // etykieta z rozmiarem pod prostokątem
             _powierzchnia.Invalidate(r);
         }
     }
@@ -312,28 +398,38 @@ internal sealed class OknoPodgladu : Form
         ZwolnijNiewidoczne(widoczne);
 
         if (_miejsce != null)
+            RysujPodpis(g, obszar, _miejsce, przezroczystosc: _rysowane == null ? 1f : 0.3f, linia: DashStyle.Solid, grubosc: 2);
+
+        if (_rysowane != null)
         {
-            var r = ProstokatNaEkranie(_miejsce.NumerStrony - 1, _miejsce.X, _miejsce.Y);
-            if (r.IntersectsWith(obszar))
-            {
-                g.DrawImage(_wizualizacja, r);
-                using var pioro = new Pen(Color.FromArgb(0, 120, 215), 2);
-                g.DrawRectangle(pioro, r);
-            }
+            // W trakcie rysowania: nowy rozmiar na żywo, z podpisem rozmiaru w milimetrach.
+            RysujPodpis(g, obszar, _rysowane, przezroczystosc: 0.85f, linia: DashStyle.Dash, grubosc: 2);
+            var r = ProstokatNaEkranie(_rysowane);
+            var opis = OpisRozmiaru(_rysowane.Skala);
+            var rozmiar = g.MeasureString(opis, Font);
+            var tlo = new RectangleF(r.Left, r.Bottom + 3, rozmiar.Width + 6, rozmiar.Height + 2);
+            using var pedzel = new SolidBrush(Color.FromArgb(0, 120, 215));
+            g.FillRectangle(pedzel, tlo);
+            g.DrawString(opis, Font, Brushes.White, tlo.X + 3, tlo.Y + 1);
+            return;
         }
 
-        if (_podMysza is { } m && (_miejsce == null || m.Indeks != _miejsce.NumerStrony - 1 || m.X != _miejsce.X || m.Y != _miejsce.Y))
+        if (_podMysza != null && _podMysza != _miejsce)
+            RysujPodpis(g, obszar, _podMysza, przezroczystosc: 0.45f, linia: DashStyle.Dash, grubosc: 1);
+    }
+
+    private void RysujPodpis(Graphics g, Rectangle obszar, MiejscePodpisu m, float przezroczystosc, DashStyle linia, float grubosc)
+    {
+        var r = ProstokatNaEkranie(m);
+        if (!r.IntersectsWith(obszar))
+            return;
+        using (var atrybuty = new ImageAttributes())
         {
-            var r = ProstokatNaEkranie(m.Indeks, m.X, m.Y);
-            if (r.IntersectsWith(obszar))
-            {
-                using var atrybuty = new ImageAttributes();
-                atrybuty.SetColorMatrix(new ColorMatrix { Matrix33 = 0.45f });
-                g.DrawImage(_wizualizacja, r, 0, 0, _wizualizacja.Width, _wizualizacja.Height, GraphicsUnit.Pixel, atrybuty);
-                using var pioro = new Pen(Color.FromArgb(0, 120, 215), 1) { DashStyle = DashStyle.Dash };
-                g.DrawRectangle(pioro, r);
-            }
+            atrybuty.SetColorMatrix(new ColorMatrix { Matrix33 = przezroczystosc });
+            g.DrawImage(_wizualizacja, r, 0, 0, _wizualizacja.Width, _wizualizacja.Height, GraphicsUnit.Pixel, atrybuty);
         }
+        using var pioro = new Pen(Color.FromArgb(0, 120, 215), grubosc) { DashStyle = linia };
+        g.DrawRectangle(pioro, r);
     }
 
     private Bitmap? ObrazStrony(int indeks)
@@ -414,17 +510,19 @@ internal sealed class OknoPodgladu : Form
             _okno.PrzyOpuszczeniu();
         }
 
-        protected override void OnMouseClick(MouseEventArgs e)
-        {
-            base.OnMouseClick(e);
-            if (e.Button == MouseButtons.Left)
-                _okno.PrzyKliknieciu(e.Location);
-        }
-
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
             Parent?.Focus(); // kółko myszy przewija panel
+            if (e.Button == MouseButtons.Left)
+                _okno.PrzyWcisnieciu(e.Location);
+        }
+
+        protected override void OnMouseUp(MouseEventArgs e)
+        {
+            base.OnMouseUp(e);
+            if (e.Button == MouseButtons.Left)
+                _okno.PrzyZwolnieniu(e.Location);
         }
     }
 }

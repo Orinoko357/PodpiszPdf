@@ -10,7 +10,7 @@ w GitHub **Releases** — bez pytania użytkownika:
 
 1. Podnieś `<Version>` w `src/PodpisPdf/PodpisPdf.csproj` (ostatnia liczba +1, np. `1.0.0.3` → `1.0.0.4`).
    Wyższy numer jest konieczny: kopia programu w `%APPDATA%\PodpisPdf` (autostart) aktualizuje się tylko
-   z nowszej wersji.
+   z nowszej wersji. Większa nowa funkcja może podnieść numer bardziej (np. użytkownik zażyczył sobie 1.5).
 2. Uruchom testy (`dotnet test tests/PodpisPdf.Tests`), zatwierdź i wypchnij zmiany na gałąź roboczą.
 3. Opublikuj wydanie: uruchom workflow `build.yml` (`workflow_dispatch`) na tej gałęzi z wejściem
    `wersja` = nowy numer (bez „v”). Workflow buduje na Windows, uruchamia testy, tworzy znacznik `v<wersja>`
@@ -31,7 +31,8 @@ Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagaj�
 
 ## Wizualizacja podpisu
 
-Stały rozmiar 85 × 25 mm, bez ramki, przezroczyste tło. Kolejność: „Podpisano elektronicznie przez:”,
+Rozmiar podstawowy 85 × 25 mm, stałe proporcje; na podglądzie można go narysować w skali 0,6–3× (cała treść
+skaluje się proporcjonalnie, `MiejscePodpisu.Skala`). Bez ramki, przezroczyste tło. Kolejność: „Podpisano elektronicznie przez:”,
 imię i nazwisko (zawsze pogrubione), stanowisko (Enter = podział wiersza), data bez sekund. Logo po lewej,
 wyrównane do góry i dołu bloku tekstu; SVG/PDF zostają wektorowe, PNG/JPG w oryginalnej rozdzielczości.
 Zmiany wyglądu sprawdzaj na wyrenderowanym podglądzie (np. `pdftoppm`) przed wypchnięciem.

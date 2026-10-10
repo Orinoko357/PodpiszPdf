@@ -27,6 +27,9 @@ internal sealed class Ustawienia
     public string? HasloTsaZaszyfrowane { get; set; }
 
     public PolozenieWizualizacji Polozenie { get; set; } = new();
+
+    /// <summary>Rozmiar podpisu ostatnio narysowany na podglądzie (1 = 85 × 25 mm).</summary>
+    public float SkalaPodpisu { get; set; } = 1f;
     public string Przyrostek { get; set; } = DomyslnyPrzyrostek;
     public bool PoziomLT { get; set; }
 

@@ -31,10 +31,10 @@ public sealed class PolozenieWizualizacji
 }
 
 /// <summary>
-/// Miejsce wskazane kliknięciem na podglądzie: numer strony (od 1) i lewy dolny róg wizualizacji
-/// w punktach, w układzie współrzędnych strony PDF.
+/// Miejsce wskazane na podglądzie: numer strony (od 1), lewy dolny róg wizualizacji w punktach
+/// (układ współrzędnych strony PDF) i skala (1 = 85 × 25 mm; proporcje zawsze stałe).
 /// </summary>
-public sealed record MiejscePodpisu(int NumerStrony, float X, float Y);
+public sealed record MiejscePodpisu(int NumerStrony, float X, float Y, float Skala = 1f);
 
 /// <summary>Parametry jednego podpisu.</summary>
 public sealed class OpcjePodpisu

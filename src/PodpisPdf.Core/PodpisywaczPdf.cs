@@ -59,7 +59,7 @@ public sealed class PodpisywaczPdf
 
         var dane = new DaneWizualizacji(
             CertyfikatInfo.PobierzImieNazwisko(certyfikat), opcje.Stanowisko, opcje.SciezkaLogo, czas);
-        var wyglad = Wizualizacja.Utworz(dane);
+        var wyglad = Wizualizacja.Utworz(dane, opcje.Miejsce?.Skala ?? 1f);
 
         var wlasciwosci = new SignerProperties()
             .SetPageNumber(numerStrony)

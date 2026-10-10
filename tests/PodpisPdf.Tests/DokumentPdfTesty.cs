@@ -81,3 +81,87 @@ public class WyrownanieWizualizacjiTesty
         }
     }
 }
+
+public class SkalowanieWizualizacjiTesty
+{
+    [Theory]
+    [InlineData(0.6f)]
+    [InlineData(1.5f)]
+    [InlineData(2.2f)] // największy, który mieści się na szerokości A4
+    public void PodpisWSkaliMaProporcjonalnyRozmiar(float skala)
+    {
+        var folder = PlikiTestowe.Folder();
+        var wejscie = PlikiTestowe.UtworzPdf(folder);
+        var wyjscie = Path.Combine(folder, "w.pdf");
+        using var cert = CertyfikatyTestowe.Utworz();
+
+        new PodpisywaczPdf(new TestowyTsa()).Podpisz(wejscie, wyjscie, cert, new OpcjePodpisu
+        {
+            Stanowisko = "Kierownik",
+            SciezkaLogo = PlikiTestowe.UtworzLogoPionowe(folder),
+            Miejsce = new MiejscePodpisu(1, 10, 50, skala),
+        });
+
+        using var pdf = new iText.Kernel.Pdf.PdfDocument(new iText.Kernel.Pdf.PdfReader(wyjscie));
+        var su = new iText.Signatures.SignatureUtil(pdf);
+        var nazwa = su.GetSignatureNames()[0];
+        Assert.True(su.ReadSignatureData(nazwa).VerifySignatureIntegrityAndAuthenticity());
+        var rect = iText.Forms.PdfAcroForm.GetAcroForm(pdf, false).GetField(nazwa).GetWidgets()[0].GetRectangle().ToRectangle();
+        Assert.Equal(Wizualizacja.SzerokoscPt * skala, rect.GetWidth(), 0.01);
+        Assert.Equal(Wizualizacja.WysokoscPt * skala, rect.GetHeight(), 0.01);
+        Assert.Equal(Wizualizacja.Proporcje, rect.GetWidth() / rect.GetHeight(), 0.001);
+    }
+
+    [Fact]
+    public void TrescSkalujeSieRazemZProstokatem()
+    {
+        var folder = PlikiTestowe.Folder();
+        var dane = new DaneWizualizacji("Mateusz Kozielski", "Kierownik biura informatyki\nUrzędu Miasta Wodzisławia Śląskiego",
+            PlikiTestowe.UtworzLogoPionowe(folder), DateTimeOffset.Now);
+
+        // Ten sam rozmiar w pikselach: skala 1 renderowana 3×, skala 2 renderowana 1,5×.
+        var a = DokumentPdf.Renderuj(Wizualizacja.PodgladPdf(dane, 1f), 0, 3);
+        var b = DokumentPdf.Renderuj(Wizualizacja.PodgladPdf(dane, 2f), 0, 1.5);
+        Assert.InRange(b.Szerokosc - a.Szerokosc, -1, 1);
+
+        static (int L, int G, int P, int D) Tresc(ObrazStrony o)
+        {
+            int l = o.Szerokosc, g = o.Wysokosc, p = -1, d = -1;
+            for (var y = 0; y < o.Wysokosc; y++)
+                for (var x = 0; x < o.Szerokosc; x++)
+                {
+                    var i = (y * o.Szerokosc + x) * 4;
+                    if (o.Bgra[i] + o.Bgra[i + 1] + o.Bgra[i + 2] >= 600) continue;
+                    l = Math.Min(l, x); p = Math.Max(p, x); g = Math.Min(g, y); d = Math.Max(d, y);
+                }
+            return (l, g, p, d);
+        }
+        var ta = Tresc(a);
+        var tb = Tresc(b);
+        // Układ identyczny co do kilku pikseli (zaokrąglenia przy doborze czcionki).
+        Assert.InRange(tb.L - ta.L, -4, 4);
+        Assert.InRange(tb.G - ta.G, -4, 4);
+        Assert.InRange(tb.P - ta.P, -4, 4);
+        Assert.InRange(tb.D - ta.D, -4, 4);
+    }
+
+    [Fact]
+    public void SkalaPozaZakresemDajeZrozumialyBlad()
+    {
+        var folder = PlikiTestowe.Folder();
+        var wejscie = PlikiTestowe.UtworzPdf(folder);
+        using var cert = CertyfikatyTestowe.Utworz();
+        var e = Assert.Throws<BladPodpisu>(() => new PodpisywaczPdf(new TestowyTsa()).Podpisz(wejscie,
+            Path.Combine(folder, "w.pdf"), cert, new OpcjePodpisu { Miejsce = new MiejscePodpisu(1, 10, 10, 5f) }));
+        Assert.Contains("rozmiar", e.Message);
+    }
+
+    [Fact]
+    public void DopasowanieDoStronyUwzglednniaSkale()
+    {
+        var strona = new iText.Kernel.Geom.Rectangle(0, 0, 595, 842);
+        var (x, y) = Wizualizacja.DopasujDoStrony(strona, 590, 5, 2f);
+        Assert.Equal(595 - Wizualizacja.SzerokoscPt * 2, x, 0.01);
+        Assert.Equal(0, y, 0.01);
+    }
+}

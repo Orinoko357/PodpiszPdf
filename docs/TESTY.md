@@ -19,6 +19,8 @@ Przed testem:
 - [ ] Przeciągnij plik PDF do okna. Wybierz certyfikat, kliknij **Podpisz**.
 - [ ] Otwiera się podgląd wszystkich stron; podpis jest wstępnie w położeniu z ustawień. Przewiń, kliknij inne
       miejsce (także na innej stronie) — prostokąt podpisu przenosi się tam. Kliknij **Podpisz**.
+- [ ] Przeciągnij myszą na stronie — rysuje się prostokąt o stałych proporcjach z rozmiarem w mm; po puszczeniu
+      przycisku podpis ma ten rozmiar. Kolejne kliknięcie (i następny dokument) używa ostatniego rozmiaru.
 - [ ] W pliku wynikowym podpis jest dokładnie w wskazanym miejscu, bez ramki; logo jest ostre przy dużym powiększeniu.
 - [ ] Pojawia się okno PIN-u **sterownika karty** (nie programu PodpisPdf), na wierzchu.
 - [ ] Po wpisaniu PIN-u: komunikat o powodzeniu, obok oryginału powstaje `…_podpisany.pdf`; oryginał nie zmienia się (data modyfikacji).

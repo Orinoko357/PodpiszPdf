@@ -12,7 +12,8 @@ Specyfikacja: [docs/SPECYFIKACJA.md](docs/SPECYFIKACJA.md).
    Plik można też przeciągnąć na ikonę `PodpisPdf.exe`.
 2. Wybierz certyfikat z listy (★ — certyfikat kwalifikowany).
 3. Kliknij **Podpisz**. Otworzy się podgląd wszystkich stron dokumentu — **kliknij miejsce**, w którym ma
-   się znaleźć podpis (rozmiar wizualizacji jest stały), i zatwierdź przyciskiem **Podpisz**.
+   się znaleźć podpis, albo **przeciągnij myszą**, aby narysować go w wybranym rozmiarze (proporcje są zawsze
+   zachowane, rozmiar 51 × 15 mm – 255 × 75 mm, program zapamiętuje ostatni). Zatwierdź przyciskiem **Podpisz**.
 4. Wpisz PIN w oknie sterownika karty (program nie widzi PIN-u).
 5. Wynik zapisuje się obok oryginału: `wniosek.pdf` → `wniosek_podpisany.pdf`. Oryginał zostaje bez zmian.
 
@@ -47,7 +48,8 @@ Okno **Ustawienia…**; zapis w `%APPDATA%\PodpisPdf\config.json`:
 | Uruchamianie przy logowaniu do Windows (autostart) | wyłączone |
 | „Podpisz w PodpisPdf” w menu kontekstowym plików PDF | włączone |
 
-Wizualizacja ma stały rozmiar **85 × 25 mm**, bez ramki i z przezroczystym tłem (nie zasłania formularza).
+Wizualizacja ma rozmiar podstawowy **85 × 25 mm** (można go zmienić, rysując podpis na podglądzie — całość
+skaluje się proporcjonalnie), bez ramki i z przezroczystym tłem (nie zasłania formularza).
 Logo wektorowe (SVG lub PDF — pierwsza strona) trafia do podpisu jako grafika wektorowa, ostra przy każdym
 powiększeniu. Napisy w SVG najlepiej zamienić na krzywe (w SVG bez osadzonych czcionek użyta zostanie czcionka zastępcza).
 Logo PNG/JPG jest osadzane w oryginalnej rozdzielczości, bez stratnej kompresji. Białe lub przezroczyste marginesy

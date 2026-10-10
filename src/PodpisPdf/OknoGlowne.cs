@@ -539,11 +539,17 @@ internal sealed class OknoGlowne : Form
             // Podgląd wszystkich stron: użytkownik klika, gdzie ma być wizualizacja podpisu.
             UstawStatus("Wskaż na podglądzie miejsce podpisu.");
             var dane = new DaneWizualizacji(certyfikat.ImieNazwisko, ustawienia.Stanowisko, ustawienia.SciezkaLogo, DateTimeOffset.Now);
-            opcje.Miejsce = OknoPodgladu.WskazMiejsce(this, wejscie, dane, ustawienia.Polozenie);
+            opcje.Miejsce = OknoPodgladu.WskazMiejsce(this, wejscie, dane, ustawienia.Polozenie, ustawienia.SkalaPodpisu);
             if (opcje.Miejsce == null)
             {
                 UstawStatus("Podpisywanie anulowane.");
                 return;
+            }
+            if (Math.Abs(ustawienia.SkalaPodpisu - opcje.Miejsce.Skala) > 0.0001f)
+            {
+                // Narysowany rozmiar staje się rozmiarem domyślnym przy następnym podpisie.
+                ustawienia.SkalaPodpisu = opcje.Miejsce.Skala;
+                try { ustawienia.Zapisz(); } catch (Exception) { /* zapamiętanie rozmiaru nie jest krytyczne */ }
             }
 
             UstawStatus("Podpisywanie… Sterownik karty może poprosić o PIN.");

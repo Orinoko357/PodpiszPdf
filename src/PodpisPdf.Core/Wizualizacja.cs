@@ -32,6 +32,13 @@ public static class Wizualizacja
     public static float SzerokoscPt => SzerokoscMm * PunktowNaMm;
     public static float WysokoscPt => WysokoscMm * PunktowNaMm;
 
+    /// <summary>Proporcje wizualizacji (szerokość / wysokość) — stałe przy każdej skali.</summary>
+    public static float Proporcje => SzerokoscMm / WysokoscMm;
+
+    /// <summary>Zakres skali przy rysowaniu podpisu na podglądzie (1 = 85 × 25 mm).</summary>
+    public const float MinSkala = 0.6f;
+    public const float MaksSkala = 3f;
+
     private const float Odstep = 3f;
     private const float OdstepLogo = 7f;
     private const float MaksUdzialLogo = 0.35f;
@@ -53,10 +60,10 @@ public static class Wizualizacja
     private const float Tolerancja = 0.5f;
 
     /// <summary>Prostokąt wizualizacji wg położenia domyślnego (narożnik i odległość od krawędzi).</summary>
-    public static Rectangle ObliczProstokat(Rectangle strona, PolozenieWizualizacji p)
+    public static Rectangle ObliczProstokat(Rectangle strona, PolozenieWizualizacji p, float skala = 1f)
     {
-        var w = SzerokoscPt;
-        var h = WysokoscPt;
+        var w = SzerokoscPt * skala;
+        var h = WysokoscPt * skala;
         var mx = p.MarginesPoziomyMm * PunktowNaMm;
         var my = p.MarginesPionowyMm * PunktowNaMm;
 
@@ -78,7 +85,9 @@ public static class Wizualizacja
     /// <summary>Prostokąt wizualizacji w miejscu wskazanym na podglądzie.</summary>
     public static Rectangle ProstokatWMiejscu(Rectangle strona, MiejscePodpisu miejsce)
     {
-        var prostokat = new Rectangle(miejsce.X, miejsce.Y, SzerokoscPt, WysokoscPt);
+        if (miejsce.Skala < MinSkala - 0.001f || miejsce.Skala > MaksSkala + 0.001f)
+            throw new BladPodpisu("Nieprawidłowy rozmiar podpisu. Wskaż miejsce ponownie.");
+        var prostokat = new Rectangle(miejsce.X, miejsce.Y, SzerokoscPt * miejsce.Skala, WysokoscPt * miejsce.Skala);
         if (!MiesciSie(strona, prostokat))
             throw new BladPodpisu("Wskazane miejsce podpisu wychodzi poza stronę. Wskaż miejsce ponownie.");
         return prostokat;
@@ -87,10 +96,10 @@ public static class Wizualizacja
     /// <summary>
     /// Lewy dolny róg wizualizacji tak, aby jej środek był w punkcie (x, y), ale cała zmieściła się na stronie.
     /// </summary>
-    public static (float X, float Y) DopasujDoStrony(Rectangle strona, float srodekX, float srodekY)
+    public static (float X, float Y) DopasujDoStrony(Rectangle strona, float srodekX, float srodekY, float skala = 1f)
     {
-        var w = SzerokoscPt;
-        var h = WysokoscPt;
+        var w = SzerokoscPt * skala;
+        var h = WysokoscPt * skala;
         var x = Math.Clamp(srodekX - w / 2, strona.GetLeft(), Math.Max(strona.GetLeft(), strona.GetRight() - w));
         var y = Math.Clamp(srodekY - h / 2, strona.GetBottom(), Math.Max(strona.GetBottom(), strona.GetTop() - h));
         return (x, y);
@@ -101,10 +110,11 @@ public static class Wizualizacja
         p.GetRight() <= strona.GetRight() + Tolerancja && p.GetTop() <= strona.GetTop() + Tolerancja;
 
     /// <summary>Wygląd pola podpisu: bez ramki i z przezroczystym tłem.</summary>
-    internal static SignatureFieldAppearance Utworz(DaneWizualizacji dane)
+    /// <param name="skala">Skala całej wizualizacji (rozmiar, czcionki, odstępy); proporcje pozostają stałe.</param>
+    internal static SignatureFieldAppearance Utworz(DaneWizualizacji dane, float skala = 1f)
     {
         var wyglad = new SignatureFieldAppearance(SignerProperties.IGNORED_ID);
-        wyglad.SetContent(UtworzZawartosc(dane, out var czcionka));
+        wyglad.SetContent(UtworzZawartosc(dane, skala, out var czcionka));
         wyglad.SetBorder(Border.NO_BORDER);
         foreach (var bok in new[] { Property.PADDING_LEFT, Property.PADDING_RIGHT, Property.PADDING_TOP, Property.PADDING_BOTTOM })
             wyglad.SetProperty(bok, UnitValue.CreatePointValue(0));
@@ -116,22 +126,28 @@ public static class Wizualizacja
     /// Jednostronicowy PDF o rozmiarze wizualizacji z jej zawartością — do pokazania na podglądzie
     /// dokładnie tego, co znajdzie się w podpisie.
     /// </summary>
-    public static byte[] PodgladPdf(DaneWizualizacji dane)
+    public static byte[] PodgladPdf(DaneWizualizacji dane, float skala = 1f)
     {
         using var ms = new MemoryStream();
         using (var pdf = new iText.Kernel.Pdf.PdfDocument(new iText.Kernel.Pdf.PdfWriter(ms)))
         {
-            using var dokument = new iText.Layout.Document(pdf, new PageSize(SzerokoscPt, WysokoscPt));
+            using var dokument = new iText.Layout.Document(pdf, new PageSize(SzerokoscPt * skala, WysokoscPt * skala));
             dokument.SetMargins(0, 0, 0, 0);
-            dokument.Add(UtworzZawartosc(dane, out _));
+            dokument.Add(UtworzZawartosc(dane, skala, out _));
         }
         return ms.ToArray();
     }
 
-    private static Div UtworzZawartosc(DaneWizualizacji dane, out PdfFont czcionkaPodstawowa)
+    /// <summary>
+    /// Zawartość wizualizacji. Wszystkie wymiary (prostokąt, odstępy, granice rozmiaru czcionki) są mnożone
+    /// przez skalę, więc wizualizacja w innej skali jest dokładnym powiększeniem lub pomniejszeniem.
+    /// </summary>
+    private static Div UtworzZawartosc(DaneWizualizacji dane, float skala, out PdfFont czcionkaPodstawowa)
     {
-        var szerokosc = SzerokoscPt;
-        var wysokosc = WysokoscPt;
+        var szerokosc = SzerokoscPt * skala;
+        var wysokosc = WysokoscPt * skala;
+        var odstep = Odstep * skala;
+        var odstepLogo = OdstepLogo * skala;
         var zwykla = UtworzCzcionke("PodpisPdf.Core.DejaVuSans.ttf");
         var pogrubiona = UtworzCzcionke("PodpisPdf.Core.DejaVuSans-Bold.ttf");
         czcionkaPodstawowa = zwykla;
@@ -150,19 +166,19 @@ public static class Wizualizacja
 
         var logo = WczytajLogo(dane.SciezkaLogo);
 
-        var wnetrzeW = szerokosc - 2 * Odstep;
-        var wnetrzeH = wysokosc - 2 * Odstep;
+        var wnetrzeW = szerokosc - 2 * odstep;
+        var wnetrzeH = wysokosc - 2 * odstep;
 
         // Logo ma dokładnie wysokość bloku tekstu (góra herbu = góra pierwszego wiersza, dół = dół ostatniego).
         // Wysokość tekstu zależy od rozmiaru czcionki, a ten od miejsca zajętego przez logo — stąd kilka przybliżeń.
         float logoW = 0, logoH = wnetrzeH;
         var tekstW = wnetrzeW;
-        var rozmiar = DobierzRozmiarCzcionki(linie, tekstW, wnetrzeH);
+        var rozmiar = DobierzRozmiarCzcionki(linie, tekstW, wnetrzeH, skala);
         for (var krok = 0; logo != null && krok < 6; krok++)
         {
             logoW = Math.Min(logoH * logo.Value.Proporcje, wnetrzeW * MaksUdzialLogo);
-            tekstW = wnetrzeW - logoW - OdstepLogo;
-            rozmiar = DobierzRozmiarCzcionki(linie, tekstW, wnetrzeH);
+            tekstW = wnetrzeW - logoW - odstepLogo;
+            rozmiar = DobierzRozmiarCzcionki(linie, tekstW, wnetrzeH, skala);
             logoH = Math.Min(wnetrzeH, WidocznaWysokoscTekstu(linie, rozmiar, tekstW));
         }
         if (logo != null)
@@ -175,7 +191,7 @@ public static class Wizualizacja
 
         var zawartosc = new Div()
             .SetMargin(0)
-            .SetPadding(Odstep)
+            .SetPadding(odstep)
             .SetWidth(szerokosc)
             .SetHeight(wysokosc)
             .SetVerticalAlignment(VerticalAlignment.MIDDLE);
@@ -186,7 +202,7 @@ public static class Wizualizacja
         }
         else
         {
-            var tabela = new Table(UnitValue.CreatePointArray(new[] { logoW + OdstepLogo, tekstW }))
+            var tabela = new Table(UnitValue.CreatePointArray(new[] { logoW + odstepLogo, tekstW }))
                 .SetFixedLayout()
                 .SetWidth(wnetrzeW)
                 .SetBorder(Border.NO_BORDER)
@@ -200,7 +216,7 @@ public static class Wizualizacja
                 .Add(obraz)
                 .SetBorder(Border.NO_BORDER)
                 .SetPadding(0)
-                .SetPaddingRight(OdstepLogo)
+                .SetPaddingRight(odstepLogo)
                 .SetHeight(wnetrzeH)
                 .SetVerticalAlignment(VerticalAlignment.MIDDLE));
             tabela.AddCell(new Cell()
@@ -239,10 +255,10 @@ public static class Wizualizacja
     /// Imię i nazwisko, nagłówek i data zajmują po jednym wierszu; długie stanowisko może się zawinąć,
     /// żeby nie zmniejszać całego tekstu.
     /// </summary>
-    private static float DobierzRozmiarCzcionki(List<Wiersz> linie, float szerokosc, float wysokosc)
+    private static float DobierzRozmiarCzcionki(List<Wiersz> linie, float szerokosc, float wysokosc, float skala)
     {
         var dostepnaSzerokosc = szerokosc * ZapasSzerokosci;
-        for (var rozmiar = MaksRozmiarCzcionki; rozmiar >= MinRozmiarCzcionki; rozmiar -= 0.1f)
+        for (var rozmiar = MaksRozmiarCzcionki * skala; rozmiar >= MinRozmiarCzcionki * skala; rozmiar -= 0.1f * skala)
         {
             var lacznie = 0f;
             var miesci = true;
@@ -261,19 +277,7 @@ public static class Wizualizacja
                 return rozmiar;
         }
         // Przy bardzo długim tekście lepiej zawinąć wiersz niż użyć nieczytelnej czcionki.
-        return MinRozmiarCzcionki;
-    }
-
-    /// <summary>Wysokość bloku tekstu wg silnika układu iText (z interlinią).</summary>
-    private static float WysokoscUkladu(List<Wiersz> linie, float rozmiar, float szerokosc)
-    {
-        using var pdf = new PdfDocument(new PdfWriter(Stream.Null));
-        using var dokument = new iText.Layout.Document(pdf);
-        var blok = UtworzBlokTekstu(linie, rozmiar);
-        var renderer = blok.CreateRendererSubTree().SetParent(dokument.GetRenderer());
-        var wynik = renderer.Layout(new iText.Layout.Layout.LayoutContext(
-            new iText.Layout.Layout.LayoutArea(1, new Rectangle(szerokosc, 10000))));
-        return wynik.GetOccupiedArea().GetBBox().GetHeight();
+        return MinRozmiarCzcionki * skala;
     }
 
     private static Div UtworzBlokTekstu(List<Wiersz> linie, float rozmiar)

@@ -102,7 +102,10 @@ internal sealed class OknoUstawien : Form
             "PNG/JPG są osadzane w oryginalnej rozdzielczości. Puste marginesy są pomijane, " +
             "a kopia logo jest zapisywana razem z ustawieniami programu."));
 
-        Naglowek(uklad, $"Położenie początkowe na podglądzie (rozmiar stały: {Wizualizacja.SzerokoscMm:0} × {Wizualizacja.WysokoscMm:0} mm)");
+        Naglowek(uklad, "Położenie początkowe na podglądzie");
+        Wiersz(uklad, "", Etykieta(
+            $"Rozmiar podstawowy {Wizualizacja.SzerokoscMm:0} × {Wizualizacja.WysokoscMm:0} mm. Na podglądzie można narysować " +
+            "podpis myszą w innym rozmiarze (proporcje są zachowane) — program zapamięta ten rozmiar."));
         Wiersz(uklad, "Strona:", Poziomo(false, _strona, _numerStrony));
 
         _naroznik.Items.AddRange(Narozniki.Select(n => (object)n.Opis).ToArray());
