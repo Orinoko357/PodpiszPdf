@@ -100,9 +100,9 @@ jobs:
           Get-AppxPackage PodpisPdf | Format-List Name, Version, PackageFullName
           Remove-Item "$env:TEMP/PodpisPdf-sprawdz.txt" -ErrorAction SilentlyContinue
           $p = Start-Process "$folder/PodpisPdf.exe" -ArgumentList '--sprawdz' -PassThru
-          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "Start z tożsamością pakietu: brak zakończenia" }
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "Start z folderu pakietu: brak zakończenia" }
           Get-Content "$env:TEMP/PodpisPdf-sprawdz.txt" -ErrorAction SilentlyContinue
-          if ($p.ExitCode -ne 0) { Get-Content "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue; throw "Start z tożsamością pakietu: kod $($p.ExitCode)" }
+          if ($p.ExitCode -ne 0) { Get-Content "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue; throw "Start z folderu pakietu: kod $($p.ExitCode)" }
           $obiekt = [Activator]::CreateInstance([Type]::GetTypeFromCLSID([Guid]'6E2F4C3A-8B1D-4F5E-9A7C-2D3B4E5F6A71'))
           if ($null -eq $obiekt) { throw "Serwer COM menu nie odpowiada" }
           "Serwer COM menu Windows 11: działa"

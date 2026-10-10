@@ -29,6 +29,7 @@ public sealed partial class StronaGlowna : Page
     private bool _trwaPodpisywanie;
     private bool _wczytywanieCertyfikatow;
     private bool _zainicjalizowano;
+    private bool _gotowa;
     private int _numerMiniatury;
 
     public StronaGlowna()
@@ -85,6 +86,7 @@ public sealed partial class StronaGlowna : Page
         });
 
         await WczytajCertyfikaty();
+        _gotowa = true;
         PrzetworzZlecenia();
 
         var komunikat = await instalacja;
@@ -186,6 +188,7 @@ public sealed partial class StronaGlowna : Page
     internal void PokazDanePrzykladowe(string? plik, IReadOnlyList<CertyfikatInfo> certyfikaty)
     {
         _zainicjalizowano = true;
+        _gotowa = true;
         UstawCertyfikaty(certyfikaty, null);
         UstawPlik(plik);
         UstawStatus("Gotowy. Program zapamięta wybrany certyfikat.");
@@ -195,7 +198,8 @@ public sealed partial class StronaGlowna : Page
 
     internal void PrzetworzZlecenia()
     {
-        if (_trwaPodpisywanie || !ReferenceEquals(Okno.Ramka_.Content, this) || !Okno.PobierzZlecenie(out var plik))
+        // Pliki, które przyszły przed wczytaniem certyfikatów, czekają w kolejce (Inicjalizuj wywoła to ponownie).
+        if (!_gotowa || _trwaPodpisywanie || !ReferenceEquals(Okno.Ramka_.Content, this) || !Okno.PobierzZlecenie(out var plik))
             return;
         Okno.Przywroc();
         if (string.IsNullOrEmpty(plik))

@@ -164,8 +164,21 @@ internal static class SerwerMenu
             Aktywnosc();
             try
             {
-                foreach (var plik in Pliki(psiItemArray))
-                    PrzekazPlik(plik);
+                // Ścieżki odczytujemy od razu, przekazanie w tle — Eksplorator czeka na powrót z Invoke.
+                var pliki = Pliki(psiItemArray).ToList();
+                new Thread(() =>
+                {
+                    try
+                    {
+                        foreach (var plik in pliki)
+                            PrzekazPlik(plik);
+                    }
+                    catch (Exception e)
+                    {
+                        App.Zapisz(e);
+                    }
+                    Aktywnosc();
+                }) { IsBackground = false }.Start();
             }
             catch (Exception e)
             {
@@ -203,12 +216,25 @@ internal static class SerwerMenu
             }
         }
 
-        /// <summary>Plik trafia do działającej kopii programu albo do nowo uruchomionej.</summary>
+        /// <summary>
+        /// Plik trafia do działającej kopii programu. Gdy program nie działa, uruchamia go Eksplorator
+        /// (proces potomny serwera miałby tożsamość pakietu, z którą okno WinUI nie działa), a plik
+        /// przekazujemy przez potok, gdy program będzie gotowy.
+        /// </summary>
         private static void PrzekazPlik(string plik)
         {
-            if (JednaInstancja.Wyslij(JednaInstancja.PrefiksPliku + plik, 1500) == JednaInstancja.Ok)
+            var polecenie = JednaInstancja.PrefiksPliku + plik;
+            if (JednaInstancja.Wyslij(polecenie, 1500) == JednaInstancja.Ok)
                 return;
-            Process.Start(new ProcessStartInfo(Instalacja.BiezacyPlik, $"\"{plik}\"") { UseShellExecute = false });
+            Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"),
+                $"\"{Instalacja.BiezacyPlik}\"") { UseShellExecute = false });
+            var koniec = Environment.TickCount64 + 30000;
+            while (Environment.TickCount64 < koniec)
+            {
+                Thread.Sleep(500);
+                if (JednaInstancja.Wyslij(polecenie, 1000) == JednaInstancja.Ok)
+                    return;
+            }
         }
     }
 }
