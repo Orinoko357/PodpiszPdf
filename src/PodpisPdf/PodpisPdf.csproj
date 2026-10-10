@@ -12,7 +12,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationVisualStyles>true</ApplicationVisualStyles>
     <Product>PodpisPdf</Product>
-    <Version>1.0.0.2</Version>
+    <Version>1.0.0.3</Version>
     <ApplicationIcon>PodpisPdf.ico</ApplicationIcon>
     <Description>Kwalifikowany podpis elektroniczny PAdES dla plików PDF</Description>
   </PropertyGroup>

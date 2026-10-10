@@ -60,7 +60,7 @@ Opcjonalnie, do decyzji: poziom **B-LT**, czyli dołączenie do pliku danych OCS
 
 ## 5. Wizualizacja podpisu
 
-Prostokąt o stałym rozmiarze (75 × 22 mm), bez ramki i z przezroczystym tłem, w miejscu wskazanym kliknięciem na podglądzie. Zawiera:
+Prostokąt o stałym rozmiarze (85 × 25 mm), bez ramki i z przezroczystym tłem, w miejscu wskazanym kliknięciem na podglądzie. Zawiera:
 
 | Element | Źródło | Obowiązkowy |
 |---|---|---|

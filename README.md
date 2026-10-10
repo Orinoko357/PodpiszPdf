@@ -47,7 +47,7 @@ Okno **Ustawienia…**; zapis w `%APPDATA%\PodpisPdf\config.json`:
 | Uruchamianie przy logowaniu do Windows (autostart) | wyłączone |
 | „Podpisz w PodpisPdf” w menu kontekstowym plików PDF | włączone |
 
-Wizualizacja ma stały rozmiar **75 × 22 mm**, bez ramki i z przezroczystym tłem (nie zasłania formularza).
+Wizualizacja ma stały rozmiar **85 × 25 mm**, bez ramki i z przezroczystym tłem (nie zasłania formularza).
 Logo wektorowe (SVG lub PDF — pierwsza strona) trafia do podpisu jako grafika wektorowa, ostra przy każdym
 powiększeniu. Napisy w SVG najlepiej zamienić na krzywe (w SVG bez osadzonych czcionek użyta zostanie czcionka zastępcza).
 Logo PNG/JPG jest osadzane w oryginalnej rozdzielczości, bez stratnej kompresji. Białe lub przezroczyste marginesy

@@ -25,8 +25,8 @@ public static class Wizualizacja
     public static IReadOnlyList<string> RozszerzeniaLogo => Logo.Rozszerzenia;
 
     /// <summary>Stały rozmiar wizualizacji.</summary>
-    public const float SzerokoscMm = 75;
-    public const float WysokoscMm = 22;
+    public const float SzerokoscMm = 85;
+    public const float WysokoscMm = 25;
 
     public const float PunktowNaMm = 72f / 25.4f;
     public static float SzerokoscPt => SzerokoscMm * PunktowNaMm;
