@@ -70,7 +70,7 @@
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE77B;" />
                                 </ctk:SettingsCard.HeaderIcon>
-                                <TextBox x:Name="Stanowisko" Width="320" Height="72" AcceptsReturn="True" TextWrapping="Wrap" TextChanged="PrzyZmianieStanowiska" />
+                                <TextBox x:Name="Stanowisko" Width="280" Height="72" AcceptsReturn="True" TextWrapping="Wrap" TextChanged="PrzyZmianieStanowiska" />
                             </ctk:SettingsCard>
 
                             <ctk:SettingsCard Header="Logo" Description="SVG lub PDF (wektorowe — najlepsza jakość), PNG albo JPG. Kopia jest zapisywana razem z ustawieniami.">
@@ -84,9 +84,9 @@
                                 </StackPanel>
                             </ctk:SettingsCard>
 
-                            <ctk:SettingsCard Header="Położenie początkowe" Description="Gdzie podpis pojawi się na podglądzie — można go tam przesunąć lub narysować">
+                            <ctk:SettingsCard Header="Strona podpisu" Description="Gdzie podpis pojawi się na podglądzie — można go tam przesunąć lub narysować">
                                 <ctk:SettingsCard.HeaderIcon>
-                                    <FontIcon Glyph="&#xE81E;" />
+                                    <FontIcon Glyph="&#xE7C3;" />
                                 </ctk:SettingsCard.HeaderIcon>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <ComboBox x:Name="ListaStron" Width="170" SelectionChanged="PrzyZmianieStrony">
@@ -95,13 +95,19 @@
                                         <x:String>Strona o numerze</x:String>
                                     </ComboBox>
                                     <NumberBox x:Name="NumerStrony" Minimum="1" Maximum="9999" SmallChange="1" Width="100" SpinButtonPlacementMode="Compact" />
-                                    <ComboBox x:Name="ListaNaroznikow" Width="170">
-                                        <x:String>Prawy dolny róg</x:String>
-                                        <x:String>Lewy dolny róg</x:String>
-                                        <x:String>Prawy górny róg</x:String>
-                                        <x:String>Lewy górny róg</x:String>
-                                    </ComboBox>
                                 </StackPanel>
+                            </ctk:SettingsCard>
+
+                            <ctk:SettingsCard Header="Narożnik strony" Description="Od którego narożnika liczona jest odległość podpisu">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE81E;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <ComboBox x:Name="ListaNaroznikow" Width="170">
+                                    <x:String>Prawy dolny róg</x:String>
+                                    <x:String>Lewy dolny róg</x:String>
+                                    <x:String>Prawy górny róg</x:String>
+                                    <x:String>Lewy górny róg</x:String>
+                                </ComboBox>
                             </ctk:SettingsCard>
 
                             <ctk:SettingsCard Header="Odległość od krawędzi strony" Description="W milimetrach, liczona od wybranego narożnika">
@@ -123,19 +129,19 @@
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE774;" />
                                 </ctk:SettingsCard.HeaderIcon>
-                                <TextBox x:Name="AdresTsa" Width="320" />
+                                <TextBox x:Name="AdresTsa" Width="280" />
                             </ctk:SettingsCard>
                             <ctk:SettingsCard Header="Login" Description="Tylko dla płatnych serwerów kwalifikowanych">
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE77B;" />
                                 </ctk:SettingsCard.HeaderIcon>
-                                <TextBox x:Name="LoginTsa" Width="320" />
+                                <TextBox x:Name="LoginTsa" Width="280" />
                             </ctk:SettingsCard>
                             <ctk:SettingsCard Header="Hasło" Description="Zapisywane w postaci zaszyfrowanej (Windows DPAPI)">
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE72E;" />
                                 </ctk:SettingsCard.HeaderIcon>
-                                <PasswordBox x:Name="HasloTsa" Width="320" />
+                                <PasswordBox x:Name="HasloTsa" Width="280" />
                             </ctk:SettingsCard>
                             <ctk:SettingsCard Header="Test połączenia" Description="Pobiera próbny znacznik czasu z serwera">
                                 <ctk:SettingsCard.HeaderIcon>
@@ -150,7 +156,7 @@
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE8B7;" />
                                 </ctk:SettingsCard.HeaderIcon>
-                                <ToggleSwitch x:Name="PoziomLT" />
+                                <ToggleSwitch x:Name="PoziomLT" OnContent="Włączone" OffContent="Wyłączone" />
                             </ctk:SettingsCard>
                         </StackPanel>
 
@@ -160,19 +166,19 @@
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE7E8;" />
                                 </ctk:SettingsCard.HeaderIcon>
-                                <ToggleSwitch x:Name="Autostart" />
+                                <ToggleSwitch x:Name="Autostart" OnContent="Włączone" OffContent="Wyłączone" />
                             </ctk:SettingsCard>
                             <ctk:SettingsCard Header="Minimalizuj do zasobnika" Description="Zminimalizowane okno chowa się do ikony obok zegara">
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE921;" />
                                 </ctk:SettingsCard.HeaderIcon>
-                                <ToggleSwitch x:Name="Zasobnik" />
+                                <ToggleSwitch x:Name="Zasobnik" OnContent="Włączone" OffContent="Wyłączone" />
                             </ctk:SettingsCard>
                             <ctk:SettingsCard x:Name="KartaMenuKontekstowego" Header="Menu kontekstowe plików PDF">
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE8A5;" />
                                 </ctk:SettingsCard.HeaderIcon>
-                                <ToggleSwitch x:Name="MenuKontekstowe" />
+                                <ToggleSwitch x:Name="MenuKontekstowe" OnContent="Włączone" OffContent="Wyłączone" />
                             </ctk:SettingsCard>
                             <ctk:SettingsCard Header="Przyrostek nazwy podpisanego pliku" Description="Np. wniosek.pdf → wniosek_podpisany.pdf; oryginał zostaje bez zmian">
                                 <ctk:SettingsCard.HeaderIcon>
