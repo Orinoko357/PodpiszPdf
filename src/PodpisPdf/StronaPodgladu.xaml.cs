@@ -434,12 +434,14 @@ public sealed partial class StronaPodgladu : Page
 
     private void PrzyZmianieTrybu(object sender, SelectionChangedEventArgs e)
     {
+        if (TekstPodpowiedzi == null)
+            return; // zdarzenie przy tworzeniu strony (SelectedIndex z XAML)
         _pokazPodpowiedz = true;
         OdswiezPodpowiedz();
         OdswiezInformacje();
     }
 
-    private bool TrybRysowania => Tryb.SelectedIndex == 1;
+    private bool TrybRysowania => Tryb?.SelectedIndex == 1;
 
     private void OdswiezPodpowiedz()
     {
