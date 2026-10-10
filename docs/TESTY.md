@@ -47,6 +47,20 @@ Przed testem:
 - [ ] Uruchom **starszą** wersję, gdy działa nowsza — ostrzeżenie, że działa nowsza wersja; plik w AppData się nie zmienia.
 - [ ] Odznacz autostart → wpis znika z *Menedżera zadań → Autostart*.
 
+## 4a. Wersja 3.0: aplikacja domyślna, menu Windows 11, aktualizacje
+
+- [ ] *Ustawienia → Program → Ustaw jako domyślną…* → w Ustawieniach Windows wybierz PodpisPdf dla `.pdf`.
+      Pliki PDF zachowują ikonę Acrobata.
+- [ ] Dwuklik pliku PDF → okno **Podpisz / Przeglądaj**. *Przeglądaj* otwiera Acrobat Reader; *Podpisz* otwiera podgląd
+      do wskazania miejsca podpisu (także gdy program działa w zasobniku).
+- [ ] Zaznacz „Zapamiętaj mój wybór” → kolejne otwarcie PDF działa bez pytania; zmiana w *Ustawienia → Program → Po otwarciu pliku PDF*.
+- [ ] (Windows 11) *Ustawienia → Program → Nowe menu kontekstowe Windows 11*: *Zainstaluj certyfikat…* (okno UAC),
+      potem *Dodaj do menu*. Prawy przycisk na PDF → **Podpisz w PodpisPdf** od razu w menu, bez *Pokaż więcej opcji*;
+      działa także, gdy program nie jest uruchomiony i gdy jest w zasobniku. *Usuń z menu* usuwa pozycję.
+- [ ] *Ustawienia → Informacje → Sprawdź teraz*: przy najnowszej wersji — „Masz najnowszą wersję”.
+- [ ] Ze starszą wersją 3.x w `%APPDATA%\PodpisPdf`: pasek „Dostępna nowa wersja” → *Zaktualizuj teraz* → program
+      uruchamia się ponownie w nowej wersji (numer w tytule), na pasku stanu „Zaktualizowano PodpisPdf…”.
+
 ## 5. Błędy
 
 - [ ] Zły PIN → komunikat „Nieprawidłowy PIN…” (nie wpisuj złego PIN-u więcej niż raz — grozi blokadą karty).

@@ -21,6 +21,24 @@ Specyfikacja: [docs/SPECYFIKACJA.md](docs/SPECYFIKACJA.md).
 *Pokaż więcej opcji*). Program otwiera od razu podgląd do wskazania miejsca podpisu. Jeśli program już działa
 (np. w zasobniku), plik trafia do działającego okna.
 
+**Nowe menu Windows 11:** pozycja **Podpisz w PodpisPdf** może być od razu w menu (bez *Pokaż więcej opcji*) —
+*Ustawienia → Program → Nowe menu kontekstowe Windows 11 → Dodaj do menu*. Wymaga to jednorazowej instalacji
+certyfikatu PodpisPdf na komputerze (przycisk *Zainstaluj certyfikat…*, okno administratora; w sieci firmowej
+można go rozesłać zasadami grupy do magazynu *Zaufane osoby* komputera — plik `PodpisPdf.cer` jest w każdym wydaniu).
+Technicznie: mały pakiet MSIX z „zawartością zewnętrzną” wskazujący na kopię programu w `%APPDATA%\PodpisPdf`
+oraz polecenie Eksploratora (IExplorerCommand) w samym `PodpisPdf.exe`.
+
+**Domyślna aplikacja dla PDF:** *Ustawienia → Program → Ustaw jako domyślną…* rejestruje PodpisPdf jako aplikację
+do PDF i otwiera *Ustawienia Windows → Aplikacje domyślne* (Windows nie pozwala programom ustawić się samodzielnie).
+Dwuklik pliku PDF pokazuje wtedy okno **Podpisz / Przeglądaj** — *Przeglądaj* otwiera plik w Adobe Acrobat
+(Reader), a gdy go nie ma — w aplikacji, która otwierała PDF wcześniej, albo w Microsoft Edge. Wybór można
+zapamiętać (zmiana: *Ustawienia → Program → Po otwarciu pliku PDF*).
+
+**Aktualizacje:** program raz dziennie sprawdza publiczne repozytorium wydań
+[Orinoko357/PodpisPdf-wydania](https://github.com/Orinoko357/PodpisPdf-wydania/releases) i informuje o nowej wersji
+(pasek w oknie, powiadomienie z zasobnika). *Zaktualizuj teraz* pobiera plik, sprawdza jego sumę SHA-256,
+podmienia kopię w `%APPDATA%\PodpisPdf` i uruchamia nową wersję. Ręcznie: *Ustawienia → Informacje → Sprawdź teraz*.
+
 **Zasobnik systemowy:** zminimalizowane okno chowa się do ikony obok zegara. Dwuklik otwiera okno;
 menu ikony: *Otwórz*, *Podpisz plik PDF…*, *Zakończ*.
 
@@ -47,6 +65,9 @@ Okno **Ustawienia…**; zapis w `%APPDATA%\PodpisPdf\config.json`:
 | Minimalizacja do zasobnika systemowego | włączona |
 | Uruchamianie przy logowaniu do Windows (autostart) | wyłączone |
 | „Podpisz w PodpisPdf” w menu kontekstowym plików PDF | włączone |
+| Pozycja w nowym menu kontekstowym Windows 11 | wyłączona |
+| Po otwarciu pliku PDF (gdy PodpisPdf jest aplikacją domyślną): pytaj / podpisuj / przeglądaj | pytaj |
+| Codzienne sprawdzanie aktualizacji | włączone |
 
 Wizualizacja ma rozmiar podstawowy **85 × 25 mm** (można go zmienić, rysując podpis na podglądzie — całość
 skaluje się proporcjonalnie), bez ramki i z przezroczystym tłem (nie zasłania formularza).
@@ -111,7 +132,8 @@ dotnet run --project tools/PodpisTestowy -- podpisz wniosek.pdf test.pfx haslo
 ## Licencje
 
 - iText 9 — AGPL. Użytek wewnętrzny albo udostępnienie kodu źródłowego nie stanowi problemu.
-- Docnet.Core (MIT) z silnikiem PDFium (BSD/Apache 2.0) — podgląd stron.
+- PDFium (BSD/Apache 2.0, biblioteka z pakietu Docnet.Core, MIT) — podgląd stron.
+- Windows App SDK / WinUI 3, Windows Community Toolkit, H.NotifyIcon — MIT.
 - Czcionka DejaVu Sans (wbudowana, obsługa polskich znaków) — licencja Bitstream Vera, zob. `src/PodpisPdf.Core/Zasoby/DejaVu-LICENSE.txt`.
 
 ## Wydania
@@ -127,3 +149,12 @@ git push origin v1.0.0.2
 ```
 
 Numer wersji programu ustawia się w `src/PodpisPdf/PodpisPdf.csproj` (`<Version>`).
+
+Sekrety repozytorium (*Settings → Secrets and variables → Actions*), z których korzysta workflow:
+
+| Sekret | Do czego |
+|---|---|
+| `CERTYFIKAT_PFX` | Certyfikat CN=PodpisPdf (PFX w Base64, hasło `PodpisPdf`) do podpisu pakietu menu Windows 11. Bez niego wydanie nie zawiera pakietu menu. |
+| `TOKEN_WYDANIA` | Token z prawem zapisu (*Contents: Read and write*) do `Orinoko357/PodpisPdf-wydania`. Bez niego wydanie nie trafia do repozytorium aktualizacji. |
+
+Każde wydanie zawiera `PodpisPdf.exe`, `PodpisPdf.exe.sha256` (suma sprawdzana przez aktualizację) i `PodpisPdf.cer`.

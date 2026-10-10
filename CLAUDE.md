@@ -30,6 +30,15 @@ Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagaj�
 - CI uruchamia `PodpisPdf.exe --sprawdz` (test startu) i `--zrzuty <folder>` (zrzuty stron w obu motywach);
   zrzuty trafiają na gałąź `zrzuty-ekranu` (pobranie: `git fetch origin zrzuty-ekranu`).
 
+## Integracja z Windows (3.0)
+
+- Aktualizacje: `PodpisPdf.Core/Aktualizacje.cs` czyta `releases/latest` publicznego repo `Orinoko357/PodpisPdf-wydania`
+  (wymaga `PodpisPdf.exe` i `PodpisPdf.exe.sha256` w wydaniu); workflow publikuje tam z sekretem `TOKEN_WYDANIA`.
+- Menu Windows 11: pakiet `pakiet/AppxManifest.xml` (sparse, podpis sekretem `CERTYFIKAT_PFX`, CN=PodpisPdf) osadzany
+  w exe; serwer COM `-Embedding` (`SerwerMenu.cs`). Okno WinUI **nie może** mieć tożsamości pakietu (nie znajduje
+  wtedy zasobów) — dlatego `app.manifest` nie ma elementu `<msix>`, a serwer menu uruchamia program przez Eksplorator.
+- PDFium wywoływane bezpośrednio (`DokumentPdf.Pdfium`), na jednym wątku; Docnet.Core tylko dostarcza bibliotekę natywną.
+
 ## Wizualizacja podpisu
 
 Rozmiar podstawowy 85 × 25 mm, stałe proporcje; na podglądzie można go narysować w skali 0,6–3× (cała treść

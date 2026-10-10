@@ -55,6 +55,8 @@ internal static class Zrzuty
             await Zapisz(korzen, Path.Combine(folder, $"5-ustawienia-znacznik-{nazwa}.png"));
             strona.PokazSekcje(2);
             await Zapisz(korzen, Path.Combine(folder, $"6-ustawienia-program-{nazwa}.png"));
+            strona.PokazSekcje(3);
+            await Zapisz(korzen, Path.Combine(folder, $"7-ustawienia-informacje-{nazwa}.png"));
             ramka.GoBack();
             await Task.Delay(300);
         }
