@@ -76,6 +76,7 @@
                                     <x:String>Linia oddzielająca logo</x:String>
                                     <x:String>Akcent kolorystyczny</x:String>
                                     <x:String>Data pod kreską</x:String>
+                                    <x:String>Pieczątka</x:String>
                                 </ComboBox>
                             </ctk:SettingsCard>
 

@@ -39,6 +39,7 @@ public class MotywyWizualizacjiTesty
     [InlineData(MotywWizualizacji.Linia, "PODPISANO", 6.5f)]
     [InlineData(MotywWizualizacji.Akcent, "PODPISANO", 6.5f)]
     [InlineData(MotywWizualizacji.DataPodKreska, "PODPISANO", 6.5f)]
+    [InlineData(MotywWizualizacji.Pieczatka, "PODPISANO", 6.5f)]
     public void StanowiskoWyrazniejszeNizNaglowekIData(MotywWizualizacji motyw, string naglowek, float rozmiarNaglowka)
     {
         var f = Tekst(new DaneWizualizacji("Anna Nowak", "Kierownik Biura Informatyki\nUrzędu Miasta Wodzisławia Śląskiego", null, Czas, motyw, true));
@@ -69,6 +70,7 @@ public class MotywyWizualizacjiTesty
     [InlineData(MotywWizualizacji.Linia)]
     [InlineData(MotywWizualizacji.Akcent)]
     [InlineData(MotywWizualizacji.DataPodKreska)]
+    [InlineData(MotywWizualizacji.Pieczatka)]
     public void DataTaSamaWeWszystkichMotywach(MotywWizualizacji motyw)
     {
         var czas = new DateTimeOffset(2026, 10, 11, 16, 2, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 10, 11, 16, 2, 0)));
@@ -166,5 +168,26 @@ public class MotywyWizualizacjiTesty
         var f = Tekst(new DaneWizualizacji("Anna Nowak", "Inspektor", null, Czas, MotywWizualizacji.Hierarchia), s);
         Assert.Equal(oczekiwanyRozmiar, Wiersz(f, "Anna").Rozmiar, 0.01);
         Assert.Equal(9f * s, Wiersz(f, "Inspektor").Rozmiar, 0.01);
+    }
+
+    [Fact]
+    public void PieczatkaStanowiskoNadNazwiskiemWysrodkowane()
+    {
+        var dane = new DaneWizualizacji("Anna Nowak", "Kierownik Biura Informatyki\nUrzędu Miasta Wodzisławia Śląskiego", null, Czas,
+            MotywWizualizacji.Pieczatka, true);
+        var pdf = Wizualizacja.PodgladPdf(dane);
+        using var dok = new PdfDocument(new PdfReader(new MemoryStream(pdf)));
+        var tekst = PdfTextExtractor.GetTextFromPage(dok.GetPage(1)).Split('\n');
+        Assert.Equal(new[] { "PODPISANO ELEKTRONICZNIE", "Kierownik Biura Informatyki", "Urzędu Miasta Wodzisławia Śląskiego", "Anna Nowak" },
+            tekst.Take(4).Select(w => w.Trim()).Select(w => w.Replace(" ", "") == "PODPISANOELEKTRONICZNIE" ? "PODPISANO ELEKTRONICZNIE" : w));
+
+        // Wyśrodkowanie: krótki wiersz (imię i nazwisko) ma po obu stronach podobny margines.
+        var o = DokumentPdf.Renderuj(pdf, 0, 4);
+        bool Ciemny(int x, int y) { var i = (y * o.Szerokosc + x) * 4; return o.Bgra[i] + o.Bgra[i + 1] + o.Bgra[i + 2] < 300; }
+        var wiersze = Enumerable.Range(0, o.Wysokosc).Where(y => Enumerable.Range(0, o.Szerokosc).Count(x => Ciemny(x, y)) > 0).ToList();
+        // Wiersz z nazwiskiem: najgrubsze (pogrubione) piksele w dolnej połowie.
+        var y0 = wiersze.Where(y => y > o.Wysokosc / 2).OrderByDescending(y => Enumerable.Range(0, o.Szerokosc).Count(x => Ciemny(x, y))).First();
+        var xs = Enumerable.Range(0, o.Szerokosc).Where(x => Ciemny(x, y0)).ToList();
+        Assert.InRange((xs.Min() - 0) - (o.Szerokosc - 1 - xs.Max()), -12, 12);
     }
 }

@@ -29,6 +29,8 @@ public enum MotywWizualizacji
     Akcent,
     /// <summary>Data pod poziomą kreską.</summary>
     DataPodKreska,
+    /// <summary>Jak pieczątka imienna: stanowisko nad imieniem i nazwiskiem, tekst wyśrodkowany.</summary>
+    Pieczatka,
 }
 
 /// <summary>Dane pokazywane w prostokącie podpisu.</summary>
@@ -114,13 +116,15 @@ public static class Wizualizacja
     /// <summary>Wygląd poszczególnych wierszy w motywie.</summary>
     private sealed record Styl(string TekstNaglowka, float RozmiarNaglowka, float OdstepZnakowNaglowka, Color KolorNaglowka,
         Color KolorNazwiska, Color KolorStanowiska, bool StaleStanowisko, float RozmiarDaty, Color KolorDaty,
-        bool KreskaNadData, bool LiniaPrzyLogo)
+        bool KreskaNadData, bool LiniaPrzyLogo, bool StanowiskoNadNazwiskiem = false, bool Wysrodkowany = false)
     {
         public static Styl Dla(MotywWizualizacji motyw) => motyw switch
         {
             MotywWizualizacji.Hierarchia => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Czarny, true, 7f, Szary, false, false),
             MotywWizualizacji.Linia => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Grafitowy, true, 7f, Szary, false, true),
             MotywWizualizacji.Akcent => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Granatowy, PrawieCzarny, true, 7f, Szary, false, false),
+            MotywWizualizacji.Pieczatka => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Czarny, true, 7f, Szary, false, false,
+                StanowiskoNadNazwiskiem: true, Wysrodkowany: true),
             MotywWizualizacji.DataPodKreska => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Czarny, true, 6.5f, Szary, true, false),
             _ => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Czarny, false, Wizualizacja.RozmiarDaty, Czarny, false, false),
         };
@@ -263,8 +267,18 @@ public static class Wizualizacja
             ? UlozStanowiskoStale(WierszeStanowiska(dane.Stanowisko), zwykla, Math.Max(bazowa, SzerokoscZawijaniaStanowiska))
             : UlozStanowisko(WierszeStanowiska(dane.Stanowisko), zwykla, bazowa);
 
-        var linie = new List<Wiersz> { naglowek, nazwisko };
-        linie.AddRange(stanowisko.Select(w => w with { Kolor = styl.KolorStanowiska }));
+        var wierszeStanowiska = stanowisko.Select(w => w with { Kolor = styl.KolorStanowiska });
+        var linie = new List<Wiersz> { naglowek };
+        if (styl.StanowiskoNadNazwiskiem)
+        {
+            linie.AddRange(wierszeStanowiska);
+            linie.Add(nazwisko);
+        }
+        else
+        {
+            linie.Add(nazwisko);
+            linie.AddRange(wierszeStanowiska);
+        }
         linie.Add(data);
         var tekstW = Math.Max(bazowa, szerokoscStanowiska);
         var tekstH = linie.Sum(w => WysokoscWiersza(w.Czcionka, w.Rozmiar) + (w.KreskaNad ? OdstepNadKreska + GruboscKreski + OdstepPodKreska : 0));
@@ -376,6 +390,7 @@ public static class Wizualizacja
                 .SetFontSize(w.Rozmiar * skala)
                 .SetFontColor(w.Kolor ?? Czarny)
                 .SetMultipliedLeading(InterliniaWzgledna)
+                .SetTextAlignment(u.Styl.Wysrodkowany ? TextAlignment.CENTER : TextAlignment.LEFT)
                 .SetMargin(0)
                 .SetPadding(0);
             if (w.OdstepZnakow > 0)
