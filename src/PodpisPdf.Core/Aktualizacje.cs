@@ -10,7 +10,8 @@ public sealed record DostepnaAktualizacja(Version Wersja, Uri AdresPliku, string
 
 /// <summary>
 /// Sprawdzanie i pobieranie aktualizacji z wydań GitHub (publiczne repozytorium tylko z plikami programu).
-/// Każde wydanie zawiera instalator <c>PodpisPdf.msi</c> i <c>PodpisPdf.msi.sha256</c> — pobrany plik musi mieć tę sumę.
+/// Każde wydanie zawiera instalator <c>PodpisPdf.msi</c>, <c>PodpisPdf.msi.sha256</c> i podpis <c>PodpisPdf.msi.sig</c>:
+/// podpis (klucz spoza GitHuba, <see cref="PodpisAktualizacji"/>) potwierdza wersję i sumę, a pobrany plik musi mieć tę sumę.
 /// </summary>
 public static class Aktualizacje
 {
@@ -48,7 +49,12 @@ public static class Aktualizacje
     /// Zwraca nowszą wersję niż <paramref name="biezaca"/> albo null (brak nowszej lub brak wydań).
     /// Błędy sieci i serwera przechodzą do wywołującego.
     /// </summary>
-    public static async Task<DostepnaAktualizacja?> SprawdzAsync(HttpClient klient, Version biezaca, CancellationToken anuluj = default)
+    public static Task<DostepnaAktualizacja?> SprawdzAsync(HttpClient klient, Version biezaca, CancellationToken anuluj = default) =>
+        SprawdzAsync(klient, biezaca, null, anuluj);
+
+    /// <param name="klucze">Klucze publiczne do sprawdzenia podpisu (testy); null — klucze wbudowane w program.</param>
+    internal static async Task<DostepnaAktualizacja?> SprawdzAsync(HttpClient klient, Version biezaca, IReadOnlyList<string>? klucze,
+        CancellationToken anuluj = default)
     {
         using var odpowiedz = await klient.GetAsync(AdresNajnowszego, anuluj).ConfigureAwait(false);
         if (odpowiedz.StatusCode == HttpStatusCode.NotFound)
@@ -61,7 +67,7 @@ public static class Aktualizacje
         if (wersja == null || wersja <= Normalizuj(biezaca))
             return null;
 
-        Uri? plik = null, suma = null;
+        Uri? plik = null, suma = null, podpis = null;
         if (wydanie.TryGetProperty("assets", out var zalaczniki) && zalaczniki.ValueKind == JsonValueKind.Array)
         {
             foreach (var z in zalaczniki.EnumerateArray())
@@ -74,13 +80,22 @@ public static class Aktualizacje
                     plik = uri;
                 else if (string.Equals(nazwa, NazwaSumy, StringComparison.OrdinalIgnoreCase))
                     suma = uri;
+                else if (string.Equals(nazwa, PodpisAktualizacji.NazwaPliku, StringComparison.OrdinalIgnoreCase))
+                    podpis = uri;
             }
         }
-        if (plik == null || suma == null)
-            return null; // wydanie niekompletne — bez sumy kontrolnej nie aktualizujemy
+        if (plik == null || suma == null || podpis == null)
+            return null; // wydanie niekompletne — bez sumy kontrolnej i podpisu nie aktualizujemy
 
         var tekstSumy = await klient.GetStringAsync(suma, anuluj).ConfigureAwait(false);
         var sha = OdczytajSume(tekstSumy) ?? throw new InvalidDataException("Nieprawidłowy plik sumy kontrolnej aktualizacji.");
+        var tekstPodpisu = await klient.GetStringAsync(podpis, anuluj).ConfigureAwait(false);
+        if (!PodpisAktualizacji.Sprawdz(wersja, NazwaPliku, sha, tekstPodpisu, klucze))
+        {
+            throw new InvalidDataException(
+                $"Wydanie {wersja} nie ma ważnego podpisu PodpisPdf. Aktualizacja została zablokowana — " +
+                "plik mógł zostać podmieniony. Zgłoś to osobie odpowiedzialnej za program.");
+        }
         var strona = Uri.TryCreate(Tekst(wydanie, "html_url"), UriKind.Absolute, out var s) ? s : StronaWydan;
         return new DostepnaAktualizacja(wersja, plik, sha, strona, Tekst(wydanie, "body") ?? "");
     }

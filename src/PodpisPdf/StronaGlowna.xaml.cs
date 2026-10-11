@@ -170,7 +170,7 @@ public sealed partial class StronaGlowna : Page
             UstawStatus($"Pobieranie wersji {aktualizacja.Wersja}…");
             var instalator = await AktualizacjaProgramu.PobierzAsync(aktualizacja, postep);
             UstawStatus("Instalowanie nowej wersji… Windows poprosi o zgodę administratora.");
-            AktualizacjaProgramu.ZainstalujIUruchom(instalator);
+            await AktualizacjaProgramu.ZainstalujIUruchomAsync(instalator, aktualizacja.Sha256);
             Okno.ZamknijProgram();
         }
         catch (Exception ex)

@@ -20,7 +20,6 @@ jobs:
       # Sekrety repozytorium (opcjonalne — bez nich program buduje się, ale bez pakietu menu Windows 11
       # i bez publikacji w repozytorium wydań, z którego program pobiera aktualizacje).
       CERTYFIKAT_PFX: ${{ secrets.CERTYFIKAT_PFX }}
-      TOKEN_WYDANIA: ${{ secrets.TOKEN_WYDANIA }}
     steps:
       - uses: actions/checkout@v7
 
@@ -171,6 +170,8 @@ jobs:
       # Zrzuty na osobnej gałęzi „zrzuty-ekranu” (do obejrzenia bez pobierania artefaktu).
       - name: Zrzuty ekranu na gałąź zrzuty-ekranu
         shell: pwsh
+        env:
+          GALAZ: ${{ github.ref_name }} # przez zmienną, nie wklejane w skrypt
         run: |
           $zrodlo = "${{ github.sha }}".Substring(0, 7)
           New-Item -ItemType Directory -Force -Path ../zrzuty-galaz | Out-Null
@@ -180,7 +181,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add *.png
-          git commit -q -m "Zrzuty ekranu z $zrodlo (${{ github.ref_name }})"
+          git commit -q -m "Zrzuty ekranu z $zrodlo ($env:GALAZ)"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" zrzuty-ekranu
 
       - uses: actions/upload-artifact@v6
@@ -305,14 +306,38 @@ jobs:
           if-no-files-found: error
 
   # Wydanie z przetestowanego instalatora tego przebiegu, gdy wersja z PodpisPdf.csproj nie ma jeszcze
-  # znacznika v<wersja> — podniesienie <Version> i push wystarczą, bez ręcznego uruchamiania.
+  # znacznika v<wersja>. Środowisko „wydanie” wymaga zatwierdzenia przez właściciela repozytorium
+  # (Settings → Environments) — dopiero wtedy zadanie dostaje klucz podpisu aktualizacji i token wydań.
   wydanie:
     needs: build
     if: needs.build.outputs.nowa == 'tak'
     runs-on: ubuntu-latest
+    environment: wydanie
+    # Jedno wydanie naraz: drugi przebieg z tą samą wersją czeka, a potem zatrzymuje się na kontroli znacznika.
+    concurrency:
+      group: wydanie
+      cancel-in-progress: false
     env:
       TOKEN_WYDANIA: ${{ secrets.TOKEN_WYDANIA }}
+      KLUCZ_AKTUALIZACJI: ${{ secrets.KLUCZ_AKTUALIZACJI }}
+      WERSJA: ${{ needs.build.outputs.wersja }}
+      GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Wersja nadal niewydana
+        run: |
+          kod=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/git/ref/tags/v$WERSJA")
+          case "$kod" in
+            404) echo "Wersja $WERSJA — nowe wydanie" ;;
+            200) echo "::error::Wersja $WERSJA jest już wydana (inny przebieg). Podnieś <Version>."; exit 1 ;;
+            *) echo "::error::Nie udało się sprawdzić znacznika (HTTP $kod)"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: src/PodpisPdf.Core/PodpisAktualizacji.cs
+          sparse-checkout-cone-mode: false
+
       - uses: actions/download-artifact@v7
         with:
           name: PodpisPdf
@@ -327,6 +352,24 @@ jobs:
           [ "$oczekiwana" = "$faktyczna" ] || { echo "::error::Suma SHA-256 instalatora się nie zgadza"; exit 1; }
           mkdir -p pliki && cp "$msi" "$sum" "$cer" pliki/
           ls -la pliki
+
+      # Podpis wydania kluczem spoza GitHub Actions (sekret środowiska „wydanie”): program instaluje
+      # aktualizację tylko z ważnym podpisem (PodpisAktualizacji.cs). Bez klucza nie ma wydania.
+      - name: Podpis aktualizacji
+        run: |
+          [ -n "$KLUCZ_AKTUALIZACJI" ] || { echo "::error::Brak sekretu KLUCZ_AKTUALIZACJI w środowisku „wydanie”"; exit 1; }
+          umask 077
+          printf '%s\n' "$KLUCZ_AKTUALIZACJI" > "$RUNNER_TEMP/klucz.pem"
+          sha=$(cut -d' ' -f1 pliki/PodpisPdf.msi.sha256 | tr 'a-f' 'A-F')
+          printf 'PodpisPdf-aktualizacja\nwersja=%s\nplik=PodpisPdf.msi\nsha256=%s\n' "$WERSJA" "$sha" > "$RUNNER_TEMP/wiadomosc.txt"
+          openssl dgst -sha256 -sign "$RUNNER_TEMP/klucz.pem" "$RUNNER_TEMP/wiadomosc.txt" | base64 -w0 > pliki/PodpisPdf.msi.sig
+          # Klucz musi odpowiadać jednemu z kluczy publicznych wbudowanych w program.
+          publiczny=$(openssl pkey -in "$RUNNER_TEMP/klucz.pem" -pubout -outform DER | base64 -w0)
+          rm -f "$RUNNER_TEMP/klucz.pem"
+          grep -qF "\"$publiczny\"" src/PodpisPdf.Core/PodpisAktualizacji.cs || { echo "::error::Klucz nie pasuje do kluczy w PodpisAktualizacji.cs"; exit 1; }
+          base64 -d pliki/PodpisPdf.msi.sig > "$RUNNER_TEMP/podpis.der"
+          echo "$publiczny" | base64 -d > "$RUNNER_TEMP/publiczny.der"
+          openssl dgst -sha256 -verify "$RUNNER_TEMP/publiczny.der" -keyform DER -signature "$RUNNER_TEMP/podpis.der" "$RUNNER_TEMP/wiadomosc.txt"
 
       - name: Wydanie (Release)
         uses: softprops/action-gh-release@v3
@@ -363,4 +406,4 @@ jobs:
           curl -sf -H "Authorization: Bearer $TOKEN_WYDANIA" https://api.github.com/repos/Orinoko357/PodpisPdf-wydania/releases/latest -o najnowsze.json
           jq -r '.tag_name, (.assets[].name)' najnowsze.json
           [ "$(jq -r .tag_name najnowsze.json)" = "v${{ needs.build.outputs.wersja }}" ] || { echo "::error::Najnowsze wydanie w repozytorium aktualizacji to nie v${{ needs.build.outputs.wersja }}"; exit 1; }
-          jq -e '[.assets[].name] | index("PodpisPdf.msi") and index("PodpisPdf.msi.sha256")' najnowsze.json > /dev/null || { echo "::error::Brak instalatora lub sumy"; exit 1; }
+          jq -e '[.assets[].name] | index("PodpisPdf.msi") and index("PodpisPdf.msi.sha256") and index("PodpisPdf.msi.sig")' najnowsze.json > /dev/null || { echo "::error::Brak instalatora, sumy lub podpisu"; exit 1; }

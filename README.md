@@ -36,8 +36,9 @@ zapamiętać (zmiana: *Ustawienia → Program → Po otwarciu pliku PDF*).
 
 **Aktualizacje:** program raz dziennie sprawdza publiczne repozytorium wydań
 [Orinoko357/PodpisPdf-wydania](https://github.com/Orinoko357/PodpisPdf-wydania/releases) i informuje o nowej wersji
-(pasek w oknie, powiadomienie z zasobnika). *Zaktualizuj teraz* pobiera plik, sprawdza jego sumę SHA-256,
-podmienia kopię w `%APPDATA%\PodpisPdf` i uruchamia nową wersję. Ręcznie: *Ustawienia → Informacje → Sprawdź teraz*.
+(pasek w oknie, powiadomienie z zasobnika). *Zaktualizuj teraz* pobiera instalator, sprawdza podpis wydania
+(klucz PodpisPdf spoza GitHuba — bez ważnego podpisu aktualizacja jest blokowana) i sumę SHA-256, instaluje
+nową wersję i ją uruchamia. Ręcznie: *Ustawienia → Informacje → Sprawdź teraz*.
 
 **Zasobnik systemowy:** zminimalizowane okno chowa się do ikony obok zegara. Dwuklik otwiera okno;
 menu ikony: *Otwórz*, *Podpisz plik PDF…*, *Zakończ*.
@@ -147,11 +148,14 @@ przetestowany instalator z udanego przebiegu *Build* dla tego commita (bez ponow
 
 Numer wersji programu ustawia się w `src/PodpisPdf/PodpisPdf.csproj` (`<Version>`).
 
-Sekrety repozytorium (*Settings → Secrets and variables → Actions*), z których korzysta workflow:
+Wydanie powstaje w zadaniu `wydanie`, które czeka na zatwierdzenie w środowisku GitHub **`wydanie`**
+(*Settings → Environments*, wymagany zatwierdzający: właściciel). Sekrety:
 
-| Sekret | Do czego |
-|---|---|
-| `CERTYFIKAT_PFX` | Certyfikat CN=PodpisPdf (PFX w Base64, hasło `PodpisPdf`) do podpisu pakietu menu Windows 11. Bez niego wydanie nie zawiera pakietu menu. |
-| `TOKEN_WYDANIA` | Token z prawem zapisu (*Contents: Read and write*) do `Orinoko357/PodpisPdf-wydania`. Bez niego wydanie nie trafia do repozytorium aktualizacji. |
+| Sekret | Gdzie | Do czego |
+|---|---|---|
+| `CERTYFIKAT_PFX` | repozytorium | Certyfikat CN=PodpisPdf (PFX w Base64, hasło `PodpisPdf`) do podpisu pakietu menu Windows 11. Bez niego wydanie nie zawiera pakietu menu. |
+| `KLUCZ_AKTUALIZACJI` | środowisko `wydanie` | Klucz prywatny ECDSA P-256 (PEM) do podpisu aktualizacji. Klucz zapasowy — tylko offline. Bez klucza nie ma wydania. |
+| `TOKEN_WYDANIA` | środowisko `wydanie` | Token z prawem zapisu (*Contents: Read and write*) tylko do `Orinoko357/PodpisPdf-wydania`. Bez niego wydanie nie trafia do repozytorium aktualizacji. |
 
-Każde wydanie zawiera `PodpisPdf.msi`, `PodpisPdf.msi.sha256` (suma sprawdzana przez aktualizację) i `PodpisPdf.cer`.
+Każde wydanie zawiera `PodpisPdf.msi`, `PodpisPdf.msi.sha256`, `PodpisPdf.msi.sig` (podpis sprawdzany przez
+aktualizację) i `PodpisPdf.cer`.

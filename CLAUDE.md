@@ -12,9 +12,11 @@ w GitHub **Releases** — bez pytania użytkownika:
    Wyższy numer jest konieczny: kopia programu w `%APPDATA%\PodpisPdf` (autostart) aktualizuje się tylko
    z nowszej wersji. Większa nowa funkcja może podnieść numer bardziej (np. użytkownik zażyczył sobie 1.5).
 2. Uruchom testy (`dotnet test tests/PodpisPdf.Tests`), zatwierdź i wypchnij zmiany na gałąź roboczą.
-3. Wydanie jest automatyczne: przebieg `Build` (po pushu) buduje i testuje instalator, a gdy `<Version>` nie ma
-   jeszcze znacznika `v<wersja>`, zadanie `wydanie` od razu tworzy znacznik, wydanie z `PodpisPdf.msi`
-   i kopię w repozytorium aktualizacji. Nic nie trzeba uruchamiać ręcznie — tylko poczekać na koniec przebiegu.
+3. Przebieg `Build` (po pushu) buduje i testuje instalator, a gdy `<Version>` nie ma jeszcze znacznika
+   `v<wersja>`, zadanie `wydanie` (środowisko GitHub `wydanie`) **czeka na zatwierdzenie przez użytkownika**
+   („Review deployments” → „Approve”). Poproś go o to po zakończeniu budowania. Po zatwierdzeniu zadanie
+   podpisuje aktualizację (`PodpisPdf.msi.sig`, sekret `KLUCZ_AKTUALIZACJI`), tworzy znacznik, wydanie
+   z `PodpisPdf.msi` i kopię w repozytorium aktualizacji.
    (Wypychanie znaczników z sesji Claude Code bywa zablokowane — dlatego wydanie tworzy GitHub Actions;
    ręczne `workflow_dispatch` działa tylko dla workflowów z gałęzi `main`.)
 4. Sprawdź, że wydanie istnieje i ma plik `PodpisPdf.msi`, i podaj użytkownikowi link.
@@ -39,7 +41,10 @@ Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagaj�
 ## Integracja z Windows (3.0)
 
 - Aktualizacje: `PodpisPdf.Core/Aktualizacje.cs` czyta `releases/latest` publicznego repo `Orinoko357/PodpisPdf-wydania`
-  (wymaga `PodpisPdf.msi` i `PodpisPdf.msi.sha256` w wydaniu; aktualizacja uruchamia msiexec); workflow publikuje tam z sekretem `TOKEN_WYDANIA`.
+  (wymaga `PodpisPdf.msi`, `PodpisPdf.msi.sha256` i `PodpisPdf.msi.sig` w wydaniu; aktualizacja uruchamia msiexec); workflow publikuje tam z sekretem `TOKEN_WYDANIA`.
+- Podpis aktualizacji (`PodpisPdf.Core/PodpisAktualizacji.cs`): ECDSA P-256 nad „wersja + plik + SHA-256”; program
+  ma wbudowane klucze publiczne (główny + zapasowy offline) i bez ważnego podpisu nie instaluje aktualizacji.
+  Klucz prywatny główny tylko w sekrecie środowiska `wydanie` — nigdy w repozytorium ani w rozmowie.
 - Menu Windows 11: pakiet `pakiet/AppxManifest.xml` (sparse, podpis sekretem `CERTYFIKAT_PFX`, CN=PodpisPdf) osadzany
   w programie, rejestrowany automatycznie przy starcie z zewnętrzną lokalizacją = folder programu; serwer COM `-Embedding` (`SerwerMenu.cs`). Okno WinUI **nie może** mieć tożsamości pakietu (nie znajduje
   wtedy zasobów) — dlatego `app.manifest` nie ma elementu `<msix>`, a serwer menu uruchamia program przez Eksplorator.
