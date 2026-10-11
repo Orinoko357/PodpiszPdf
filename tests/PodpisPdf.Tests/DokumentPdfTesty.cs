@@ -32,7 +32,9 @@ public class DokumentPdfTesty
         var pdf = Wizualizacja.PodgladPdf(dane);
         var obraz = DokumentPdf.Renderuj(pdf, 0, 2);
 
-        Assert.InRange(obraz.Szerokosc, (int)(Wizualizacja.SzerokoscPt * 2) - 1, (int)(Wizualizacja.SzerokoscPt * 2) + 1);
+        var rozmiar = Wizualizacja.Rozmiar(dane);
+        Assert.InRange(obraz.Szerokosc, (int)(rozmiar.Szerokosc * 2) - 1, (int)(rozmiar.Szerokosc * 2) + 1);
+        Assert.InRange(obraz.Wysokosc, (int)(rozmiar.Wysokosc * 2) - 1, (int)(rozmiar.Wysokosc * 2) + 1);
         Assert.Contains(obraz.Bgra.Where((_, i) => i % 4 == 0), b => b < 128);
     }
 }
@@ -107,9 +109,11 @@ public class SkalowanieWizualizacjiTesty
         var nazwa = su.GetSignatureNames()[0];
         Assert.True(su.ReadSignatureData(nazwa).VerifySignatureIntegrityAndAuthenticity());
         var rect = iText.Forms.PdfAcroForm.GetAcroForm(pdf, false).GetField(nazwa).GetWidgets()[0].GetRectangle().ToRectangle();
-        Assert.Equal(Wizualizacja.SzerokoscPt * skala, rect.GetWidth(), 0.01);
-        Assert.Equal(Wizualizacja.WysokoscPt * skala, rect.GetHeight(), 0.01);
-        Assert.Equal(Wizualizacja.Proporcje, rect.GetWidth() / rect.GetHeight(), 0.001);
+        var rozmiar = Wizualizacja.Rozmiar(new DaneWizualizacji(CertyfikatInfo.PobierzImieNazwisko(cert), "Kierownik",
+            PlikiTestowe.UtworzLogoPionowe(folder), DateTimeOffset.Now));
+        Assert.Equal(rozmiar.Szerokosc * skala, rect.GetWidth(), 0.01);
+        Assert.Equal(rozmiar.Wysokosc * skala, rect.GetHeight(), 0.01);
+        Assert.Equal(rozmiar.Proporcje, rect.GetWidth() / rect.GetHeight(), 0.001);
     }
 
     [Fact]
@@ -160,8 +164,9 @@ public class SkalowanieWizualizacjiTesty
     public void DopasowanieDoStronyUwzglednniaSkale()
     {
         var strona = new iText.Kernel.Geom.Rectangle(0, 0, 595, 842);
-        var (x, y) = Wizualizacja.DopasujDoStrony(strona, 590, 5, 2f);
-        Assert.Equal(595 - Wizualizacja.SzerokoscPt * 2, x, 0.01);
+        var rozmiar = new RozmiarWizualizacji(140, 50);
+        var (x, y) = Wizualizacja.DopasujDoStrony(strona, 590, 5, rozmiar, 2f);
+        Assert.Equal(595 - 140 * 2, x, 0.01);
         Assert.Equal(0, y, 0.01);
     }
 }
@@ -220,5 +225,52 @@ public class WspolbieznoscTesty
         Assert.Empty(bledy);
         Assert.ThrowsAny<Exception>(() => DokumentPdf.Renderuj(pdf, 99, 1)); // błąd wraca do wywołującego, wątek działa dalej
         Assert.True(DokumentPdf.Renderuj(pdf, 0, 0.2).Szerokosc > 0);
+    }
+}
+
+public class RozmiaryCzcionekTesty
+{
+    private sealed class Zbieracz : iText.Kernel.Pdf.Canvas.Parser.Listener.IEventListener
+    {
+        public List<(string Tekst, float Rozmiar, string Czcionka)> Fragmenty { get; } = new();
+
+        public void EventOccurred(iText.Kernel.Pdf.Canvas.Parser.Data.IEventData dane, iText.Kernel.Pdf.Canvas.Parser.EventType typ)
+        {
+            if (dane is iText.Kernel.Pdf.Canvas.Parser.Data.TextRenderInfo t)
+                Fragmenty.Add((t.GetText(), t.GetFontSize(), t.GetFont().GetFontProgram().GetFontNames().GetFontName()));
+        }
+
+        public ICollection<iText.Kernel.Pdf.Canvas.Parser.EventType> GetSupportedEvents() =>
+            new[] { iText.Kernel.Pdf.Canvas.Parser.EventType.RENDER_TEXT };
+    }
+
+    [Theory]
+    [InlineData(1f)]
+    [InlineData(2f)]
+    public void ImieINazwisko11ptNaglowekIData8pt(float skala)
+    {
+        var dane = new DaneWizualizacji("Anna Nowak", "Inspektor", null, DateTimeOffset.Now);
+        using var pdf = new iText.Kernel.Pdf.PdfDocument(new iText.Kernel.Pdf.PdfReader(new MemoryStream(Wizualizacja.PodgladPdf(dane, skala))));
+        var z = new Zbieracz();
+        new iText.Kernel.Pdf.Canvas.Parser.PdfCanvasProcessor(z).ProcessPageContent(pdf.GetPage(1));
+
+        float Rozmiar(string poczatek) => z.Fragmenty.First(f => f.Tekst.StartsWith(poczatek)).Rozmiar;
+        Assert.Equal(11 * skala, Rozmiar("Anna"), 0.01);
+        Assert.Equal(8 * skala, Rozmiar("Podpisano"), 0.01);
+        Assert.Equal(8 * skala, Rozmiar("Data"), 0.01);
+        Assert.InRange(Rozmiar("Inspektor"), 7 * skala - 0.01, 9 * skala + 0.01);
+        Assert.All(z.Fragmenty, f => Assert.Matches("Arial|LiberationSans", f.Czcionka));
+    }
+
+    [Fact]
+    public void DlugieStanowiskoZawijaSieIPoszerzaWizualizacje()
+    {
+        var krotkie = Wizualizacja.Rozmiar(new DaneWizualizacji("Anna Nowak", "Inspektor", null, DateTimeOffset.Now));
+        var dlugie = Wizualizacja.Rozmiar(new DaneWizualizacji("Anna Nowak",
+            "Zastępca Kierownika Wydziału Gospodarki Nieruchomościami i Geodezji Urzędu Miasta Wodzisławia Śląskiego", null, DateTimeOffset.Now));
+        Assert.True(dlugie.Wysokosc > krotkie.Wysokosc); // dwa wiersze stanowiska
+        Assert.True(dlugie.Szerokosc > krotkie.Szerokosc);
+        var bez = Wizualizacja.Rozmiar(new DaneWizualizacji("Anna Nowak", null, null, DateTimeOffset.Now));
+        Assert.True(bez.Wysokosc < krotkie.Wysokosc);
     }
 }

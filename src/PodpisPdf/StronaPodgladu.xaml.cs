@@ -21,9 +21,10 @@ internal sealed class ZadaniePodgladu
     private const int SkalaPodgladuWizualizacji = 8;
 
     private ZadaniePodgladu(string plik, byte[] pdf, IReadOnlyList<StronaPdf> strony, ObrazStrony wizualizacja,
-        PolozenieWizualizacji polozenie, float skala)
+        RozmiarWizualizacji rozmiar, PolozenieWizualizacji polozenie, float skala)
     {
         Plik = plik;
+        Rozmiar = rozmiar;
         Pdf = pdf;
         Strony = strony;
         Wizualizacja = wizualizacja;
@@ -35,6 +36,8 @@ internal sealed class ZadaniePodgladu
     public byte[] Pdf { get; }
     public IReadOnlyList<StronaPdf> Strony { get; }
     public ObrazStrony Wizualizacja { get; }
+    /// <summary>Rozmiar wizualizacji przy skali 1 (wynika z treści).</summary>
+    public RozmiarWizualizacji Rozmiar { get; }
     public PolozenieWizualizacji Polozenie { get; }
     public float Skala { get; }
 
@@ -51,7 +54,7 @@ internal sealed class ZadaniePodgladu
         if (strony.Count == 0)
             throw new BladPodpisu("Dokument PDF nie ma żadnej strony.");
         var wizualizacja = DokumentPdf.Renderuj(Core.Wizualizacja.PodgladPdf(dane), 0, SkalaPodgladuWizualizacji, bialeTlo: false);
-        return new ZadaniePodgladu(plik, pdf, strony, wizualizacja, polozenie, skala) { TrybRysowania = trybRysowania };
+        return new ZadaniePodgladu(plik, pdf, strony, wizualizacja, Core.Wizualizacja.Rozmiar(dane), polozenie, skala) { TrybRysowania = trybRysowania };
     }
 }
 
@@ -96,7 +99,7 @@ internal sealed partial class PowierzchniaPodgladu : Grid
 /// <summary>
 /// Podgląd wszystkich stron dokumentu. Kliknięcie umieszcza wizualizację podpisu, przeciągnięcie (w trybie
 /// rysowania) rysuje ją w wybranym rozmiarze, a uchwyty i przeciąganie podpisu pozwalają go poprawić.
-/// Proporcje są zawsze stałe (85 : 25).
+/// Proporcje są zawsze stałe (wynikają z treści wizualizacji).
 /// </summary>
 public sealed partial class StronaPodgladu : Page
 {
@@ -274,13 +277,13 @@ public sealed partial class StronaPodgladu : Page
             return null;
         try
         {
-            var r = Wizualizacja.ObliczProstokat(strona.Prostokat, p, _skalaPodpisu);
+            var r = Wizualizacja.ObliczProstokat(strona.Prostokat, p, Rozmiar, _skalaPodpisu);
             return new MiejscePodpisu(numer, r.GetX(), r.GetY(), _skalaPodpisu);
         }
         catch (BladPodpisu)
         {
             // Położenie z ustawień nie mieści się na tej stronie — użytkownik wskaże je kliknięciem.
-            var (x, y) = Wizualizacja.DopasujDoStrony(strona.Prostokat, strona.Prawo, strona.Dol, _skalaPodpisu);
+            var (x, y) = Wizualizacja.DopasujDoStrony(strona.Prostokat, strona.Prawo, strona.Dol, Rozmiar, _skalaPodpisu);
             return new MiejscePodpisu(numer, x, y, _skalaPodpisu);
         }
     }
@@ -463,8 +466,10 @@ public sealed partial class StronaPodgladu : Page
         PrzyciskPodpisz.IsEnabled = _miejsce != null;
     }
 
-    private static string OpisRozmiaru(float skala) =>
-        $"{Wizualizacja.SzerokoscMm * skala:0} × {Wizualizacja.WysokoscMm * skala:0} mm";
+    private string OpisRozmiaru(float skala) =>
+        $"{Rozmiar.SzerokoscMm * skala:0} × {Rozmiar.WysokoscMm * skala:0} mm (imię i nazwisko {11 * skala:0.#} pt)";
+
+    private RozmiarWizualizacji Rozmiar => _zadanie.Rozmiar;
 
     // ---- Obrazy stron (renderowane w tle, tylko widoczne) ----
 
@@ -566,8 +571,8 @@ public sealed partial class StronaPodgladu : Page
     {
         var s = _strony[m.NumerStrony - 1];
         var r = _uklad[m.NumerStrony - 1];
-        var w = Wizualizacja.SzerokoscPt * m.Skala;
-        var h = Wizualizacja.WysokoscPt * m.Skala;
+        var w = Rozmiar.Szerokosc * m.Skala;
+        var h = Rozmiar.Wysokosc * m.Skala;
         var lewo = r.X + (m.X - s.Lewo) * _skala;
         var gora = r.Y + (s.Gora - (m.Y + h)) * _skala;
         return new Rect(lewo, gora, w * _skala, h * _skala);
@@ -591,7 +596,7 @@ public sealed partial class StronaPodgladu : Page
         if (indeks < 0 || _strony[indeks].Obrot != 0)
             return null;
         var (srodekX, srodekY) = PunktPdf(indeks, p);
-        var (x, y) = Wizualizacja.DopasujDoStrony(_strony[indeks].Prostokat, srodekX, srodekY, _skalaPodpisu);
+        var (x, y) = Wizualizacja.DopasujDoStrony(_strony[indeks].Prostokat, srodekX, srodekY, Rozmiar, _skalaPodpisu);
         return new MiejscePodpisu(indeks + 1, x, y, _skalaPodpisu);
     }
 
@@ -606,8 +611,8 @@ public sealed partial class StronaPodgladu : Page
         cx = Math.Clamp(cx, s.Lewo, s.Prawo);
         cy = Math.Clamp(cy, s.Dol, s.Gora);
         float dx = cx - ax, dy = cy - ay;
-        var proporcje = Wizualizacja.Proporcje;
-        var bazowa = Wizualizacja.SzerokoscPt;
+        var proporcje = Rozmiar.Proporcje;
+        var bazowa = Rozmiar.Szerokosc;
 
         var w = Math.Max(Math.Abs(dx), Math.Abs(dy) * proporcje);
         var dostepnaX = dx >= 0 ? s.Prawo - ax : ax - s.Lewo;
@@ -620,7 +625,7 @@ public sealed partial class StronaPodgladu : Page
         var y = dy >= 0 ? ay : ay - h;
         var skala = w / bazowa;
         // Przy krawędzi strony minimalny rozmiar może nie zmieścić się od punktu zaczepienia — dosuwamy.
-        (x, y) = Wizualizacja.DopasujDoStrony(s.Prostokat, x + w / 2, y + h / 2, skala);
+        (x, y) = Wizualizacja.DopasujDoStrony(s.Prostokat, x + w / 2, y + h / 2, Rozmiar, skala);
         return new MiejscePodpisu(indeks + 1, x, y, skala);
     }
 
@@ -628,8 +633,8 @@ public sealed partial class StronaPodgladu : Page
     private IEnumerable<(Point Srodek, float AX, float AY, InputSystemCursorShape Kursor)> Uchwyty(MiejscePodpisu m)
     {
         var r = ProstokatNaEkranie(m);
-        var w = Wizualizacja.SzerokoscPt * m.Skala;
-        var h = Wizualizacja.WysokoscPt * m.Skala;
+        var w = Rozmiar.Szerokosc * m.Skala;
+        var h = Rozmiar.Wysokosc * m.Skala;
         yield return (new Point(r.Left, r.Top), m.X + w, m.Y, InputSystemCursorShape.SizeNorthwestSoutheast);      // lewy górny → zaczep prawy dolny
         yield return (new Point(r.Right, r.Top), m.X, m.Y, InputSystemCursorShape.SizeNortheastSouthwest);         // prawy górny → lewy dolny
         yield return (new Point(r.Left, r.Bottom), m.X + w, m.Y + h, InputSystemCursorShape.SizeNortheastSouthwest); // lewy dolny → prawy górny
@@ -709,9 +714,9 @@ public sealed partial class StronaPodgladu : Page
             else if (_miejsce != null)
             {
                 var (px, py) = PunktPdf(d.Indeks, p);
-                var w = Wizualizacja.SzerokoscPt * _miejsce.Skala;
-                var h = Wizualizacja.WysokoscPt * _miejsce.Skala;
-                var (nx, ny) = Wizualizacja.DopasujDoStrony(_strony[d.Indeks].Prostokat, px - d.X + w / 2, py - d.Y + h / 2, _miejsce.Skala);
+                var w = Rozmiar.Szerokosc * _miejsce.Skala;
+                var h = Rozmiar.Wysokosc * _miejsce.Skala;
+                var (nx, ny) = Wizualizacja.DopasujDoStrony(_strony[d.Indeks].Prostokat, px - d.X + w / 2, py - d.Y + h / 2, Rozmiar, _miejsce.Skala);
                 _rysowane = _miejsce with { X = nx, Y = ny };
             }
             OdswiezNakladki();

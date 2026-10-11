@@ -31,13 +31,16 @@ internal sealed class Ustawienia
 
     public PolozenieWizualizacji Polozenie { get; set; } = new();
 
-    /// <summary>Rozmiar podpisu ostatnio narysowany na podglądzie (1 = 85 × 25 mm).</summary>
+    /// <summary>Rozmiar podpisu ostatnio narysowany na podglądzie (1 = imię i nazwisko 11 pt).</summary>
     public float SkalaPodpisu { get; set; } = 1f;
     public string Przyrostek { get; set; } = DomyslnyPrzyrostek;
     public bool PoziomLT { get; set; }
 
     /// <summary>Minimalizacja chowa okno do zasobnika systemowego (obok zegara).</summary>
     public bool MinimalizujDoZasobnika { get; set; } = true;
+
+    /// <summary>Po udanym podpisie okno od razu się minimalizuje, bez okienka z podsumowaniem.</summary>
+    public bool MinimalizujPoPodpisie { get; set; }
 
     /// <summary>Uruchamianie przy logowaniu do Windows (z kopii programu w %APPDATA%\PodpisPdf).</summary>
     public bool Autostart { get; set; }
@@ -59,8 +62,11 @@ internal sealed class Ustawienia
 
     public DateTimeOffset? OstatnieSprawdzenieAktualizacji { get; set; }
 
-    /// <summary>Pozycja w nowym menu kontekstowym Windows 11 (pakiet z tożsamością).</summary>
-    public bool MenuWindows11 { get; set; }
+    /// <summary>
+    /// Pozycja w nowym menu kontekstowym Windows 11 (pakiet z tożsamością). Od wersji 3.1 domyślnie włączona —
+    /// instalator MSI dodaje certyfikat pakietu do zaufanych.
+    /// </summary>
+    public bool PozycjaMenuWindows11 { get; set; } = true;
 
     public static string Folder =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PodpisPdf");

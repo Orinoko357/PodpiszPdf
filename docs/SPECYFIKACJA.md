@@ -60,17 +60,17 @@ Opcjonalnie, do decyzji: poziom **B-LT**, czyli dołączenie do pliku danych OCS
 
 ## 5. Wizualizacja podpisu
 
-Prostokąt o stałych proporcjach (podstawowo 85 × 25 mm; na podglądzie można go narysować myszą w rozmiarze 0,6–3×, treść skaluje się proporcjonalnie), bez ramki i z przezroczystym tłem, w miejscu wskazanym kliknięciem na podglądzie. Zawiera:
+Tekst czcionką Arial: imię i nazwisko 11 pt, nagłówek i data 8 pt, stanowisko 7–9 pt (dopasowane do szerokości pozostałych wierszy). Rozmiar prostokąta wynika z treści; na podglądzie można go narysować myszą w skali 0,6–3× (treść skaluje się proporcjonalnie, proporcje stałe), bez ramki i z przezroczystym tłem, w miejscu wskazanym kliknięciem na podglądzie. Zawiera:
 
 | Element | Źródło | Obowiązkowy |
 |---|---|---|
 | **Nagłówek „Podpisano elektronicznie przez:”** | Stały tekst na samej górze, przed imieniem i nazwiskiem | tak |
 | **Imię i nazwisko** (zawsze pogrubione) | Z certyfikatu (pola *GivenName* i *Surname*; jeśli ich brak, pole *CN*) | tak |
-| **Stanowisko** | Wpisane w ustawieniach programu; Enter wymusza podział wiersza, bez tego zawija się samo do dwóch wierszy | nie |
+| **Stanowisko** | Wpisane w ustawieniach programu; Enter wymusza podział wiersza, bez tego zawija się samo do dwóch wierszy (gdy i to za mało — prostokąt się poszerza) | nie |
 | **Logo** | Plik SVG lub PDF (wektorowe) albo PNG/JPG wskazany w ustawieniach; kopia zapisywana w folderze ustawień; grafika wektorowa pozostaje wektorowa, rastrowa w oryginalnej rozdzielczości; puste marginesy pomijane | nie |
 | **Data i godzina** | Czas złożenia podpisu bez sekund (RRRR-MM-DD GG:MM), patrz uwaga niżej | tak |
 
-Pusty element (np. brak logo) znika, a układ dopasowuje się do reszty. Czcionka obsługuje polskie znaki.
+Pusty element (np. brak logo) znika, a prostokąt dopasowuje się do reszty. Czcionka obsługuje polskie znaki (gdy w systemie brak Ariala — metrycznie zgodna Liberation Sans).
 
 > **Uwaga o dacie:** wizualizacja jest częścią podpisywanych danych, a znacznik czasu powstaje dopiero po złożeniu podpisu. Dlatego na wizualizacji nie da się pokazać czasu identycznego z czasem znacznika. Proponowane rozwiązanie: tuż przed podpisem aplikacja pobiera aktualny czas z serwera znacznika czasu i to on trafia na wizualizację (jeśli serwer nie odpowie, używa zegara komputera). Różnica względem właściwego znacznika to zwykle kilka sekund, tyle ile trwa wpisanie PIN-u. Wiążący czas zawsze zawiera znacznik czasu w podpisie.
 

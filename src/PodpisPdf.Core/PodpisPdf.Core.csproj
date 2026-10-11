@@ -18,8 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Zasoby\DejaVuSans.ttf" LogicalName="PodpisPdf.Core.DejaVuSans.ttf" />
-    <EmbeddedResource Include="Zasoby\DejaVuSans-Bold.ttf" LogicalName="PodpisPdf.Core.DejaVuSans-Bold.ttf" />
+    <EmbeddedResource Include="Zasoby\LiberationSans-Regular.ttf" LogicalName="PodpisPdf.Core.LiberationSans-Regular.ttf" />
+    <EmbeddedResource Include="Zasoby\LiberationSans-Bold.ttf" LogicalName="PodpisPdf.Core.LiberationSans-Bold.ttf" />
   </ItemGroup>
 
   <ItemGroup>
