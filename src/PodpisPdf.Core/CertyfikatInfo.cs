@@ -36,14 +36,25 @@ public sealed class CertyfikatInfo
     /// Czy certyfikat nadaje się do podpisu: ma klucz prywatny, jest ważny w podanej chwili
     /// i ma użycie klucza nonRepudiation.
     /// </summary>
-    public static bool CzyNadajeSieDoPodpisu(X509Certificate2 cert, DateTime chwila)
+    public static bool CzyNadajeSieDoPodpisu(X509Certificate2 cert, DateTime chwila) =>
+        cert.HasPrivateKey && PowodNiewaznosci(cert, chwila) == null;
+
+    /// <summary>
+    /// Dlaczego certyfikatem nie można podpisać w podanej chwili (komunikat dla użytkownika), albo null,
+    /// gdy jest ważny i ma użycie klucza nonRepudiation. Sprawdzane także tuż przed podpisem — program
+    /// działa w zasobniku tygodniami, a lista certyfikatów powstaje przy starcie.
+    /// </summary>
+    public static string? PowodNiewaznosci(X509Certificate2 cert, DateTime chwila)
     {
-        if (!cert.HasPrivateKey)
-            return false;
-        if (chwila < cert.NotBefore || chwila > cert.NotAfter)
-            return false;
+        if (chwila < cert.NotBefore)
+            return $"Wybrany certyfikat jest jeszcze nieważny (ważny od {cert.NotBefore:yyyy-MM-dd HH:mm}). Sprawdź zegar komputera albo wybierz inny certyfikat.";
+        if (chwila > cert.NotAfter)
+            return $"Wybrany certyfikat wygasł {cert.NotAfter:yyyy-MM-dd HH:mm}. Wybierz inny, ważny certyfikat.";
         var uzycie = cert.Extensions.OfType<X509KeyUsageExtension>().FirstOrDefault();
-        return uzycie != null && uzycie.KeyUsages.HasFlag(X509KeyUsageFlags.NonRepudiation);
+        if (uzycie == null || !uzycie.KeyUsages.HasFlag(X509KeyUsageFlags.NonRepudiation))
+            return "Wybrany certyfikat nie służy do podpisu elektronicznego (brak użycia klucza „niezaprzeczalność”). " +
+                   "Wybierz certyfikat do podpisu kwalifikowanego.";
+        return null;
     }
 
     /// <summary>Czy certyfikat zawiera deklarację QcCompliance (rozszerzenie qcStatements).</summary>
@@ -74,10 +85,8 @@ public sealed class CertyfikatInfo
     public static string PobierzImieNazwisko(X509Certificate2 cert)
     {
         string? imie = null, nazwisko = null, cn = null;
-        foreach (var rdn in cert.SubjectName.EnumerateRelativeDistinguishedNames())
+        foreach (var (oid, wartosc) in Atrybuty(cert.SubjectName))
         {
-            var oid = rdn.GetSingleElementType().Value;
-            var wartosc = rdn.GetSingleElementValue();
             switch (oid)
             {
                 case OidGivenName: imie ??= wartosc; break;
@@ -91,13 +100,55 @@ public sealed class CertyfikatInfo
         return cn ?? cert.Subject;
     }
 
-    private static string? PobierzCommonName(X500DistinguishedName nazwa)
+    private static string? PobierzCommonName(X500DistinguishedName nazwa) =>
+        Atrybuty(nazwa).FirstOrDefault(a => a.Oid == OidCommonName).Wartosc;
+
+    /// <summary>
+    /// Wszystkie atrybuty nazwy, także z RDN wielowartościowych (np. „CN=… + SERIALNUMBER=…”), dla których
+    /// <see cref="X500RelativeDistinguishedName.GetSingleElementType"/> rzuca wyjątek.
+    /// Atrybuty o wartości innej niż tekst są pomijane.
+    /// </summary>
+    internal static IEnumerable<(string Oid, string? Wartosc)> Atrybuty(X500DistinguishedName nazwa)
     {
         foreach (var rdn in nazwa.EnumerateRelativeDistinguishedNames())
         {
-            if (rdn.GetSingleElementType().Value == OidCommonName)
-                return rdn.GetSingleElementValue();
+            if (!rdn.HasMultipleElements)
+            {
+                yield return (rdn.GetSingleElementType().Value!, rdn.GetSingleElementValue());
+                continue;
+            }
+
+            var elementy = new List<(string, string?)>();
+            try
+            {
+                // RelativeDistinguishedName ::= SET OF AttributeTypeAndValue { type OID, value ANY }
+                var zbior = new AsnReader(rdn.RawData, AsnEncodingRules.DER).ReadSetOf(skipSortOrderValidation: true);
+                while (zbior.HasData)
+                {
+                    var atrybut = zbior.ReadSequence();
+                    var oid = atrybut.ReadObjectIdentifier();
+                    var znacznik = atrybut.PeekTag();
+                    string? wartosc = null;
+                    if (znacznik.TagClass == TagClass.Universal)
+                    {
+                        try
+                        {
+                            wartosc = atrybut.ReadCharacterString((UniversalTagNumber)znacznik.TagValue);
+                        }
+                        catch (Exception e) when (e is AsnContentException or ArgumentException)
+                        {
+                            // Wartość nietekstowa — pomijamy.
+                        }
+                    }
+                    elementy.Add((oid, wartosc));
+                }
+            }
+            catch (AsnContentException)
+            {
+                // Uszkodzony RDN — zwracamy to, co udało się odczytać.
+            }
+            foreach (var element in elementy)
+                yield return element;
         }
-        return null;
     }
 }

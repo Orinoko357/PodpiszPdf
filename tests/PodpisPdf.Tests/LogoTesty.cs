@@ -48,7 +48,7 @@ public class LogoTesty
         var xobjects = formularz.GetResources().GetResource(PdfName.XObject);
         var wewnetrzny = Assert.IsType<PdfStream>(xobjects.Get(xobjects.KeySet().Single()));
         Assert.Equal(200, wewnetrzny.GetAsNumber(PdfName.Width).IntValue()); // pełna rozdzielczość
-        Assert.Equal(PdfBoolean.TRUE, wewnetrzny.GetAsBoolean(PdfName.Interpolate));
+        Assert.False(wewnetrzny.ContainsKey(PdfName.Interpolate)); // zabronione w PDF/A
     }
 }
 

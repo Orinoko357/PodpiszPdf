@@ -3,7 +3,9 @@ using iText.Kernel.Geom;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas;
 using iText.Kernel.Pdf.Xobject;
+using iText.StyledXmlParser.Resolver.Resource;
 using iText.Svg.Converter;
+using iText.Svg.Processors.Impl;
 
 namespace PodpisPdf.Core;
 
@@ -38,28 +40,33 @@ internal static class Logo
     }
 
     /// <summary>Wczytuje logo z pliku i przygotowuje je do wizualizacji.</summary>
-    public static (PdfXObject Obraz, float Proporcje) Wczytaj(string sciezka)
+    /// <param name="bezPrzezroczystosci">
+    /// Dla dokumentów PDF/A-1, które nie dopuszczają przezroczystości: logo rastrowe trafia na białe tło,
+    /// a logo wektorowe z elementami przezroczystymi jest odrzucane.
+    /// </param>
+    public static (PdfXObject Obraz, float Proporcje) Wczytaj(string sciezka, bool bezPrzezroczystosci = false)
     {
         var dane = File.ReadAllBytes(sciezka);
+        var nazwa = bezPrzezroczystosci ? System.IO.Path.GetFileName(sciezka) : null;
         switch (System.IO.Path.GetExtension(sciezka).ToLowerInvariant())
         {
             case ".svg":
-                return ZWektora(SvgDoPdf(dane));
+                return ZWektora(SvgDoPdf(dane), nazwa);
             case ".pdf":
-                return ZWektora(dane);
+                return ZWektora(dane, nazwa);
             default:
                 var obraz = ImageDataFactory.Create(dane);
                 if (obraz.GetWidth() <= 0 || obraz.GetHeight() <= 0)
                     throw new InvalidDataException("obraz o zerowym rozmiarze");
-                return Przygotuj(obraz);
+                return Przygotuj(obraz, bezPrzezroczystosci);
         }
     }
 
     /// <summary>Logo rastrowe.</summary>
-    public static (PdfXObject Obraz, float Proporcje) Przygotuj(ImageData dane)
+    public static (PdfXObject Obraz, float Proporcje) Przygotuj(ImageData dane, bool bezPrzezroczystosci = false)
     {
+        // Bez /Interpolate: PDF/A go zabrania.
         var obraz = new PdfImageXObject(dane);
-        obraz.Put(PdfName.Interpolate, PdfBoolean.TRUE);
         float w = dane.GetWidth(), h = dane.GetHeight();
 
         byte[] pdf;
@@ -73,36 +80,151 @@ internal static class Logo
             pdf = ms.ToArray();
         }
 
+        if (bezPrzezroczystosci && (obraz.GetPdfObject().ContainsKey(PdfName.SMask) || obraz.GetPdfObject().ContainsKey(PdfName.Mask)))
+            obraz = NaBialymTle(pdf, (int)w, (int)h);
+
         // Obraz rysowany jest w kwadracie jednostkowym, więc macierz musi go rozciągnąć do w × h.
         return Przytnij(obraz, w, h, ZnajdzTresc(pdf), skalujDoRozmiaru: true);
     }
 
+    /// <summary>
+    /// Obraz z przezroczystością nałożony na białe tło, w tej samej rozdzielczości (strona ma w × h punktów,
+    /// więc w skali 1 piksel obrazu to piksel wyniku).
+    /// </summary>
+    private static PdfImageXObject NaBialymTle(byte[] pdf, int w, int h)
+    {
+        var obraz = DokumentPdf.Renderuj(pdf, 0, 1);
+        if (obraz.Szerokosc != w || obraz.Wysokosc != h)
+            throw new InvalidDataException("nieoczekiwany rozmiar obrazu na białym tle");
+        var rgb = new byte[w * h * 3];
+        for (int i = 0, j = 0; i < obraz.Bgra.Length; i += 4, j += 3)
+        {
+            rgb[j] = obraz.Bgra[i + 2];
+            rgb[j + 1] = obraz.Bgra[i + 1];
+            rgb[j + 2] = obraz.Bgra[i];
+        }
+        return new PdfImageXObject(ImageDataFactory.Create(w, h, 3, 8, rgb, null));
+    }
+
     /// <summary>Logo wektorowe z pierwszej strony dokumentu PDF.</summary>
-    private static (PdfXObject Obraz, float Proporcje) ZWektora(byte[] pdf)
+    /// <param name="plikBezPrzezroczystosci">Nazwa pliku logo, gdy dokument nie dopuszcza przezroczystości (PDF/A-1).</param>
+    private static (PdfXObject Obraz, float Proporcje) ZWektora(byte[] pdf, string? plikBezPrzezroczystosci = null)
     {
         using var dokument = new PdfDocument(new PdfReader(new MemoryStream(pdf)));
         if (dokument.GetNumberOfPages() < 1)
             throw new InvalidDataException("plik logo nie ma żadnej strony");
         var strona = dokument.GetPage(1);
-        var c = strona.GetCropBox();
+        var c = DokumentPdf.ObszarStrony(strona);
 
-        // Formularz (XObject) niezależny od dokumentu źródłowego: treść strony i kopia jej zasobów.
-        // Dzięki temu można go użyć w dowolnym dokumencie, który dopiero powstanie przy podpisie.
-        var formularz = new PdfFormXObject(new Rectangle(c.GetLeft(), c.GetBottom(), c.GetWidth(), c.GetHeight()));
-        formularz.GetPdfObject().SetData(strona.GetContentBytes());
-        formularz.GetPdfObject().Put(PdfName.Matrix, new PdfArray(new float[] { 1, 0, 0, 1, -c.GetLeft(), -c.GetBottom() }));
-        var zasoby = strona.GetPdfObject().GetAsDictionary(PdfName.Resources);
-        if (zasoby != null)
+        // Strona obrócona (/Rotate): treść obracamy macierzą tak, jak pokazuje ją przeglądarka (i PDFium
+        // przy wyszukiwaniu treści), a formularz ma wymiary strony po obrocie.
+        float l = c.GetLeft(), b = c.GetBottom(), r = c.GetRight(), t = c.GetTop();
+        var (macierz, w, h) = (((strona.GetRotation() % 360) + 360) % 360) switch
+        {
+            90 => (new[] { 0, -1, 1, 0, -b, r }, c.GetHeight(), c.GetWidth()),
+            180 => (new[] { -1, 0, 0, -1, r, t }, c.GetWidth(), c.GetHeight()),
+            270 => (new[] { 0, 1, -1, 0, t, -l }, c.GetHeight(), c.GetWidth()),
+            _ => (new[] { 1, 0, 0, 1, -l, -b }, c.GetWidth(), c.GetHeight()),
+        };
+
+        // Formularz (XObject) niezależny od dokumentu źródłowego: treść strony i kopia jej zasobów
+        // (także dziedziczonych z węzła /Pages). Dzięki temu można go użyć w dowolnym dokumencie,
+        // który dopiero powstanie przy podpisie.
+        var formularz = new PdfFormXObject(new Rectangle(0, 0, w, h));
+        using (var tresc = new MemoryStream())
+        {
+            tresc.Write(System.Text.Encoding.ASCII.GetBytes(FormattableString.Invariant(
+                $"q {macierz[0]} {macierz[1]} {macierz[2]} {macierz[3]} {macierz[4]} {macierz[5]} cm\n")));
+            tresc.Write(strona.GetContentBytes());
+            tresc.Write("\nQ"u8);
+            formularz.GetPdfObject().SetData(tresc.ToArray());
+        }
+        var zasoby = strona.GetResources().GetPdfObject();
+        if (plikBezPrzezroczystosci != null && MaPrzezroczystosc(zasoby, new HashSet<PdfObject>(ReferenceEqualityComparer.Instance)))
+        {
+            throw new BladPodpisu(
+                $"Dokument jest w formacie PDF/A-1, który nie dopuszcza przezroczystości, a logo ({plikBezPrzezroczystosci}) " +
+                "zawiera elementy przezroczyste. Użyj logo bez przezroczystości (np. PNG lub JPG — zostanie nałożone na białe tło) " +
+                "albo podpisz dokument bez logo.");
+        }
+        if (zasoby.Size() > 0)
             formularz.GetPdfObject().Put(PdfName.Resources, Odlacz(zasoby, new Dictionary<PdfObject, PdfObject>(ReferenceEqualityComparer.Instance)));
 
-        return Przytnij(formularz, c.GetWidth(), c.GetHeight(), ZnajdzTresc(pdf), skalujDoRozmiaru: false);
+        return Przytnij(formularz, w, h, ZnajdzTresc(pdf), skalujDoRozmiaru: false);
     }
+
+    /// <summary>
+    /// Czy zasoby (rekurencyjnie: formularze, wzorce, czcionki Type 3) zawierają przezroczystość niedozwoloną
+    /// w PDF/A-1: krycie poniżej 1, maskę miękką, tryb mieszania inny niż Normal lub grupę przezroczystości.
+    /// </summary>
+    private static bool MaPrzezroczystosc(PdfDictionary? zasoby, HashSet<PdfObject> odwiedzone)
+    {
+        if (zasoby == null || !odwiedzone.Add(zasoby))
+            return false;
+
+        if (Wartosci(zasoby.GetAsDictionary(PdfName.ExtGState)).Any(StanPrzezroczysty))
+            return true;
+
+        foreach (var obiekt in Wartosci(zasoby.GetAsDictionary(PdfName.XObject)))
+        {
+            if (obiekt.ContainsKey(PdfName.SMask) || obiekt.GetAsNumber(PdfName.SMaskInData) is { } sm && sm.IntValue() != 0)
+                return true;
+            if (obiekt.GetAsDictionary(PdfName.Group) is { } grupa && PdfName.Transparency.Equals(grupa.GetAsName(PdfName.S)))
+                return true;
+            if (MaPrzezroczystosc(obiekt.GetAsDictionary(PdfName.Resources), odwiedzone))
+                return true;
+        }
+
+        foreach (var wzorzec in Wartosci(zasoby.GetAsDictionary(PdfName.Pattern)))
+        {
+            if (wzorzec.GetAsDictionary(PdfName.ExtGState) is { } stan && StanPrzezroczysty(stan))
+                return true;
+            if (MaPrzezroczystosc(wzorzec.GetAsDictionary(PdfName.Resources), odwiedzone))
+                return true;
+        }
+
+        return Wartosci(zasoby.GetAsDictionary(PdfName.Font))
+            .Any(czcionka => MaPrzezroczystosc(czcionka.GetAsDictionary(PdfName.Resources), odwiedzone));
+    }
+
+    private static bool StanPrzezroczysty(PdfDictionary stan)
+    {
+        if (stan.GetAsNumber(PdfName.CA) is { } ca && ca.FloatValue() < 1 || stan.GetAsNumber(PdfName.ca) is { } cf && cf.FloatValue() < 1)
+            return true;
+        var maska = stan.Get(PdfName.SMask);
+        if (maska != null && !PdfName.None.Equals(maska))
+            return true;
+        var tryb = stan.Get(PdfName.BM);
+        if (tryb is PdfArray tablica && tablica.Size() > 0)
+            tryb = tablica.Get(0);
+        return tryb != null && !PdfName.Normal.Equals(tryb) && !PdfName.Compatible.Equals(tryb);
+    }
+
+    /// <summary>Wartości słownika zasobów będące słownikami lub strumieniami (GetAsDictionary pomija strumienie).</summary>
+    private static IEnumerable<PdfDictionary> Wartosci(PdfDictionary? slownik) =>
+        slownik == null
+            ? Enumerable.Empty<PdfDictionary>()
+            : slownik.KeySet().Select(k => slownik.Get(k)).OfType<PdfDictionary>();
 
     private static byte[] SvgDoPdf(byte[] svg)
     {
         using var wynik = new MemoryStream();
-        SvgConverter.CreatePdf(new MemoryStream(svg), wynik);
+        // Bez pobierania zasobów z sieci i plików: adres \\serwer\udział wysłałby skrót hasła Windows (NTLM).
+        var wlasciwosci = new SvgConverterProperties().SetResourceRetriever(new TylkoZasobyOsadzone());
+        SvgConverter.CreatePdf(new MemoryStream(svg), wynik, wlasciwosci);
         return wynik.ToArray();
+    }
+
+    /// <summary>
+    /// Odmawia pobrania każdego zasobu zewnętrznego (http, https, file, UNC). Obrazy osadzone
+    /// (<c>data:</c>) iText dekoduje sam, bez udziału tej klasy.
+    /// </summary>
+#pragma warning disable CS0618 // SvgConverterProperties w iText 9.3 przyjmuje tylko ten (przestarzały) interfejs.
+    private sealed class TylkoZasobyOsadzone : IResourceRetriever
+#pragma warning restore CS0618
+    {
+        public Stream? GetInputStreamByUrl(Uri url) => null;
+        public byte[]? GetByteArrayByUrl(Uri url) => null;
     }
 
     /// <summary>
@@ -195,7 +317,7 @@ internal static class Logo
         {
             using (var dokument = new PdfDocument(new PdfReader(new MemoryStream(pdf))))
             {
-                var c = dokument.GetPage(1).GetCropBox();
+                var c = DokumentPdf.ObszarStrony(dokument.GetPage(1));
                 obraz = DokumentPdf.Renderuj(pdf, 0, RozdzielczoscAnalizy / Math.Max(c.GetWidth(), c.GetHeight()));
             }
         }
