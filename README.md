@@ -143,7 +143,7 @@ Program jest dostarczany „tak jak jest”, bez żadnej gwarancji (zob. punkty 
 ### Biblioteki i zasoby
 
 - iText 9 — AGPL-3.0 (stąd licencja całego programu).
-- PDFium (BSD/Apache 2.0, biblioteka z pakietu Docnet.Core, MIT) — podgląd stron.
+- PDFium (BSD/Apache 2.0, kompilacje bblanchon/pdfium-binaries, pakiety bblanchon.PDFium.*, Apache 2.0) — podgląd stron.
 - Windows App SDK / WinUI 3, Windows Community Toolkit, H.NotifyIcon — MIT.
 - Czcionka Arial z systemu Windows; gdy jej brak — wbudowana Liberation Sans (metrycznie zgodna z Arialem), licencja SIL OFL 1.1, zob. `src/PodpisPdf.Core/Zasoby/LiberationSans-LICENSE.txt`.
 

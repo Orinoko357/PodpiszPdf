@@ -8,8 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Tylko biblioteka natywna PDFium (wywołania w DokumentPdf.Pdfium). -->
-    <PackageReference Include="Docnet.Core" Version="2.6.0" />
+    <!-- Biblioteka natywna PDFium (wywołania w DokumentPdf.Pdfium): pdfium.dll dla Windows (program)
+         i libpdfium.so dla Linuksa (testy), kompilacje bblanchon/pdfium-binaries. -->
+    <PackageReference Include="bblanchon.PDFium.Win32" Version="157.0.8086" />
+    <PackageReference Include="bblanchon.PDFium.Linux" Version="157.0.8086" />
     <PackageReference Include="itext" Version="9.3.0" />
     <PackageReference Include="itext.bouncy-castle-adapter" Version="9.3.0" />
     <!-- iText 9.3 → Microsoft.Extensions.DependencyModel 1.1.0 ciągnie Newtonsoft.Json 9.0.1 (podatność

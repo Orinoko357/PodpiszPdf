@@ -101,7 +101,7 @@ public static class DokumentPdf
     }
 
     /// <summary>
-    /// Bezpośrednie wywołania PDFium (biblioteka natywna z pakietu Docnet.Core). Bez warstwy Docnet: do
+    /// Bezpośrednie wywołania PDFium (biblioteka natywna z pakietów bblanchon.PDFium). Wcześniejsza warstwa Docnet do
     /// rysowania pól formularza (m.in. wizualizacji podpisów) przekazywała do PDFium tymczasową kopię
     /// struktury FPDF_FORMFILLINFO, do której PDFium sięgało po jej zwolnieniu (awarie 0xC0000005 przy
     /// zamykaniu dokumentu). Tu struktura leży w pamięci natywnej do końca pracy z dokumentem.
@@ -186,7 +186,7 @@ public static class DokumentPdf
         [DllImport(Biblioteka)] private static extern double FPDF_GetPageHeight(IntPtr strona);
         [DllImport(Biblioteka)] private static extern IntPtr FPDFBitmap_Create(int szerokosc, int wysokosc, int alfa);
         [DllImport(Biblioteka)] private static extern void FPDFBitmap_Destroy(IntPtr bitmapa);
-        [DllImport(Biblioteka)] private static extern void FPDFBitmap_FillRect(IntPtr bitmapa, int x, int y, int szerokosc, int wysokosc, uint kolor);
+        [DllImport(Biblioteka)] private static extern int FPDFBitmap_FillRect(IntPtr bitmapa, int x, int y, int szerokosc, int wysokosc, uint kolor);
         [DllImport(Biblioteka)] private static extern IntPtr FPDFBitmap_GetBuffer(IntPtr bitmapa);
         [DllImport(Biblioteka)] private static extern int FPDFBitmap_GetStride(IntPtr bitmapa);
         [DllImport(Biblioteka)] private static extern IntPtr FPDFDOC_InitFormFillEnvironment(IntPtr dokument, IntPtr informacje);
