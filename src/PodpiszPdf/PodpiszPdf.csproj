@@ -16,7 +16,7 @@
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <Product>PodpiszPdf</Product>
-    <Version>4.1.0.3</Version>
+    <Version>4.1.0.4</Version>
     <Description>Kwalifikowany podpis elektroniczny PAdES dla plików PDF</Description>
 
     <!-- Aplikacja bez pakietu MSIX, z własnym środowiskiem Windows App SDK (nie wymaga instalacji). -->
@@ -59,7 +59,8 @@
   </ItemGroup>
 
   <!-- Moduły Windows App SDK, z których program nie korzysta: AI i uczenie maszynowe (onnxruntime, DirectML —
-       ok. 40 MB), widżety, tłumaczenia WinUI innych języków niż polski i angielski. Pakiet zbiorczy Microsoft.WindowsAppSDK zostaje (zależą od niego H.NotifyIcon
+       ok. 40 MB), widżety. Tłumaczeń WinUI (*.mui, ok. 85 języków) nie usuwać: po aktualizacji z wersji, która
+       je miała, WinUI nie startowało („ClassFactory cannot supply requested class” w Application.Start). Pakiet zbiorczy Microsoft.WindowsAppSDK zostaje (zależą od niego H.NotifyIcon
        i Community Toolkit); pliki tych modułów wyłączamy z kopiowania do programu — zarówno z paczki MSIX
        środowiska (Microsoft.WindowsAppSDK.Runtime), jak i z pakietów składników. -->
   <Target Name="PomijajZbedneSkladnikiWindowsAppSdk"
@@ -68,10 +69,6 @@
     <ItemGroup>
       <MicrosoftWindowsAppSDKFilesExcluded Condition="'$(MicrosoftWindowsAppSDKMsixContent)' != ''"
         Include="$(MicrosoftWindowsAppSDKMsixContent)\**\onnxruntime*.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\DirectML.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\Microsoft.Windows.AI.*.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\Microsoft.Windows.Widgets.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\Microsoft.Windows.Workloads*.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\workloads*.json" />
-      <!-- Tłumaczenia komunikatów WinUI (*.mui) — tylko polskie i angielskie (bez ok. 85 innych języków). -->
-      <MicrosoftWindowsAppSDKFilesExcluded Condition="'$(MicrosoftWindowsAppSDKMsixContent)' != ''"
-        Include="$(MicrosoftWindowsAppSDKMsixContent)\**\*.mui"
-        Exclude="$(MicrosoftWindowsAppSDKMsixContent)\**\pl-PL\*.mui;$(MicrosoftWindowsAppSDKMsixContent)\**\en-us\*.mui" />
       <WindowsAppSdkComponentPackages Remove="@(WindowsAppSdkComponentPackages)"
         Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', 'microsoft\.windowsappsdk\.(ai|ml|widgets)[\\/.]', System.Text.RegularExpressions.RegexOptions.IgnoreCase))" />
     </ItemGroup>
