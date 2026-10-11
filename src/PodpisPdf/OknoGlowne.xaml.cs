@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Windows.Input;
 using H.NotifyIcon;
 using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -20,13 +21,17 @@ public sealed partial class OknoGlowne : Window
 {
     private readonly bool _trybTestowy;
     private readonly ConcurrentQueue<string> _zlecenia = new();
+    // Kolejka wątku interfejsu — zapamiętana w konstruktorze, bo polecenia z potoku przychodzą w wątku tła.
+    private readonly DispatcherQueue _kolejkaUi;
     private TaskbarIcon? _zasobnik;
     private bool _pokazanoDymek;
     private bool _zamykanie;
+    private bool _pytanieOZamkniecie;
 
     internal OknoGlowne(bool startWZasobniku, bool trybTestowy)
     {
         _trybTestowy = trybTestowy;
+        _kolejkaUi = DispatcherQueue;
         App.Okno = this; // strony odwołują się do okna już w konstruktorach
         Ustawienia = trybTestowy ? new Ustawienia() : Ustawienia.Wczytaj();
         if (!trybTestowy)
@@ -77,7 +82,7 @@ public sealed partial class OknoGlowne : Window
             if (!_zamykanie)
             {
                 e.Cancel = true;
-                ZamknijProgram();
+                ZamknijNaZadanie();
             }
         };
 
@@ -141,6 +146,25 @@ public sealed partial class OknoGlowne : Window
 
     internal bool TrybTestowy => _trybTestowy;
 
+    /// <summary>
+    /// Zapis bieżących ustawień. Wybór „po otwarciu pliku PDF” jest najpierw odczytywany z pliku — mógł go
+    /// zmienić osobny proces (okno „Podpisz / Przeglądaj”), a ta kopia nie może go nadpisać starą wartością.
+    /// </summary>
+    internal void ZapiszUstawienia()
+    {
+        if (_trybTestowy)
+            return;
+        OdswiezPoOtwarciuPdf();
+        Ustawienia.Zapisz();
+    }
+
+    /// <summary>Wybór „po otwarciu pliku PDF” z pliku ustawień (zmieniany także przez osobny proces).</summary>
+    internal void OdswiezPoOtwarciuPdf()
+    {
+        if (!_trybTestowy && Ustawienia.OdczytajPoOtwarciuPdf() is { } zPliku)
+            Ustawienia.PoOtwarciuPdf = zPliku;
+    }
+
     internal StronaGlowna? StronaGlowna => _stronaGlowna ??= Ramka.Content as StronaGlowna;
     private StronaGlowna? _stronaGlowna;
 
@@ -171,7 +195,7 @@ public sealed partial class OknoGlowne : Window
         if (polecenie == JednaInstancja.Zakoncz)
         {
             var wynik = new TaskCompletionSource<bool>();
-            DispatcherQueue.TryEnqueue(() =>
+            _kolejkaUi.TryEnqueue(() =>
             {
                 var zajety = StronaGlowna == null || StronaGlowna.Zajeta || Ramka.Content is not PodpisPdf.StronaGlowna;
                 if (!zajety)
@@ -184,7 +208,13 @@ public sealed partial class OknoGlowne : Window
         _zlecenia.Enqueue(polecenie.StartsWith(JednaInstancja.PrefiksPliku, StringComparison.Ordinal)
             ? polecenie[JednaInstancja.PrefiksPliku.Length..]
             : "");
-        DispatcherQueue.TryEnqueue(() => StronaGlowna?.PrzetworzZlecenia());
+        _kolejkaUi.TryEnqueue(() =>
+        {
+            // Okno pokazuje się od razu — także gdy otwarte są ustawienia, podgląd albo trwa wczytywanie
+            // certyfikatów (plik poczeka wtedy w kolejce na powrót do strony głównej).
+            Przywroc();
+            StronaGlowna?.PrzetworzZlecenia();
+        });
         return JednaInstancja.Ok;
     }
 
@@ -244,7 +274,7 @@ public sealed partial class OknoGlowne : Window
             }),
         });
         menu.Items.Add(new MenuFlyoutSeparator());
-        menu.Items.Add(new MenuFlyoutItem { Text = "Zakończ", Command = new Polecenie(ZamknijProgram) });
+        menu.Items.Add(new MenuFlyoutItem { Text = "Zakończ", Command = new Polecenie(ZamknijNaZadanie) });
 
         _zasobnik = new TaskbarIcon
         {
@@ -260,10 +290,16 @@ public sealed partial class OknoGlowne : Window
         _zasobnik.ForceCreate(enablesEfficiencyMode: false);
     }
 
-    /// <summary>Powiadomienie z ikony w zasobniku, gdy okno jest ukryte.</summary>
-    internal void Powiadom(string tytul, string tresc)
+    /// <summary>Czy jest ikona w zasobniku, do której chowa się zminimalizowane okno.</summary>
+    internal bool MaZasobnik => _zasobnik != null && Ustawienia.MinimalizujDoZasobnika;
+
+    /// <summary>
+    /// Powiadomienie z ikony w zasobniku, gdy okno jest ukryte. <paramref name="wymus"/> — bez sprawdzania,
+    /// czy okno jest widoczne (zaraz po minimalizacji okno może jeszcze nie być schowane).
+    /// </summary>
+    internal void Powiadom(string tytul, string tresc, bool wymus = false)
     {
-        if (_zasobnik == null || AppWindow.IsVisible)
+        if (_zasobnik == null || (!wymus && AppWindow.IsVisible))
             return;
         try
         {
@@ -286,6 +322,46 @@ public sealed partial class OknoGlowne : Window
         {
             _zasobnik.Dispose();
             _zasobnik = null;
+        }
+    }
+
+    /// <summary>
+    /// Zamknięcie na żądanie użytkownika (X w oknie, „Zakończ” w zasobniku). W trakcie podpisu lub pobierania
+    /// aktualizacji program się nie zamyka; gdy podpis czeka na decyzję (podgląd, pytanie) — pyta.
+    /// </summary>
+    internal async void ZamknijNaZadanie()
+    {
+        if (_zamykanie || _pytanieOZamkniecie)
+            return;
+        var strona = StronaGlowna;
+        if (strona == null || !strona.Zajeta)
+        {
+            ZamknijProgram();
+            return;
+        }
+        _pytanieOZamkniecie = true;
+        try
+        {
+            Przywroc();
+            if (strona.EtapKrytyczny)
+            {
+                await Dialogi.PokazAsync(Korzen.XamlRoot, "Trwa praca programu",
+                    "Trwa podpisywanie dokumentu albo pobieranie aktualizacji. Poczekaj na zakończenie, a potem zamknij program.");
+                return;
+            }
+            var odpowiedz = await Dialogi.PokazAsync(Korzen.XamlRoot, "Zamknąć PodpisPdf?",
+                "Podpisywanie nie zostało dokończone — dokument nie zostanie podpisany. Zamknąć program?",
+                "Anuluj", "Zamknij", domyslnieGlowny: false);
+            if (odpowiedz == ContentDialogResult.Primary && !strona.EtapKrytyczny)
+                ZamknijProgram();
+        }
+        catch (Exception e)
+        {
+            App.Zapisz(e);
+        }
+        finally
+        {
+            _pytanieOZamkniecie = false;
         }
     }
 

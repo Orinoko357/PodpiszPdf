@@ -90,8 +90,27 @@ internal static class DomyslnaAplikacja
         Powiadom();
     }
 
+    /// <summary>
+    /// Usuwa rejestrację (odinstalowanie programu). Gdy PodpisPdf był domyślny, usuwany jest też wybór
+    /// użytkownika — Windows zapyta wtedy przy dwukliku, czym otwierać PDF, zamiast wskazywać usunięty program.
+    /// Wyboru nie da się samodzielnie przestawić na poprzednią aplikację (Windows chroni go skrótem).
+    /// </summary>
     public static void Wyrejestruj()
     {
+        if (JestDomyslna)
+        {
+            foreach (var klucz in new[] { KluczWyboruNowy, KluczWyboru })
+            {
+                try
+                {
+                    Registry.CurrentUser.DeleteSubKeyTree(klucz, throwOnMissingSubKey: false);
+                }
+                catch (Exception e) when (e is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+                {
+                    // Nowsze Windows chronią wybór dla .pdf — zostaje, ale bez ProgId Windows i tak zapyta o aplikację.
+                }
+            }
+        }
         Registry.CurrentUser.DeleteSubKeyTree(KluczProgId, throwOnMissingSubKey: false);
         Registry.CurrentUser.DeleteSubKeyTree(@"Software\PodpisPdf", throwOnMissingSubKey: false);
         using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Classes\.pdf\OpenWithProgids", writable: true))

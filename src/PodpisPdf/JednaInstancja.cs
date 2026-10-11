@@ -30,7 +30,8 @@ internal sealed class JednaInstancja : IDisposable
 
     /// <summary>
     /// Zwraca obiekt dla jedynej działającej kopii albo null, gdy działa inna kopia
-    /// (po odczekaniu <paramref name="oczekiwanie"/> na jej zamknięcie).
+    /// (po odczekaniu <paramref name="oczekiwanie"/> na jej zamknięcie). Rzuca UnauthorizedAccessException,
+    /// gdy blokadę utworzyła kopia uruchomiona jako administrator (zwykły proces nie ma do niej dostępu).
     /// </summary>
     public static JednaInstancja? Przejmij(TimeSpan oczekiwanie = default)
     {
@@ -68,6 +69,22 @@ internal sealed class JednaInstancja : IDisposable
         catch (Exception e) when (e is TimeoutException or IOException or UnauthorizedAccessException)
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Jak <see cref="Wyslij"/>, ale ponawia próbę do skutku przez <paramref name="limit"/>. Działająca kopia
+    /// może jeszcze budować okno (np. kilka plików PDF otwartych naraz) — potok pojawia się dopiero potem.
+    /// </summary>
+    public static string? WyslijZPonowieniem(string polecenie, TimeSpan limit)
+    {
+        var koniec = Environment.TickCount64 + (long)limit.TotalMilliseconds;
+        while (true)
+        {
+            var odpowiedz = Wyslij(polecenie);
+            if (odpowiedz != null || Environment.TickCount64 >= koniec)
+                return odpowiedz;
+            Thread.Sleep(500);
         }
     }
 

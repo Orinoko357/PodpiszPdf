@@ -76,6 +76,42 @@ internal static class Instalacja
         }
     }
 
+    /// <summary>
+    /// Tryb <c>--odinstaluj</c> (akcja instalatora MSI przy odinstalowaniu, jako bieżący użytkownik): usuwa
+    /// pozycje w menu (Windows 11 i klasyczne), rejestrację aplikacji do PDF i autostart. Ustawienia
+    /// w %APPDATA%\PodpisPdf zostają (przy ponownej instalacji program je odczyta). Błędy są pomijane —
+    /// odinstalowanie nie może się przez nie zatrzymać. Zwraca kod wyjścia (zawsze 0).
+    /// </summary>
+    public static int PosprzatajPoOdinstalowaniu()
+    {
+        // Działająca kopia programu (jeśli niezajęta) zamyka się, żeby nie przywróciła wpisów.
+        try { JednaInstancja.Wyslij(JednaInstancja.Zakoncz, 2000); } catch (Exception) { /* bez znaczenia */ }
+
+        void Wykonaj(Action akcja)
+        {
+            try
+            {
+                akcja();
+            }
+            catch (Exception e)
+            {
+                App.Zapisz(e); // szczegóły w %TEMP%\PodpisPdf-blad.txt
+            }
+        }
+
+        Wykonaj(() =>
+        {
+            // Pakiet menu Windows 11 wskazuje na folder programu — po odinstalowaniu byłby martwy.
+            if (!Task.Run(() => MenuWindows11.WyrejestrujAsync()).Wait(TimeSpan.FromSeconds(60)))
+                throw new TimeoutException("Usuwanie pakietu menu Windows 11 trwa zbyt długo.");
+        });
+        Wykonaj(MenuWindows11.UsunWypakowanePliki);
+        Wykonaj(MenuKontekstowe.Wyrejestruj);
+        Wykonaj(DomyslnaAplikacja.Wyrejestruj);
+        Wykonaj(() => UstawAutostart(false));
+        return 0;
+    }
+
     /// <summary>Wersja pliku programu (do porównań z działającą kopią).</summary>
     public static Version? WersjaPliku(string sciezka)
     {

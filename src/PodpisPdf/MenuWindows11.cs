@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 using Windows.Management.Deployment;
 
@@ -18,7 +17,6 @@ internal static class MenuWindows11
 
     private static string FolderPakietu => Path.Combine(Ustawienia.Folder, "Pakiet");
     private static string SciezkaPakietu => Path.Combine(FolderPakietu, ZasobPakietu);
-    private static string SciezkaCertyfikatu => Path.Combine(FolderPakietu, ZasobCertyfikatu);
 
     /// <summary>Windows 11 (nowe menu kontekstowe istnieje od kompilacji 22000).</summary>
     public static bool JestWindows11 => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000);
@@ -52,30 +50,6 @@ internal static class MenuWindows11
                 return true;
         }
         return false;
-    }
-
-    /// <summary>
-    /// Dodaje certyfikat do magazynu „Zaufane osoby” komputera (okno UAC). Zwraca false, gdy użytkownik odmówił.
-    /// </summary>
-    public static bool ZainstalujCertyfikat()
-    {
-        WypakujZasoby();
-        try
-        {
-            using var proces = Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "certutil.exe"),
-                $"-addstore TrustedPeople \"{SciezkaCertyfikatu}\"")
-            {
-                UseShellExecute = true,
-                Verb = "runas",
-                WindowStyle = ProcessWindowStyle.Hidden,
-            });
-            proces?.WaitForExit();
-            return proces?.ExitCode == 0;
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            return false; // odmowa w oknie UAC
-        }
     }
 
     /// <summary>
@@ -138,18 +112,22 @@ internal static class MenuWindows11
     private static void WypakujZasoby()
     {
         Directory.CreateDirectory(FolderPakietu);
-        foreach (var (zasob, cel) in new[] { (ZasobPakietu, SciezkaPakietu), (ZasobCertyfikatu, SciezkaCertyfikatu) })
-        {
-            using var dane = typeof(MenuWindows11).Assembly.GetManifestResourceStream(zasob)
-                ?? throw new InvalidOperationException("Ta kopia programu nie zawiera pakietu menu Windows 11.");
-            using var plik = File.Create(cel);
-            dane.CopyTo(plik);
-        }
+        using var dane = typeof(MenuWindows11).Assembly.GetManifestResourceStream(ZasobPakietu)
+            ?? throw new InvalidOperationException("Ta kopia programu nie zawiera pakietu menu Windows 11.");
+        using var plik = File.Create(SciezkaPakietu);
+        dane.CopyTo(plik);
+    }
+
+    /// <summary>Usuwa pakiet wypakowany do folderu ustawień (przy odinstalowaniu programu).</summary>
+    public static void UsunWypakowanePliki()
+    {
+        if (Directory.Exists(FolderPakietu))
+            Directory.Delete(FolderPakietu, recursive: true);
     }
 
     private static string OpisBledu(int kod, string tekst) => (uint)kod switch
     {
-        0x800B0109 or 0x800B010A => "Certyfikat PodpisPdf nie jest zaufany na tym komputerze. Zainstaluj go przyciskiem „Zainstaluj certyfikat”.",
+        0x800B0109 or 0x800B010A => "Certyfikat PodpisPdf nie jest zaufany na tym komputerze. Zainstaluj PodpisPdf ponownie instalatorem MSI — instalator dodaje certyfikat (wymaga uprawnień administratora).",
         0x80073CFF => "Instalowanie pakietów jest zablokowane zasadami Windows (tryb dewelopera lub zasady instalacji aplikacji).",
         _ => $"Nie udało się zarejestrować pakietu (0x{kod:X8}). {tekst}",
     };

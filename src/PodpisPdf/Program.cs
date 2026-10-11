@@ -16,8 +16,17 @@ public static class Program
 
     public const string ParametrPoAktualizacji = "--po-aktualizacji";
 
-    /// <summary>Program uruchomiony przez nową wersję po aktualizacji (do komunikatu na pasku stanu).</summary>
+    /// <summary>Sprzątanie ustawień użytkownika w Windows — uruchamiane przez instalator MSI przy odinstalowaniu.</summary>
+    public const string ParametrOdinstalowania = "--odinstaluj";
+
+    /// <summary>Program uruchomiony ponownie po instalatorze aktualizacji (do komunikatu na pasku stanu).</summary>
     internal static bool PoAktualizacji { get; private set; }
+
+    /// <summary>
+    /// Kod zakończenia msiexec przekazany po <see cref="ParametrPoAktualizacji"/> (null — starsze wersje
+    /// przekazywały sam parametr, tylko po udanej instalacji).
+    /// </summary>
+    internal static int? KodAktualizacji { get; private set; }
 
     [STAThread]
     private static int Main(string[] args)
@@ -33,13 +42,22 @@ public static class Program
 
         WinRT.ComWrappersSupport.InitializeComWrappers();
 
+        // Odinstalowanie programu (akcja instalatora MSI, jako bieżący użytkownik): bez interfejsu.
+        if (args.Any(a => string.Equals(a, ParametrOdinstalowania, StringComparison.OrdinalIgnoreCase)))
+            return Instalacja.PosprzatajPoOdinstalowaniu();
+
         // Diagnostyka (GitHub Actions): język interfejsu jak u użytkownika, bez pakietu językowego Windows.
         if (Environment.GetEnvironmentVariable("PODPISPDF_JEZYK") is { Length: > 0 } jezyk)
             Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = jezyk;
 
         Autostart = args.Any(a => string.Equals(a, Instalacja.ParametrAutostartu, StringComparison.OrdinalIgnoreCase));
-        PoAktualizacji = args.Contains(ParametrPoAktualizacji);
-        PlikStartowy = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal));
+        var indeksAktualizacji = Array.IndexOf(args, ParametrPoAktualizacji);
+        PoAktualizacji = indeksAktualizacji >= 0;
+        if (PoAktualizacji && indeksAktualizacji + 1 < args.Length && int.TryParse(args[indeksAktualizacji + 1], out var kod))
+            KodAktualizacji = kod;
+        // Plik: pierwszy parametr, który nie jest przełącznikiem ani kodem po „--po-aktualizacji”.
+        PlikStartowy = args.Where((a, i) => !a.StartsWith("--", StringComparison.Ordinal) &&
+                                            !(KodAktualizacji != null && i == indeksAktualizacji + 1)).FirstOrDefault();
 
         // Dwuklik pliku PDF (PodpisPdf jako aplikacja domyślna): podpisać czy przejrzeć?
         if (args.Contains(DomyslnaAplikacja.ParametrOtwarcia) && PlikStartowy != null && !CzyPodpisac(PlikStartowy))
@@ -58,9 +76,18 @@ public static class Program
 
         if (Tryb == TrybUruchomienia.Normalny)
         {
-            // Po aktualizacji poprzednia wersja właśnie się zamyka — czekamy, aż zwolni blokadę.
-            Instancja = JednaInstancja.Przejmij(PoAktualizacji ? TimeSpan.FromSeconds(30) : default)
-                        ?? ObsluzDzialajacaKopie(PlikStartowy, Autostart);
+            try
+            {
+                // Po aktualizacji poprzednia wersja właśnie się zamyka — czekamy, aż zwolni blokadę.
+                Instancja = JednaInstancja.Przejmij(PoAktualizacji ? TimeSpan.FromSeconds(30) : default)
+                            ?? ObsluzDzialajacaKopie(PlikStartowy, Autostart);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Blokadę utworzyła kopia uruchomiona jako administrator — zwykły proces nie może jej otworzyć.
+                Win32.Komunikat("PodpisPdf działa już jako administrator — zamknij go i uruchom ponownie.", Win32.Ostrzezenie);
+                return 0;
+            }
             if (Instancja == null)
                 return 0;
         }
@@ -115,17 +142,27 @@ public static class Program
     private static JednaInstancja? ObsluzDzialajacaKopie(string? plik, bool autostart)
     {
         var biezaca = Instalacja.BiezacaWersja;
-        var dzialajaca = Version.TryParse(JednaInstancja.Wyslij(JednaInstancja.Wersja), out var v) ? v : null;
+        if (autostart)
+            return null; // przy logowaniu do Windows nie zadajemy pytań
+        var odpowiedz = JednaInstancja.Wyslij(JednaInstancja.Wersja);
+        var koniec = Environment.TickCount64 + 20000;
+        while (odpowiedz == null && Environment.TickCount64 < koniec)
+        {
+            // Działająca kopia może dopiero startować (np. kilka plików PDF otwartych naraz) — potok
+            // pojawia się po zbudowaniu okna. Gdy w tym czasie się zakończy, przejmujemy jej miejsce.
+            if (JednaInstancja.Przejmij() is { } wolna)
+                return wolna;
+            Thread.Sleep(500);
+            odpowiedz = JednaInstancja.Wyslij(JednaInstancja.Wersja, 1000);
+        }
+        var dzialajaca = Version.TryParse(odpowiedz, out var v) ? v : null;
         var polecenie = plik != null ? JednaInstancja.PrefiksPliku + plik : JednaInstancja.Pokaz;
 
         if (dzialajaca == biezaca)
         {
-            if (!autostart)
-                JednaInstancja.Wyslij(polecenie);
+            JednaInstancja.WyslijZPonowieniem(polecenie, TimeSpan.FromSeconds(20));
             return null;
         }
-        if (autostart)
-            return null; // przy logowaniu do Windows nie zadajemy pytań
 
         if (dzialajaca != null && dzialajaca > biezaca)
         {
@@ -137,11 +174,11 @@ public static class Program
         }
 
         var opis = dzialajaca != null ? $"w wersji {dzialajaca}" : "w starszej wersji";
-        var odpowiedz = Win32.Komunikat(
+        var pytanie = Win32.Komunikat(
             $"PodpisPdf {opis} jest już uruchomiony (np. ikona obok zegara).\n\n" +
             $"Aby uruchomić wersję {biezaca}, " +
             "działający program trzeba zamknąć.\n\nZamknąć go teraz?", Win32.Ostrzezenie, Win32.TakNie);
-        if (odpowiedz != Win32.Tak)
+        if (pytanie != Win32.Tak)
             return null;
 
         if (dzialajaca != null && JednaInstancja.Wyslij(JednaInstancja.Zakoncz) == JednaInstancja.Zajety)

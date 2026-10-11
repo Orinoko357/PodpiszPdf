@@ -6,7 +6,7 @@ namespace PodpisPdf;
 /// <summary>
 /// Aktualizacja programu z publicznego repozytorium wydań: pobranie instalatora MSI (z kontrolą SHA-256)
 /// i jego uruchomienie. Instalator prosi o zgodę administratora, zamienia pliki w Program Files,
-/// a po zakończeniu uruchamia program ponownie.
+/// a po zakończeniu (także nieudanym lub anulowanym) program uruchamia się ponownie z kodem wyniku.
 /// </summary>
 internal static class AktualizacjaProgramu
 {
@@ -15,21 +15,41 @@ internal static class AktualizacjaProgramu
     public static Task<DostepnaAktualizacja?> SprawdzAsync() =>
         Aktualizacje.SprawdzAsync(Klient, Instalacja.BiezacaWersja);
 
+    private static string FolderPobranych => Path.Combine(Path.GetTempPath(), "PodpisPdf-aktualizacja");
+
     /// <summary>Pobiera instalator nowej wersji i zwraca jego ścieżkę.</summary>
     public static async Task<string> PobierzAsync(DostepnaAktualizacja aktualizacja, IProgress<double>? postep = null)
     {
-        var folder = Path.Combine(Path.GetTempPath(), "PodpisPdf-aktualizacja");
+        var folder = FolderPobranych;
         Directory.CreateDirectory(folder);
         var plik = Path.Combine(folder, $"PodpisPdf-{aktualizacja.Wersja}.msi");
         await Aktualizacje.PobierzAsync(Klient, aktualizacja, plik, postep);
         return plik;
     }
 
+    /// <summary>
+    /// Usuwa instalatory pobrane przy wcześniejszych aktualizacjach (kilkadziesiąt MB każdy). Wywoływane w tle
+    /// przy starcie; błędy są pomijane (np. plik jeszcze otwarty).
+    /// </summary>
+    public static void UsunPobraneInstalatory()
+    {
+        try
+        {
+            if (Directory.Exists(FolderPobranych))
+                Directory.Delete(FolderPobranych, recursive: true);
+        }
+        catch (Exception)
+        {
+            // Spróbujemy przy następnym starcie.
+        }
+    }
+
     // Uchwyt pobranego instalatora: blokuje zapis i usunięcie pliku do końca działania programu.
     private static FileStream? _zablokowanyInstalator;
 
     /// <summary>
-    /// Uruchamia instalator (z paskiem postępu, bez pytań poza zgodą administratora), a po nim program.
+    /// Uruchamia instalator (z paskiem postępu, bez pytań poza zgodą administratora), a po nim program — zawsze,
+    /// także po odmowie w oknie UAC lub błędzie, z kodem zakończenia msiexec (program pokaże wtedy komunikat).
     /// Pośrednikiem jest cmd.exe z uprawnieniami użytkownika, więc program nie startuje jako administrator.
     /// Plik jest przed uruchomieniem blokowany przed zapisem i sprawdzany ponownie (suma potwierdzona podpisem
     /// wydania), żeby nie dało się go podmienić między sprawdzeniem a odczytem przez msiexec.
@@ -46,13 +66,20 @@ internal static class AktualizacjaProgramu
             throw new InvalidDataException("Plik instalatora zmienił się po pobraniu. Aktualizacja została przerwana.");
         }
 
-        var msiexec = Path.Combine(Environment.SystemDirectory, "msiexec.exe");
-        var polecenie = $"/c \"\"{msiexec}\" /i \"{instalator}\" /passive /norestart && start \"\" \"{Instalacja.BiezacyPlik}\" {Program.ParametrPoAktualizacji}\"";
-        Process.Start(new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"), polecenie)
+        // „start /wait” czeka na msiexec i zostawia jego kod w ERRORLEVEL; „&” uruchamia program niezależnie
+        // od wyniku. Ścieżki trafiają do cmd przez zmienne środowiskowe rozwijane z opóźnieniem (/v:on, !…!) —
+        // ich treść nie jest już interpretowana (znaki ^ & % ! w ścieżce folderu użytkownika nie psują polecenia).
+        var polecenie = "/v:on /c \"start \"\" /wait \"!PODPISPDF_MSIEXEC!\" /i \"!PODPISPDF_INSTALATOR!\" /passive /norestart" +
+                        $" & start \"\" \"!PODPISPDF_PROGRAM!\" {Program.ParametrPoAktualizacji} !ERRORLEVEL!\"";
+        var start = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"), polecenie)
         {
             UseShellExecute = false,
             CreateNoWindow = true,
-        });
+        };
+        start.Environment["PODPISPDF_MSIEXEC"] = Path.Combine(Environment.SystemDirectory, "msiexec.exe");
+        start.Environment["PODPISPDF_INSTALATOR"] = instalator;
+        start.Environment["PODPISPDF_PROGRAM"] = Instalacja.BiezacyPlik;
+        Process.Start(start);
 
         // Blokada trwa, aż msiexec otworzy plik (i do zamknięcia programu).
         var koniec = DateTime.UtcNow.AddSeconds(10);

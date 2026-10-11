@@ -22,10 +22,10 @@ Specyfikacja: [docs/SPECYFIKACJA.md](docs/SPECYFIKACJA.md).
 (np. w zasobniku), plik trafia do działającego okna.
 
 **Nowe menu Windows 11:** pozycja **Podpisz w PodpisPdf** może być od razu w menu (bez *Pokaż więcej opcji*) —
-*Ustawienia → Program → Nowe menu kontekstowe Windows 11 → Dodaj do menu*. Wymaga to jednorazowej instalacji
-certyfikatu PodpisPdf na komputerze (przycisk *Zainstaluj certyfikat…*, okno administratora; w sieci firmowej
-można go rozesłać zasadami grupy do magazynu *Zaufane osoby* komputera — plik `PodpisPdf.cer` jest w każdym wydaniu).
-Technicznie: mały pakiet MSIX z „zawartością zewnętrzną” wskazujący na kopię programu w `%APPDATA%\PodpisPdf`
+*Ustawienia → Program → Nowe menu kontekstowe Windows 11 → Dodaj do menu*. Wymaga to certyfikatu PodpisPdf
+w magazynie *Zaufane osoby* komputera — dodaje go instalator MSI (w sieci firmowej można go też rozesłać zasadami
+grupy — plik `PodpisPdf.cer` jest w każdym wydaniu).
+Technicznie: mały pakiet MSIX z „zawartością zewnętrzną” wskazujący na folder programu
 oraz polecenie Eksploratora (IExplorerCommand) w samym `PodpisPdf.exe`.
 
 **Domyślna aplikacja dla PDF:** *Ustawienia → Program → Ustaw jako domyślną…* rejestruje PodpisPdf jako aplikację
@@ -83,7 +83,9 @@ Stanowisko można podzielić na wiersze klawiszem Enter; bez tego zawija się sa
 
 **Instalacja i autostart.** Instalator MSI (dla całego komputera) umieszcza program w `C:\Program Files\PodpisPdf`,
 dodaje skrót w menu Start i certyfikat PodpisPdf do magazynu *Zaufane osoby* komputera (dla nowego menu Windows 11).
-Cicha instalacja, np. przez zasady grupy: `msiexec /i PodpisPdf.msi /qn`; odinstalowanie w *Ustawieniach Windows → Aplikacje*.
+Cicha instalacja, np. przez zasady grupy: `msiexec /i PodpisPdf.msi /qn`; odinstalowanie w *Ustawieniach Windows → Aplikacje*
+(usuwa też — dla odinstalowującego użytkownika — pozycje w menu kontekstowym, rejestrację aplikacji do PDF i autostart;
+ustawienia w `%APPDATA%\PodpisPdf` zostają).
 Autostart to wpis `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` — program startuje zminimalizowany do zasobnika.
 Kopia programu ze starszych wersji (`%APPDATA%\PodpisPdf\PodpisPdf.exe`) jest przy starcie usuwana.
 

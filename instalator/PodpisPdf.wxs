@@ -52,6 +52,19 @@
       <RegistryValue Root="HKLM" Key="Software\PodpisPdf" Name="Folder" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
     </Component>
 
+    <!--
+      Odinstalowanie: program sprząta to, co zarejestrował dla użytkownika (pakiet menu Windows 11, klasyczne menu
+      kontekstowe, rejestrację aplikacji do PDF, autostart). Działa jako użytkownik, który odinstalowuje (Impersonate),
+      przed usunięciem plików; nie przy aktualizacji (stara wersja usuwana przez nowszą). Błąd nie zatrzymuje
+      odinstalowania. Ustawienia w %APPDATA%\PodpisPdf zostają.
+    -->
+    <CustomAction Id="SprzatanieUzytkownika" Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[INSTALLFOLDER]PodpisPdf.exe&quot; --odinstaluj"
+                  Execute="deferred" Impersonate="yes" Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom Action="SprzatanieUzytkownika" Before="RemoveFiles" Condition='REMOVE~="ALL" AND NOT UPGRADINGPRODUCTCODE' />
+    </InstallExecuteSequence>
+
     <Feature Id="PodpisPdf" Title="PodpisPdf">
       <ComponentGroupRef Id="PlikiProgramu" />
       <ComponentRef Id="SkrotMenuStart" />
