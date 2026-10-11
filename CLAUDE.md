@@ -58,7 +58,7 @@ Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagaj�
 Motywy (`MotywWizualizacji`, wybór w ustawieniach „Wygląd podpisu”) różnią się tylko wyglądem, treść jest ta sama
 (data zawsze „Data: dd.MM.yyyy, HH:mm (UTC±hh:mm)”): Klasyczny (opis niżej), Hierarchia (data 7 pt szara, stanowisko
 9 pt czarne), Linia (jak Hierarchia + pionowa kreska przy logo), Akcent (nazwisko granatowe),
-DataPodKreska (data 6,5 pt pod poziomą kreską), Pieczatka (stanowisko nad imieniem i nazwiskiem, tekst wyśrodkowany). Nagłówek we wszystkich motywach: „PODPISANO ELEKTRONICZNIE”
+DataPodKreska (data 6,5 pt pod poziomą kreską), Pieczatka (stanowisko 8 pt ciemnoszare nad imieniem i nazwiskiem, tekst wyśrodkowany, bez logo — nawet gdy ustawione). Nagłówek we wszystkich motywach: „PODPISANO ELEKTRONICZNIE”
 6,5 pt szary, z rozstrzeleniem.
 Klasyczny: Arial (z `C:\Windows\Fonts`, zastępczo wbudowana Liberation Sans): imię i nazwisko 11 pt, data 8 pt czarna,
 stanowisko 7–9 pt. Rozmiar prostokąta wynika z treści (`Wizualizacja.Rozmiar(dane)`, bez stałego 85 × 25 mm);

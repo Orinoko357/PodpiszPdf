@@ -39,7 +39,6 @@ public class MotywyWizualizacjiTesty
     [InlineData(MotywWizualizacji.Linia, "PODPISANO", 6.5f)]
     [InlineData(MotywWizualizacji.Akcent, "PODPISANO", 6.5f)]
     [InlineData(MotywWizualizacji.DataPodKreska, "PODPISANO", 6.5f)]
-    [InlineData(MotywWizualizacji.Pieczatka, "PODPISANO", 6.5f)]
     public void StanowiskoWyrazniejszeNizNaglowekIData(MotywWizualizacji motyw, string naglowek, float rozmiarNaglowka)
     {
         var f = Tekst(new DaneWizualizacji("Anna Nowak", "Kierownik Biura Informatyki\nUrzędu Miasta Wodzisławia Śląskiego", null, Czas, motyw, true));
@@ -189,5 +188,22 @@ public class MotywyWizualizacjiTesty
         var y0 = wiersze.Where(y => y > o.Wysokosc / 2).OrderByDescending(y => Enumerable.Range(0, o.Szerokosc).Count(x => Ciemny(x, y))).First();
         var xs = Enumerable.Range(0, o.Szerokosc).Where(x => Ciemny(x, y0)).ToList();
         Assert.InRange((xs.Min() - 0) - (o.Szerokosc - 1 - xs.Max()), -12, 12);
+    }
+
+    [Fact]
+    public void PieczatkaZwartaBezLogo()
+    {
+        var folder = PlikiTestowe.Folder();
+        var logo = PlikiTestowe.UtworzLogo(folder);
+        var zLogo = new DaneWizualizacji("Anna Nowak", "KIEROWNIK BIURA INFORMATYKI", logo, Czas, MotywWizualizacji.Pieczatka, true);
+        var bezLogo = zLogo with { SciezkaLogo = null };
+        // Logo ustawione w programie nie zmienia pieczątki.
+        Assert.Equal(Wizualizacja.Rozmiar(bezLogo), Wizualizacja.Rozmiar(zLogo));
+        Assert.InRange(Wizualizacja.PodgladPdf(zLogo).Length - Wizualizacja.PodgladPdf(bezLogo).Length, -200, 200); // bez obrazu logo w pliku
+
+        var f = Tekst(zLogo);
+        Assert.Equal(8f, Wiersz(f, "KIEROWNIK").Rozmiar, 0.01);
+        Assert.Equal(11f, Wiersz(f, "Anna").Rozmiar, 0.01);
+        Assert.Equal(0x33 / 255f, Wiersz(f, "KIEROWNIK").Kolor[0], 0.01);
     }
 }

@@ -111,20 +111,23 @@ public static class Wizualizacja
     private static readonly Color SzaryKreski = new DeviceRgb(0x9A, 0x9A, 0x9A);
     private static readonly Color Grafitowy = new DeviceRgb(0x22, 0x22, 0x22);
     private static readonly Color PrawieCzarny = new DeviceRgb(0x1F, 0x1F, 0x1F);
+    private static readonly Color CiemnoSzary = new DeviceRgb(0x33, 0x33, 0x33);
     private static readonly Color Granatowy = new DeviceRgb(0x1B, 0x3A, 0x5C);
 
     /// <summary>Wygląd poszczególnych wierszy w motywie.</summary>
     private sealed record Styl(string TekstNaglowka, float RozmiarNaglowka, float OdstepZnakowNaglowka, Color KolorNaglowka,
         Color KolorNazwiska, Color KolorStanowiska, bool StaleStanowisko, float RozmiarDaty, Color KolorDaty,
-        bool KreskaNadData, bool LiniaPrzyLogo, bool StanowiskoNadNazwiskiem = false, bool Wysrodkowany = false)
+        bool KreskaNadData, bool LiniaPrzyLogo, bool StanowiskoNadNazwiskiem = false, bool Wysrodkowany = false,
+        float RozmiarStanowiska = StalyRozmiarStanowiska, bool BezLogo = false)
     {
         public static Styl Dla(MotywWizualizacji motyw) => motyw switch
         {
             MotywWizualizacji.Hierarchia => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Czarny, true, 7f, Szary, false, false),
             MotywWizualizacji.Linia => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Grafitowy, true, 7f, Szary, false, true),
             MotywWizualizacji.Akcent => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Granatowy, PrawieCzarny, true, 7f, Szary, false, false),
-            MotywWizualizacji.Pieczatka => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Czarny, true, 7f, Szary, false, false,
-                StanowiskoNadNazwiskiem: true, Wysrodkowany: true),
+            // Pieczątka: zwarta (stanowisko 8 pt ciemnoszare), bez logo — nawet gdy jest ustawione.
+            MotywWizualizacji.Pieczatka => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, CiemnoSzary, true, 7f, Szary, false, false,
+                StanowiskoNadNazwiskiem: true, Wysrodkowany: true, RozmiarStanowiska: 8f, BezLogo: true),
             MotywWizualizacji.DataPodKreska => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Czarny, true, 6.5f, Szary, true, false),
             _ => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Czarny, false, Wizualizacja.RozmiarDaty, Czarny, false, false),
         };
@@ -264,7 +267,7 @@ public static class Wizualizacja
 
         var bazowa = new[] { naglowek, nazwisko, data }.Max(w => Szerokosc(w));
         var (stanowisko, szerokoscStanowiska) = styl.StaleStanowisko
-            ? UlozStanowiskoStale(WierszeStanowiska(dane.Stanowisko), zwykla, Math.Max(bazowa, SzerokoscZawijaniaStanowiska))
+            ? UlozStanowiskoStale(WierszeStanowiska(dane.Stanowisko), zwykla, Math.Max(bazowa, SzerokoscZawijaniaStanowiska), styl.RozmiarStanowiska)
             : UlozStanowisko(WierszeStanowiska(dane.Stanowisko), zwykla, bazowa);
 
         var wierszeStanowiska = stanowisko.Select(w => w with { Kolor = styl.KolorStanowiska });
@@ -283,7 +286,7 @@ public static class Wizualizacja
         var tekstW = Math.Max(bazowa, szerokoscStanowiska);
         var tekstH = linie.Sum(w => WysokoscWiersza(w.Czcionka, w.Rozmiar) + (w.KreskaNad ? OdstepNadKreska + GruboscKreski + OdstepPodKreska : 0));
 
-        var logo = WczytajLogo(dane.SciezkaLogo, bezPrzezroczystosci);
+        var logo = styl.BezLogo ? null : WczytajLogo(dane.SciezkaLogo, bezPrzezroczystosci);
         float logoW = 0, logoH = 0, logoHPelne = 0, odstepLogo = 0;
         if (logo != null)
         {
@@ -331,15 +334,15 @@ public static class Wizualizacja
     }
 
     /// <summary>
-    /// Stanowisko w stałym rozmiarze 9 pt (motywy inne niż klasyczny): podział wpisany przez użytkownika
+    /// Stanowisko w stałym rozmiarze <paramref name="r"/> (motywy inne niż klasyczny; 9 pt, pieczątka 8 pt): podział wpisany przez użytkownika
     /// jest zachowany, bez niego stanowisko szersze niż <paramref name="szerokosc"/> zawija się do dwóch
     /// wierszy; dłuższe poszerza wizualizację.
     /// </summary>
-    private static (List<Wiersz> Wiersze, float Szerokosc) UlozStanowiskoStale(List<string> wiersze, PdfFont czcionka, float szerokosc)
+    private static (List<Wiersz> Wiersze, float Szerokosc) UlozStanowiskoStale(List<string> wiersze, PdfFont czcionka, float szerokosc,
+        float r)
     {
         if (wiersze.Count == 0)
             return (new(), 0);
-        var r = StalyRozmiarStanowiska;
         var wynik = wiersze;
         if (wiersze.Count == 1)
         {
