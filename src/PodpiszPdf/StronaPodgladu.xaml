@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="PodpiszPdf.StronaPodgladu"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PodpiszPdf"
+    xmlns:ctk="using:CommunityToolkit.WinUI.Controls">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Pasek poleceń: powiększenie i tryb wskazywania -->
+        <Grid Padding="16,4,16,10" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <Button Click="PrzyPomniejszeniu" ToolTipService.ToolTip="Pomniejsz (Ctrl + kółko myszy)" AutomationProperties.Name="Pomniejsz"
+                        Style="{StaticResource SubtleButtonStyle}" Padding="10,8">
+                    <FontIcon Glyph="&#xE71F;" FontSize="16" />
+                </Button>
+                <TextBlock x:Name="Procent" Text="100%" Width="52" TextAlignment="Center" VerticalAlignment="Center" />
+                <Button Click="PrzyPowiekszeniu" ToolTipService.ToolTip="Powiększ (Ctrl + kółko myszy)" AutomationProperties.Name="Powiększ"
+                        Style="{StaticResource SubtleButtonStyle}" Padding="10,8">
+                    <FontIcon Glyph="&#xE8A3;" FontSize="16" />
+                </Button>
+                <AppBarSeparator />
+                <Button Click="PrzyDopasowaniu" Style="{StaticResource SubtleButtonStyle}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE9A6;" FontSize="16" />
+                        <TextBlock Text="Dopasuj do szerokości" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+            <ctk:Segmented x:Name="Tryb" Grid.Column="2" SelectedIndex="0" SelectionChanged="PrzyZmianieTrybu" VerticalAlignment="Center">
+                <ctk:SegmentedItem Content="Kliknij i umieść">
+                    <ctk:SegmentedItem.Icon>
+                        <FontIcon Glyph="&#xE8B0;" />
+                    </ctk:SegmentedItem.Icon>
+                </ctk:SegmentedItem>
+                <ctk:SegmentedItem Content="Narysuj rozmiar">
+                    <ctk:SegmentedItem.Icon>
+                        <FontIcon Glyph="&#xEE56;" />
+                    </ctk:SegmentedItem.Icon>
+                </ctk:SegmentedItem>
+            </ctk:Segmented>
+        </Grid>
+
+        <!-- Miniatury i strony -->
+        <Grid Grid.Row="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="160" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <ListView x:Name="Miniatury" Padding="0,8" SelectionMode="Single" SelectionChanged="PrzyWyborzeMiniatury"
+                      AutomationProperties.Name="Strony dokumentu">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="local:MiniaturaStrony">
+                        <StackPanel Padding="0,8" Spacing="6" HorizontalAlignment="Center">
+                            <Border Width="{x:Bind Szerokosc}" Height="{x:Bind Wysokosc}" Background="White"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                                <Image Source="{x:Bind Obraz, Mode=OneWay}" Stretch="Fill" />
+                            </Border>
+                            <TextBlock Text="{x:Bind Numer}" HorizontalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <Grid Grid.Column="1" Background="{ThemeResource SolidBackgroundFillColorSecondaryBrush}"
+                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1,0,0,0">
+                <ScrollViewer x:Name="Przewijanie" ZoomMode="Disabled" HorizontalScrollBarVisibility="Auto" HorizontalScrollMode="Auto"
+                              VerticalScrollBarVisibility="Auto" ViewChanged="PrzyPrzewinieciu" SizeChanged="PrzyZmianieRozmiaru" />
+
+                <!-- Podpowiedź (znika po pierwszym kliknięciu) -->
+                <Border x:Name="Podpowiedz" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,14,0,0" Padding="18,8"
+                        CornerRadius="18" Background="#EB202020" IsHitTestVisible="False">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <FontIcon Glyph="&#xE946;" FontSize="14" Foreground="White" />
+                        <TextBlock x:Name="TekstPodpowiedzi" Foreground="White" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Stopka -->
+        <Grid Grid.Row="2" Padding="24,14" ColumnSpacing="10" Background="{ThemeResource LayerFillColorDefaultBrush}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="Informacja" Style="{StaticResource DrugiStyl}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <Button Grid.Column="1" Content="Anuluj" MinWidth="110" Click="PrzyAnulowaniu">
+                <Button.KeyboardAccelerators>
+                    <KeyboardAccelerator Key="Escape" />
+                </Button.KeyboardAccelerators>
+            </Button>
+            <Button x:Name="PrzyciskPodpisz" Grid.Column="2" Content="Podpisz" MinWidth="140" Style="{StaticResource AccentButtonStyle}" Click="PrzyPodpisie" />
+        </Grid>
+    </Grid>
+</Page>

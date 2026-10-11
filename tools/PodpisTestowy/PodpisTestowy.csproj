@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\PodpisPdf.Core\PodpisPdf.Core.csproj" />
+    <ProjectReference Include="..\..\src\PodpiszPdf.Core\PodpiszPdf.Core.csproj" />
   </ItemGroup>
 
 </Project>

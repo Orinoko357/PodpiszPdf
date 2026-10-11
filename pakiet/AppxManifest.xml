@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Pakiet „z zawartością zewnętrzną” (sparse): nadaje PodpisPdf.exe z %APPDATA%\PodpisPdf tożsamość pakietu,
-  dzięki której pozycja „Podpisz w PodpisPdf” trafia do nowego menu kontekstowego Windows 11.
+  Pakiet „z zawartością zewnętrzną” (sparse): nadaje PodpiszPdf.exe z %APPDATA%\PodpiszPdf tożsamość pakietu,
+  dzięki której pozycja „Podpisz w PodpiszPdf” trafia do nowego menu kontekstowego Windows 11.
   Wersję (WERSJA) podstawia workflow GitHub Actions; podpis certyfikatem CN=PodpisPdf.
 -->
 <Package
@@ -15,11 +15,11 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="uap uap10 desktop4 desktop5 desktop6 com rescap">
 
-  <Identity Name="PodpisPdf" Publisher="CN=PodpisPdf" Version="WERSJA" ProcessorArchitecture="x64" />
+  <Identity Name="PodpiszPdf" Publisher="CN=PodpisPdf" Version="WERSJA" ProcessorArchitecture="x64" />
 
   <Properties>
-    <DisplayName>PodpisPdf</DisplayName>
-    <PublisherDisplayName>PodpisPdf</PublisherDisplayName>
+    <DisplayName>PodpiszPdf</DisplayName>
+    <PublisherDisplayName>PodpiszPdf</PublisherDisplayName>
     <Logo>Assets\Logo.png</Logo>
     <uap10:AllowExternalContent>true</uap10:AllowExternalContent>
     <!-- Program zapisuje ustawienia w %APPDATA% i rejestrze HKCU — bez wirtualizacji. -->
@@ -41,22 +41,22 @@
   </Capabilities>
 
   <Applications>
-    <Application Id="PodpisPdf" Executable="PodpisPdf.exe" uap10:TrustLevel="mediumIL" uap10:RuntimeBehavior="win32App">
-      <uap:VisualElements AppListEntry="none" DisplayName="PodpisPdf"
+    <Application Id="PodpiszPdf" Executable="PodpiszPdf.exe" uap10:TrustLevel="mediumIL" uap10:RuntimeBehavior="win32App">
+      <uap:VisualElements AppListEntry="none" DisplayName="PodpiszPdf"
                           Description="Kwalifikowany podpis elektroniczny PAdES plików PDF"
                           BackgroundColor="transparent" Square150x150Logo="Assets\Logo150.png" Square44x44Logo="Assets\Logo44.png" />
       <Extensions>
         <desktop4:Extension Category="windows.fileExplorerContextMenus">
           <desktop4:FileExplorerContextMenus>
             <desktop5:ItemType Type=".pdf">
-              <desktop5:Verb Id="PodpiszWPodpisPdf" Clsid="6E2F4C3A-8B1D-4F5E-9A7C-2D3B4E5F6A71" />
+              <desktop5:Verb Id="PodpiszWPodpiszPdf" Clsid="6E2F4C3A-8B1D-4F5E-9A7C-2D3B4E5F6A71" />
             </desktop5:ItemType>
           </desktop4:FileExplorerContextMenus>
         </desktop4:Extension>
         <com:Extension Category="windows.comServer">
           <com:ComServer>
-            <com:ExeServer Executable="PodpisPdf.exe" Arguments="-Embedding" DisplayName="PodpisPdf — menu kontekstowe">
-              <com:Class Id="6E2F4C3A-8B1D-4F5E-9A7C-2D3B4E5F6A71" DisplayName="Podpisz w PodpisPdf" />
+            <com:ExeServer Executable="PodpiszPdf.exe" Arguments="-Embedding" DisplayName="PodpiszPdf — menu kontekstowe">
+              <com:Class Id="6E2F4C3A-8B1D-4F5E-9A7C-2D3B4E5F6A71" DisplayName="Podpisz w PodpiszPdf" />
             </com:ExeServer>
           </com:ComServer>
         </com:Extension>

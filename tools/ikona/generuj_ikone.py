@@ -1,4 +1,4 @@
-# Generator ikony PodpisPdf (styl Fluent 2). Użycie: python3 generuj_ikone.py ../../src/PodpisPdf/PodpisPdf.ico
+# Generator ikony PodpiszPdf (styl Fluent 2). Użycie: python3 generuj_ikone.py ../../src/PodpiszPdf/PodpiszPdf.ico
 # Tworzy też podglądy: ikona-1024.png, ikona-mala-1024.png (wersja dla 16–40 px), arkusz.png.
 import math, sys
 from PIL import Image, ImageDraw, ImageFilter, ImageChops

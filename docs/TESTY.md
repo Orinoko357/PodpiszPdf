@@ -9,7 +9,7 @@ Przed testem:
 
 ## 1. Lista certyfikatów
 
-- [ ] Po uruchomieniu `PodpisPdf.exe` na liście jest certyfikat z karty: imię i nazwisko, wystawca, data ważności.
+- [ ] Po uruchomieniu `PodpiszPdf.exe` na liście jest certyfikat z karty: imię i nazwisko, wystawca, data ważności.
 - [ ] Certyfikat kwalifikowany ma gwiazdkę ★ i pogrubienie.
 - [ ] Na liście **nie ma** certyfikatów bez klucza prywatnego, przeterminowanych ani służących tylko do logowania/szyfrowania.
 - [ ] Wyjmij kartę, kliknij **Odśwież listę**: certyfikat znika albo podpis zakończy się komunikatem o braku karty (niektóre sterowniki zostawiają certyfikat w magazynie).
@@ -22,14 +22,14 @@ Przed testem:
 - [ ] Przeciągnij myszą na stronie — rysuje się prostokąt o stałych proporcjach z rozmiarem w mm; po puszczeniu
       przycisku podpis ma ten rozmiar. Kolejne kliknięcie (i następny dokument) używa ostatniego rozmiaru.
 - [ ] W pliku wynikowym podpis jest dokładnie w wskazanym miejscu, bez ramki; logo jest ostre przy dużym powiększeniu.
-- [ ] Pojawia się okno PIN-u **sterownika karty** (nie programu PodpisPdf), na wierzchu.
+- [ ] Pojawia się okno PIN-u **sterownika karty** (nie programu PodpiszPdf), na wierzchu.
 - [ ] Po wpisaniu PIN-u: komunikat o powodzeniu, obok oryginału powstaje `…_podpisany.pdf`; oryginał nie zmienia się (data modyfikacji).
 - [ ] Wizualizacja na stronie: imię i nazwisko, stanowisko (jeśli ustawione), logo (jeśli ustawione), data i godzina.
 - [ ] Przy kolejnym uruchomieniu zaznaczony jest ostatnio użyty certyfikat.
 
 ## 3. Menu kontekstowe i zasobnik
 
-- [ ] Prawy przycisk na pliku PDF w Eksploratorze → **Podpisz w PodpisPdf** (Windows 11: *Pokaż więcej opcji*) —
+- [ ] Prawy przycisk na pliku PDF w Eksploratorze → **Podpisz w PodpiszPdf** (Windows 11: *Pokaż więcej opcji*) —
       program otwiera podgląd tego pliku.
 - [ ] Zminimalizuj program — znika z paska zadań, ikona jest obok zegara. Podpisz plik z menu kontekstowego —
       otwiera się działające okno (nie druga kopia programu).
@@ -47,18 +47,18 @@ Przed testem:
 
 ## 4. Autostart i aktualizacja
 
-- [ ] W *Ustawieniach* zaznacz „Uruchamiaj przy logowaniu do Windows” → OK. W `%APPDATA%\PodpisPdf` jest
-      `PodpisPdf.exe`; w *Menedżerze zadań → Autostart* jest PodpisPdf.
+- [ ] W *Ustawieniach* zaznacz „Uruchamiaj przy logowaniu do Windows” → OK. W `%APPDATA%\PodpiszPdf` jest
+      `PodpiszPdf.exe`; w *Menedżerze zadań → Autostart* jest PodpiszPdf.
 - [ ] Wyloguj się i zaloguj — program działa w zasobniku (bez okna). Menu kontekstowe pliku PDF otwiera go.
 - [ ] Gdy program działa w zasobniku, uruchom pobrany plik **nowszej** wersji — pojawia się ostrzeżenie
       z pytaniem o zamknięcie działającego programu. *Tak* → otwiera się nowa wersja (numer w tytule okna),
-      a plik w `%APPDATA%\PodpisPdf` ma nową wersję (*Właściwości → Szczegóły*).
+      a plik w `%APPDATA%\PodpiszPdf` ma nową wersję (*Właściwości → Szczegóły*).
 - [ ] Uruchom **starszą** wersję, gdy działa nowsza — ostrzeżenie, że działa nowsza wersja; plik w AppData się nie zmienia.
 - [ ] Odznacz autostart → wpis znika z *Menedżera zadań → Autostart*.
 
 ## 4a. Wersja 3.0: aplikacja domyślna, menu Windows 11, aktualizacje
 
-- [ ] *Ustawienia → Program → Ustaw jako domyślną…* → w Ustawieniach Windows wybierz PodpisPdf dla `.pdf`.
+- [ ] *Ustawienia → Program → Ustaw jako domyślną…* → w Ustawieniach Windows wybierz PodpiszPdf dla `.pdf`.
       Pliki PDF zachowują ikonę Acrobata.
 - [ ] Dwuklik pliku PDF → okno **Podpisz / Przeglądaj**. *Przeglądaj* otwiera Acrobat Reader; *Podpisz* otwiera podgląd
       do wskazania miejsca podpisu (także gdy program działa w zasobniku).
@@ -66,18 +66,18 @@ Przed testem:
 - [ ] Zaznacz „Zapamiętaj mój wybór”, gdy program działa w zasobniku, i podpisz plik — wybór nadal jest zapamiętany
       (Ustawienia → Program → Po otwarciu pliku PDF).
 - [ ] (Windows 11) *Ustawienia → Program → Nowe menu kontekstowe Windows 11*: *Dodaj do menu* (certyfikat dodaje
-      instalator MSI; bez niego opis każe zainstalować program ponownie). Prawy przycisk na PDF → **Podpisz w PodpisPdf** od razu w menu, bez *Pokaż więcej opcji*;
+      instalator MSI; bez niego opis każe zainstalować program ponownie). Prawy przycisk na PDF → **Podpisz w PodpiszPdf** od razu w menu, bez *Pokaż więcej opcji*;
       działa także, gdy program nie jest uruchomiony i gdy jest w zasobniku. *Usuń z menu* usuwa pozycję.
 - [ ] *Ustawienia → Informacje → Sprawdź teraz*: przy najnowszej wersji — „Masz najnowszą wersję”.
-- [ ] Ze starszą wersją 3.x w `%APPDATA%\PodpisPdf`: pasek „Dostępna nowa wersja” → *Zaktualizuj teraz* → program
-      uruchamia się ponownie w nowej wersji (numer w tytule), na pasku stanu „Zaktualizowano PodpisPdf…”.
+- [ ] Ze starszą wersją 3.x w `%APPDATA%\PodpiszPdf`: pasek „Dostępna nowa wersja” → *Zaktualizuj teraz* → program
+      uruchamia się ponownie w nowej wersji (numer w tytule), na pasku stanu „Zaktualizowano PodpiszPdf…”.
 - [ ] *Zaktualizuj teraz* → *Nie* w oknie UAC: program wraca w dotychczasowej wersji z komunikatem „Aktualizacja
       anulowana”; inny błąd instalatora — „Aktualizacja nie powiodła się (kod …)”. Folder
-      `%TEMP%\PodpisPdf-aktualizacja` znika przy następnym starcie.
+      `%TEMP%\PodpiszPdf-aktualizacja` znika przy następnym starcie.
 - [ ] *Ustawienia → Znacznik czasu*: podany login przy adresie `http://` — zapis odmawia („adres musi zaczynać się od https://”).
-- [ ] Odinstaluj PodpisPdf (*Ustawienia Windows → Aplikacje*): znika „Podpisz w PodpisPdf” z obu menu kontekstowych,
-      PodpisPdf z listy aplikacji do PDF i autostart; dwuklik na PDF (jeśli PodpisPdf był domyślny) pyta o aplikację.
-      `%APPDATA%\PodpisPdf` (ustawienia, logo) zostaje — usuń ręcznie, jeśli niepotrzebny. Sprzątanie dotyczy
+- [ ] Odinstaluj PodpiszPdf (*Ustawienia Windows → Aplikacje*): znika „Podpisz w PodpiszPdf” z obu menu kontekstowych,
+      PodpiszPdf z listy aplikacji do PDF i autostart; dwuklik na PDF (jeśli PodpiszPdf był domyślny) pyta o aplikację.
+      `%APPDATA%\PodpiszPdf` (ustawienia, logo) zostaje — usuń ręcznie, jeśli niepotrzebny. Sprzątanie dotyczy
       użytkownika, który odinstalowuje.
 
 ## 5. Błędy

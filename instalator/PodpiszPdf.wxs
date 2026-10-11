@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Instalator PodpiszPdf (MSI, dla całego komputera): program w C:\Program Files\PodpiszPdf, skrót w menu Start,
+  certyfikat pakietu menu Windows 11 w magazynie „Zaufane osoby” komputera.
+  Zmienne z GitHub Actions: Wersja (np. 3.1.0), Zrodlo (folder publikacji), Certyfikat (plik .cer), Ikona.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:iis="http://wixtoolset.org/schemas/v4/wxs/iis">
+  <Package Name="PodpiszPdf"
+           Manufacturer="PodpiszPdf"
+           Version="$(var.Wersja)"
+           UpgradeCode="7875bc60-c4ff-4080-a502-632deaa875fb"
+           Scope="perMachine"
+           Language="1045"
+           Codepage="1250">
+
+    <SummaryInformation Description="PodpiszPdf — kwalifikowany podpis elektroniczny PAdES plików PDF" Manufacturer="PodpiszPdf" />
+
+    <!-- Nowsza wersja zastępuje starszą; starsza nie instaluje się na nowszej. -->
+    <MajorUpgrade DowngradeErrorMessage="Zainstalowana jest nowsza wersja PodpiszPdf." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="IkonaPodpiszPdf" SourceFile="$(var.Ikona)" />
+    <Property Id="ARPPRODUCTICON" Value="IkonaPodpiszPdf" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/Orinoko357/PodpiszPdf-wydania" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="PodpiszPdf" />
+    </StandardDirectory>
+
+    <ComponentGroup Id="PlikiProgramu" Directory="INSTALLFOLDER">
+      <Files Include="$(var.Zrodlo)\**" />
+    </ComponentGroup>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="SkrotMenuStart">
+        <Shortcut Id="SkrotPodpiszPdf" Name="PodpiszPdf" Description="Kwalifikowany podpis elektroniczny plików PDF"
+                  Target="[INSTALLFOLDER]PodpiszPdf.exe" WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKLM" Key="Software\PodpiszPdf" Name="SkrotMenuStart" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <!-- Certyfikat CN=PodpisPdf — Windows ufa wtedy pakietowi menu kontekstowego Windows 11. -->
+    <Binary Id="CertyfikatPodpiszPdf" SourceFile="$(var.Certyfikat)" />
+    <Component Id="CertyfikatZaufany" Directory="INSTALLFOLDER" Guid="43b07e0a-826a-410d-8eea-40fc3bddbf7f">
+      <iis:Certificate Id="CertyfikatPodpiszPdfZaufany" Name="PodpiszPdf" StoreLocation="localMachine" StoreName="trustedPeople"
+                       BinaryRef="CertyfikatPodpiszPdf" Request="no" Overwrite="yes" />
+      <RegistryValue Root="HKLM" Key="Software\PodpiszPdf" Name="Certyfikat" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <Component Id="FolderInstalacji" Directory="INSTALLFOLDER" Guid="9c1f4b2e-6a7d-4e83-b5f0-2d8e7a61c934">
+      <RegistryValue Root="HKLM" Key="Software\PodpiszPdf" Name="Folder" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+    </Component>
+
+    <!--
+      Odinstalowanie: program sprząta to, co zarejestrował dla użytkownika (pakiet menu Windows 11, klasyczne menu
+      kontekstowe, rejestrację aplikacji do PDF, autostart). Działa jako użytkownik, który odinstalowuje (Impersonate),
+      przed usunięciem plików; nie przy aktualizacji (stara wersja usuwana przez nowszą). Błąd nie zatrzymuje
+      odinstalowania. Ustawienia w %APPDATA%\PodpiszPdf zostają.
+    -->
+    <CustomAction Id="SprzatanieUzytkownika" Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[INSTALLFOLDER]PodpiszPdf.exe&quot; --odinstaluj"
+                  Execute="deferred" Impersonate="yes" Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom Action="SprzatanieUzytkownika" Before="RemoveFiles" Condition='REMOVE~="ALL" AND NOT UPGRADINGPRODUCTCODE' />
+    </InstallExecuteSequence>
+
+    <Feature Id="PodpiszPdf" Title="PodpiszPdf">
+      <ComponentGroupRef Id="PlikiProgramu" />
+      <ComponentRef Id="SkrotMenuStart" />
+      <ComponentRef Id="CertyfikatZaufany" />
+      <ComponentRef Id="FolderInstalacji" />
+    </Feature>
+  </Package>
+</Wix>

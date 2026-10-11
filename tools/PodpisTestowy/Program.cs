@@ -2,7 +2,7 @@
 // żeby sprawdzić format podpisu w Adobe Reader i EU DSS. Nie służy do podpisów produkcyjnych.
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using PodpisPdf.Core;
+using PodpiszPdf.Core;
 
 const string Pomoc = """
     Użycie:

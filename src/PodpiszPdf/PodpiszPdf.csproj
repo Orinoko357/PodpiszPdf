@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWinUI>true</UseWinUI>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>PodpiszPdf</AssemblyName>
+    <RootNamespace>PodpiszPdf</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>PodpiszPdf.ico</ApplicationIcon>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <Product>PodpiszPdf</Product>
+    <Version>3.2.0.0</Version>
+    <Description>Kwalifikowany podpis elektroniczny PAdES dla plików PDF</Description>
+
+    <!-- Aplikacja bez pakietu MSIX, z własnym środowiskiem Windows App SDK (nie wymaga instalacji). -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- Plik resources.pri programu (zasoby XAML). -->
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <!-- Rejestracja klas WinRT z bibliotek w folderze programu (zob. też Program.Main). -->
+    <WindowsAppSdkUndockedRegFreeWinRTInitialize>true</WindowsAppSdkUndockedRegFreeWinRTInitialize>
+    <!-- Własna metoda Main: jedna kopia programu i obsługa parametrów przed startem interfejsu. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+  </PropertyGroup>
+
+  <!-- dotnet publish -c Release -r win-x64 -p:Platform=x64  →  folder programu (z niego GitHub Actions buduje
+       instalator MSI, katalog instalator/). Bez trybu „jeden plik exe”: WinUI wypakowywane przy każdym starcie
+       nie znajdowało na części komputerów swoich zasobów („XAML parsing failed”). -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <SelfContained>true</SelfContained>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="PodpiszPdf.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Podpisany pakiet menu Windows 11 i jego certyfikat — tworzone w GitHub Actions (katalog pakiet/). -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\pakiet\wynik\PodpiszPdf.msix" LogicalName="PodpiszPdf.msix" Condition="Exists('..\..\pakiet\wynik\PodpiszPdf.msix')" />
+    <EmbeddedResource Include="..\..\pakiet\wynik\PodpiszPdf.cer" LogicalName="PodpiszPdf.cer" Condition="Exists('..\..\pakiet\wynik\PodpiszPdf.cer')" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.9169" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.Segmented" Version="8.2.251219" />
+    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
+  </ItemGroup>
+
+  <!-- Moduły Windows App SDK, z których program nie korzysta: AI i uczenie maszynowe (onnxruntime, DirectML —
+       ok. 40 MB), widżety. Pakiet zbiorczy Microsoft.WindowsAppSDK zostaje (zależą od niego H.NotifyIcon
+       i Community Toolkit); pliki tych modułów wyłączamy z kopiowania do programu — zarówno z paczki MSIX
+       środowiska (Microsoft.WindowsAppSDK.Runtime), jak i z pakietów składników. -->
+  <Target Name="PomijajZbedneSkladnikiWindowsAppSdk"
+          BeforeTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromMsix;AddMicrosoftWindowsAppSDKPayloadFilesFromComponents"
+          DependsOnTargets="ExtractMicrosoftWindowsAppSDKMsixFiles">
+    <ItemGroup>
+      <MicrosoftWindowsAppSDKFilesExcluded Condition="'$(MicrosoftWindowsAppSDKMsixContent)' != ''"
+        Include="$(MicrosoftWindowsAppSDKMsixContent)\**\onnxruntime*.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\DirectML.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\Microsoft.Windows.AI.*.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\Microsoft.Windows.Widgets.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\Microsoft.Windows.Workloads*.dll;$(MicrosoftWindowsAppSDKMsixContent)\**\workloads*.json" />
+      <WindowsAppSdkComponentPackages Remove="@(WindowsAppSdkComponentPackages)"
+        Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Identity)', 'microsoft\.windowsappsdk\.(ai|ml|widgets)[\\/.]', System.Text.RegularExpressions.RegexOptions.IgnoreCase))" />
+    </ItemGroup>
+    <Message Importance="high" Text="Pominięte pliki Windows App SDK: @(MicrosoftWindowsAppSDKFilesExcluded->'%(Filename)%(Extension)', ', ')" />
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PodpiszPdf.Core\PodpiszPdf.Core.csproj" />
+  </ItemGroup>
+
+</Project>

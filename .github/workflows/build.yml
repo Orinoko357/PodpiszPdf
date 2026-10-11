@@ -29,7 +29,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          wersja=$(grep -oP '(?<=<Version>)[^<]+' src/PodpisPdf/PodpisPdf.csproj)
+          wersja=$(grep -oP '(?<=<Version>)[^<]+' src/PodpiszPdf/PodpiszPdf.csproj)
           if gh api "repos/${{ github.repository }}/git/ref/tags/v$wersja" > /dev/null 2>&1; then nowa=nie; else nowa=tak; fi
           echo "Wersja $wersja, nowa: $nowa"
           echo "wersja=$wersja" >> "$GITHUB_OUTPUT"
@@ -50,21 +50,21 @@ jobs:
 
       # --blame: przy awarii procesu testów pokazuje, który test był wtedy wykonywany.
       - name: Testy
-        run: dotnet test tests/PodpisPdf.Tests -c Release --blame
+        run: dotnet test tests/PodpiszPdf.Tests -c Release --blame
 
       # Pakiet „z zawartością zewnętrzną” dla nowego menu kontekstowego Windows 11, podpisany certyfikatem
       # CN=PodpisPdf (sekret CERTYFIKAT_PFX). Bez sekretu: certyfikat tymczasowy — pakiet tylko do testu
-      # poniżej, nie trafia do PodpisPdf.exe.
+      # poniżej, nie trafia do PodpiszPdf.exe.
       - name: Pakiet menu Windows 11
         shell: pwsh
         run: |
-          $wersja = ([xml](Get-Content src/PodpisPdf/PodpisPdf.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          $wersja = ([xml](Get-Content src/PodpiszPdf/PodpiszPdf.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
           $bin = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.*\x64\makeappx.exe" | Sort-Object FullName -Descending | Select-Object -First 1).DirectoryName
           "Wersja pakietu: $wersja, narzędzia: $bin"
           New-Item -ItemType Directory -Force pakiet/budowa, pakiet/wynik | Out-Null
           Copy-Item pakiet/Assets pakiet/budowa -Recurse -Force
           (Get-Content pakiet/AppxManifest.xml -Raw).Replace('WERSJA', $wersja) | Set-Content pakiet/budowa/AppxManifest.xml -Encoding utf8
-          & "$bin\makeappx.exe" pack /d pakiet/budowa /p pakiet/wynik/PodpisPdf.msix /nv /o
+          & "$bin\makeappx.exe" pack /d pakiet/budowa /p pakiet/wynik/PodpiszPdf.msix /nv /o
           if ($LASTEXITCODE -ne 0) { throw "makeappx: $LASTEXITCODE" }
           $haslo = 'PodpisPdf'
           if ($env:CERTYFIKAT_PFX) {
@@ -74,30 +74,30 @@ jobs:
             $c = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=PodpisPdf' -CertStoreLocation Cert:\CurrentUser\My -KeyExportPolicy Exportable
             Export-PfxCertificate -Cert $c -FilePath pakiet/cert.pfx -Password (ConvertTo-SecureString $haslo -AsPlainText -Force) | Out-Null
           }
-          & "$bin\signtool.exe" sign /fd SHA256 /f pakiet/cert.pfx /p $haslo pakiet/wynik/PodpisPdf.msix
+          & "$bin\signtool.exe" sign /fd SHA256 /f pakiet/cert.pfx /p $haslo pakiet/wynik/PodpiszPdf.msix
           if ($LASTEXITCODE -ne 0) { throw "signtool: $LASTEXITCODE" }
           $cert = [Security.Cryptography.X509Certificates.X509Certificate2]::new("$PWD/pakiet/cert.pfx", $haslo)
-          [IO.File]::WriteAllBytes("$PWD/pakiet/wynik/PodpisPdf.cer", $cert.Export('Cert'))
+          [IO.File]::WriteAllBytes("$PWD/pakiet/wynik/PodpiszPdf.cer", $cert.Export('Cert'))
           "Certyfikat: $($cert.Subject), odcisk $($cert.Thumbprint), ważny do $($cert.NotAfter)"
           Remove-Item pakiet/cert.pfx
           if (-not $env:CERTYFIKAT_PFX) { Move-Item pakiet/wynik pakiet/test }
 
-      - name: Publikacja PodpisPdf.exe
-        run: dotnet publish src/PodpisPdf -c Release -r win-x64 -p:Platform=x64 -o publish
+      - name: Publikacja PodpiszPdf.exe
+        run: dotnet publish src/PodpiszPdf -c Release -r win-x64 -p:Platform=x64 -o publish
 
-      - name: Test uruchomienia PodpisPdf.exe (i czas startu)
+      - name: Test uruchomienia PodpiszPdf.exe (i czas startu)
         shell: pwsh
         run: |
           foreach ($proba in 1..2) {
             $czas = Measure-Command {
-              $p = Start-Process publish/PodpisPdf.exe -ArgumentList '--sprawdz' -PassThru
-              if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "PodpisPdf.exe --sprawdz nie zakończył się w 3 minuty" }
+              $p = Start-Process publish/PodpiszPdf.exe -ArgumentList '--sprawdz' -PassThru
+              if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "PodpiszPdf.exe --sprawdz nie zakończył się w 3 minuty" }
             }
             if ($p.ExitCode -ne 0) {
-              Get-Content "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue
+              Get-Content "$env:TEMP/PodpiszPdf-blad.txt" -ErrorAction SilentlyContinue
               Get-WinEvent -LogName Application -MaxEvents 20 -ErrorAction SilentlyContinue |
                 Where-Object { $_.ProviderName -match 'Application Error|\.NET Runtime' } | Format-List TimeCreated, Message
-              throw "PodpisPdf.exe --sprawdz zakończył się kodem $($p.ExitCode)"
+              throw "PodpiszPdf.exe --sprawdz zakończył się kodem $($p.ExitCode)"
             }
             "Uruchomienie $proba`: $([math]::Round($czas.TotalSeconds, 2)) s"
           }
@@ -114,53 +114,53 @@ jobs:
 
       # Zwykły start (jak u użytkownika: ikona w zasobniku, tło Mica, ustawienia, rejestr) — tryb --sprawdz
       # tego nie obejmuje. Program ma działać po 15 s i nie zapisać pliku błędu.
-      - name: Test zwykłego startu PodpisPdf.exe
+      - name: Test zwykłego startu PodpiszPdf.exe
         shell: pwsh
         run: |
-          Remove-Item "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue
-          $p = Start-Process publish/PodpisPdf.exe -PassThru
+          Remove-Item "$env:TEMP/PodpiszPdf-blad.txt" -ErrorAction SilentlyContinue
+          $p = Start-Process publish/PodpiszPdf.exe -PassThru
           Start-Sleep -Seconds 15
-          $blad = Get-Content "$env:TEMP/PodpisPdf-blad.txt" -Raw -ErrorAction SilentlyContinue
+          $blad = Get-Content "$env:TEMP/PodpiszPdf-blad.txt" -Raw -ErrorAction SilentlyContinue
           $dziala = -not $p.HasExited
-          Get-Process PodpisPdf -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process PodpiszPdf -ErrorAction SilentlyContinue | Stop-Process -Force
           if ($blad) { "::error title=Zwykły start::$($blad -replace "`r?`n", ' | ')"; throw "Błąd przy zwykłym starcie" }
           if (-not $dziala) { throw "Program zakończył się przy starcie (kod $($p.ExitCode))" }
           "Zwykły start: program działa"
 
-      # Rejestracja pakietu z PodpisPdf.exe w osobnym folderze (jak %APPDATA%\PodpisPdf): start programu
+      # Rejestracja pakietu z PodpiszPdf.exe w osobnym folderze (jak %APPDATA%\PodpiszPdf): start programu
       # z tożsamością pakietu i aktywacja serwera COM polecenia menu (tak robi to Eksplorator Windows 11).
       - name: Test pakietu menu Windows 11
         shell: pwsh
         run: |
-          $folder = Join-Path $env:RUNNER_TEMP 'PodpisPdf-pakiet'
+          $folder = Join-Path $env:RUNNER_TEMP 'PodpiszPdf-pakiet'
           New-Item -ItemType Directory -Force $folder | Out-Null
           Copy-Item publish/* $folder -Recurse
-          $zrodlo = if (Test-Path pakiet/wynik/PodpisPdf.msix) { 'pakiet/wynik' } else { 'pakiet/test' }
-          certutil -addstore TrustedPeople "$zrodlo/PodpisPdf.cer" | Out-Null
-          Add-AppxPackage -Path "$zrodlo/PodpisPdf.msix" -ExternalLocation $folder
-          Get-AppxPackage PodpisPdf | Format-List Name, Version, PackageFullName
-          Remove-Item "$env:TEMP/PodpisPdf-sprawdz.txt" -ErrorAction SilentlyContinue
-          $p = Start-Process "$folder/PodpisPdf.exe" -ArgumentList '--sprawdz' -PassThru
+          $zrodlo = if (Test-Path pakiet/wynik/PodpiszPdf.msix) { 'pakiet/wynik' } else { 'pakiet/test' }
+          certutil -addstore TrustedPeople "$zrodlo/PodpiszPdf.cer" | Out-Null
+          Add-AppxPackage -Path "$zrodlo/PodpiszPdf.msix" -ExternalLocation $folder
+          Get-AppxPackage PodpiszPdf | Format-List Name, Version, PackageFullName
+          Remove-Item "$env:TEMP/PodpiszPdf-sprawdz.txt" -ErrorAction SilentlyContinue
+          $p = Start-Process "$folder/PodpiszPdf.exe" -ArgumentList '--sprawdz' -PassThru
           if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "Start z folderu pakietu: brak zakończenia" }
-          Get-Content "$env:TEMP/PodpisPdf-sprawdz.txt" -ErrorAction SilentlyContinue
-          if ($p.ExitCode -ne 0) { Get-Content "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue; throw "Start z folderu pakietu: kod $($p.ExitCode)" }
+          Get-Content "$env:TEMP/PodpiszPdf-sprawdz.txt" -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) { Get-Content "$env:TEMP/PodpiszPdf-blad.txt" -ErrorAction SilentlyContinue; throw "Start z folderu pakietu: kod $($p.ExitCode)" }
           $obiekt = [Activator]::CreateInstance([Type]::GetTypeFromCLSID([Guid]'6E2F4C3A-8B1D-4F5E-9A7C-2D3B4E5F6A71'))
           if ($null -eq $obiekt) { throw "Serwer COM menu nie odpowiada" }
           "Serwer COM menu Windows 11: działa"
           [Runtime.InteropServices.Marshal]::ReleaseComObject($obiekt) | Out-Null
-          Get-Process PodpisPdf -ErrorAction SilentlyContinue | Stop-Process -Force
-          Get-AppxPackage PodpisPdf | Remove-AppxPackage
+          Get-Process PodpiszPdf -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-AppxPackage PodpiszPdf | Remove-AppxPackage
           # Certyfikat usuwamy, żeby test instalatora sprawdził, że to instalator go dodaje.
-          $odcisk = ([Security.Cryptography.X509Certificates.X509Certificate2]::new((Resolve-Path "$zrodlo/PodpisPdf.cer").Path)).Thumbprint
+          $odcisk = ([Security.Cryptography.X509Certificates.X509Certificate2]::new((Resolve-Path "$zrodlo/PodpiszPdf.cer").Path)).Thumbprint
           certutil -delstore TrustedPeople $odcisk | Out-Null
 
       - name: Zrzuty ekranu (jasny i ciemny motyw)
         shell: pwsh
         run: |
-          Remove-Item "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue
-          $p = Start-Process publish/PodpisPdf.exe -ArgumentList '--zrzuty', "$PWD/zrzuty" -PassThru
+          Remove-Item "$env:TEMP/PodpiszPdf-blad.txt" -ErrorAction SilentlyContinue
+          $p = Start-Process publish/PodpiszPdf.exe -ArgumentList '--zrzuty', "$PWD/zrzuty" -PassThru
           if (-not $p.WaitForExit(300000)) { $p.Kill(); throw "Zrzuty ekranu: brak zakończenia w 5 minut" }
-          Get-Content "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue
+          Get-Content "$env:TEMP/PodpiszPdf-blad.txt" -ErrorAction SilentlyContinue
           if ($p.ExitCode -ne 0) {
             Get-WinEvent -LogName Application -MaxEvents 20 -ErrorAction SilentlyContinue |
               Where-Object { $_.ProviderName -match 'Application Error|\.NET Runtime' } | Format-List TimeCreated, Message
@@ -196,15 +196,15 @@ jobs:
         run: |
           dotnet tool install --global wix --version 5.0.2
           wix extension add --global WixToolset.Iis.wixext/5.0.2
-          $v = [version](([xml](Get-Content src/PodpisPdf/PodpisPdf.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
+          $v = [version](([xml](Get-Content src/PodpiszPdf/PodpiszPdf.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
           $wersjaMsi = "$($v.Major).$($v.Minor).$($v.Build * 1000 + $v.Revision)"
-          $cer = if (Test-Path pakiet/wynik/PodpisPdf.cer) { 'pakiet/wynik/PodpisPdf.cer' } else { 'pakiet/test/PodpisPdf.cer' }
+          $cer = if (Test-Path pakiet/wynik/PodpiszPdf.cer) { 'pakiet/wynik/PodpiszPdf.cer' } else { 'pakiet/test/PodpiszPdf.cer' }
           New-Item -ItemType Directory -Force wynik | Out-Null
-          wix build instalator/PodpisPdf.wxs -arch x64 -ext WixToolset.Iis.wixext `
-            -d Wersja=$wersjaMsi -d "Zrodlo=$((Resolve-Path publish).Path)" -d "Certyfikat=$((Resolve-Path $cer).Path)" -d "Ikona=$((Resolve-Path src/PodpisPdf/PodpisPdf.ico).Path)" `
-            -o wynik/PodpisPdf.msi
+          wix build instalator/PodpiszPdf.wxs -arch x64 -ext WixToolset.Iis.wixext `
+            -d Wersja=$wersjaMsi -d "Zrodlo=$((Resolve-Path publish).Path)" -d "Certyfikat=$((Resolve-Path $cer).Path)" -d "Ikona=$((Resolve-Path src/PodpiszPdf/PodpiszPdf.ico).Path)" `
+            -o wynik/PodpiszPdf.msi
           if ($LASTEXITCODE -ne 0) { throw "wix build: $LASTEXITCODE" }
-          "Instalator: $([math]::Round((Get-Item wynik/PodpisPdf.msi).Length / 1MB, 1)) MB, wersja MSI $wersjaMsi"
+          "Instalator: $([math]::Round((Get-Item wynik/PodpiszPdf.msi).Length / 1MB, 1)) MB, wersja MSI $wersjaMsi"
 
       - name: Test instalatora (aktualizacja, start, menu, certyfikat, odinstalowanie)
         shell: pwsh
@@ -213,59 +213,59 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # Aktualizacja: najpierw opublikowane wydanie, na nie nowy instalator (gdy ma wyższy numer).
-          $wersja = [version](([xml](Get-Content src/PodpisPdf/PodpisPdf.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
-          $najnowsze = Invoke-RestMethod https://api.github.com/repos/Orinoko357/PodpisPdf-wydania/releases/latest -Headers @{ Authorization = "Bearer $env:GH_TOKEN" }
+          $wersja = [version](([xml](Get-Content src/PodpiszPdf/PodpiszPdf.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1)
+          $najnowsze = Invoke-RestMethod https://api.github.com/repos/Orinoko357/PodpiszPdf-wydania/releases/latest -Headers @{ Authorization = "Bearer $env:GH_TOKEN" }
           $poprzednia = if ($najnowsze) { [version]($najnowsze.tag_name.TrimStart('v')) } else { $null }
-          $testAktualizacji = $poprzednia -and $poprzednia -lt $wersja -and ($najnowsze.assets.name -contains 'PodpisPdf.msi')
+          $testAktualizacji = $poprzednia -and $poprzednia -lt $wersja -and ($najnowsze.assets.name -contains 'PodpiszPdf.msi')
           if ($testAktualizacji) {
-            Invoke-WebRequest ($najnowsze.assets | Where-Object name -eq 'PodpisPdf.msi').browser_download_url -OutFile "$env:RUNNER_TEMP\poprzednia.msi"
+            Invoke-WebRequest ($najnowsze.assets | Where-Object name -eq 'PodpiszPdf.msi').browser_download_url -OutFile "$env:RUNNER_TEMP\poprzednia.msi"
             $p0 = Start-Process msiexec.exe -ArgumentList '/i', "`"$env:RUNNER_TEMP\poprzednia.msi`"", '/qn' -Wait -PassThru
             if ($p0.ExitCode -ne 0) { throw "Instalacja poprzedniej wersji ${poprzednia}: kod $($p0.ExitCode)" }
             "Zainstalowano poprzednią wersję $poprzednia"
           } else { "Bez testu aktualizacji (opublikowana: $poprzednia, budowana: $wersja)" }
 
-          $p = Start-Process msiexec.exe -ArgumentList '/i', "`"$((Resolve-Path wynik/PodpisPdf.msi).Path)`"", '/qn', '/l*v', "`"$env:RUNNER_TEMP\instalacja.log`"" -Wait -PassThru
+          $p = Start-Process msiexec.exe -ArgumentList '/i', "`"$((Resolve-Path wynik/PodpiszPdf.msi).Path)`"", '/qn', '/l*v', "`"$env:RUNNER_TEMP\instalacja.log`"" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\instalacja.log" -Tail 60; throw "Instalacja MSI: kod $($p.ExitCode)" }
-          $exe = Join-Path $env:ProgramFiles 'PodpisPdf\PodpisPdf.exe'
+          $exe = Join-Path $env:ProgramFiles 'PodpiszPdf\PodpiszPdf.exe'
           if (-not (Test-Path $exe)) { throw "Brak $exe po instalacji" }
           $wersjaPliku = [version](Get-Item $exe).VersionInfo.FileVersion
           if ($wersjaPliku -ne $wersja) { throw "Zainstalowana wersja $wersjaPliku zamiast $wersja" }
-          $wpisy = @(Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | Get-ItemProperty | Where-Object DisplayName -eq 'PodpisPdf')
-          if ($wpisy.Count -ne 1) { throw "Wpisów PodpisPdf w Aplikacjach: $($wpisy.Count) (oczekiwano 1)" }
+          $wpisy = @(Get-ChildItem HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall | Get-ItemProperty | Where-Object DisplayName -eq 'PodpiszPdf')
+          if ($wpisy.Count -ne 1) { throw "Wpisów PodpiszPdf w Aplikacjach: $($wpisy.Count) (oczekiwano 1)" }
           if ($testAktualizacji) { "Aktualizacja $poprzednia → ${wersja}: działa (jeden wpis w Aplikacjach)" }
-          $cer = if (Test-Path pakiet/wynik/PodpisPdf.cer) { 'pakiet/wynik/PodpisPdf.cer' } else { 'pakiet/test/PodpisPdf.cer' }
+          $cer = if (Test-Path pakiet/wynik/PodpiszPdf.cer) { 'pakiet/wynik/PodpiszPdf.cer' } else { 'pakiet/test/PodpiszPdf.cer' }
           $odcisk = ([Security.Cryptography.X509Certificates.X509Certificate2]::new((Resolve-Path $cer).Path)).Thumbprint
           if (-not (Get-ChildItem Cert:\LocalMachine\TrustedPeople | Where-Object Thumbprint -eq $odcisk)) { throw "Instalator nie dodał certyfikatu" }
-          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'PodpisPdf.lnk'))) { throw "Brak skrótu w menu Start" }
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'PodpiszPdf.lnk'))) { throw "Brak skrótu w menu Start" }
           $s = Start-Process $exe -ArgumentList '--sprawdz' -PassThru
           if (-not $s.WaitForExit(180000)) { $s.Kill(); throw "Zainstalowany program: brak zakończenia" }
-          if ($s.ExitCode -ne 0) { Get-Content "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue; throw "Zainstalowany program: kod $($s.ExitCode)" }
-          Get-Content "$env:TEMP/PodpisPdf-sprawdz.txt" -ErrorAction SilentlyContinue
-          Remove-Item "$env:TEMP/PodpisPdf-blad.txt" -ErrorAction SilentlyContinue
+          if ($s.ExitCode -ne 0) { Get-Content "$env:TEMP/PodpiszPdf-blad.txt" -ErrorAction SilentlyContinue; throw "Zainstalowany program: kod $($s.ExitCode)" }
+          Get-Content "$env:TEMP/PodpiszPdf-sprawdz.txt" -ErrorAction SilentlyContinue
+          Remove-Item "$env:TEMP/PodpiszPdf-blad.txt" -ErrorAction SilentlyContinue
           $z = Start-Process $exe -PassThru
           Start-Sleep -Seconds 15
           # Rejestracja pakietu menu odbywa się w tle po starcie — dajemy jej do 45 s.
           $koniec = (Get-Date).AddSeconds(30)
-          while ($env:CERTYFIKAT_PFX -and -not (Get-AppxPackage PodpisPdf) -and (Get-Date) -lt $koniec) { Start-Sleep -Seconds 3 }
-          $blad = Get-Content "$env:TEMP/PodpisPdf-blad.txt" -Raw -ErrorAction SilentlyContinue
+          while ($env:CERTYFIKAT_PFX -and -not (Get-AppxPackage PodpiszPdf) -and (Get-Date) -lt $koniec) { Start-Sleep -Seconds 3 }
+          $blad = Get-Content "$env:TEMP/PodpiszPdf-blad.txt" -Raw -ErrorAction SilentlyContinue
           $dziala = -not $z.HasExited
-          Get-Process PodpisPdf -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process PodpiszPdf -ErrorAction SilentlyContinue | Stop-Process -Force
           if ($blad) { "::error title=Zainstalowany program::$($blad -replace "`r?`n", ' | ')"; throw "Błąd zwykłego startu zainstalowanego programu" }
           if (-not $dziala) { throw "Zainstalowany program zakończył się przy starcie" }
 
           # Menu Windows 11: program sam rejestruje pakiet (certyfikat dodał instalator), serwer COM odpowiada.
           if ($env:CERTYFIKAT_PFX) {
-            $pakiet = Get-AppxPackage PodpisPdf
+            $pakiet = Get-AppxPackage PodpiszPdf
             if (-not $pakiet) { throw "Program nie zarejestrował pozycji w menu Windows 11" }
             "Menu Windows 11: pakiet $($pakiet.Version) zarejestrowany automatycznie"
             $obiekt = [Activator]::CreateInstance([Type]::GetTypeFromCLSID([Guid]'6E2F4C3A-8B1D-4F5E-9A7C-2D3B4E5F6A71'))
             if ($null -eq $obiekt) { throw "Serwer COM menu nie odpowiada" }
             [Runtime.InteropServices.Marshal]::ReleaseComObject($obiekt) | Out-Null
-            Get-Process PodpisPdf -ErrorAction SilentlyContinue | Stop-Process -Force
+            Get-Process PodpiszPdf -ErrorAction SilentlyContinue | Stop-Process -Force
           }
 
           # Otwarcie PDF z ustawieniem „zawsze przeglądaj”: plik trafia do przeglądarki, program się kończy.
-          $config = Join-Path $env:APPDATA 'PodpisPdf\config.json'
+          $config = Join-Path $env:APPDATA 'PodpiszPdf\config.json'
           $ustawienia = if (Test-Path $config) { Get-Content $config -Raw | ConvertFrom-Json } else { New-Item -ItemType Directory -Force (Split-Path $config) | Out-Null; [pscustomobject]@{} }
           $ustawienia | Add-Member -NotePropertyName PoOtwarciuPdf -NotePropertyValue 'Przegladaj' -Force
           $ustawienia | ConvertTo-Json -Depth 5 | Set-Content $config -Encoding utf8
@@ -279,34 +279,34 @@ jobs:
           "Otwarcie PDF do przeglądania: $($przegladarka.ProcessName)"
           Get-Process msedge, Acrobat, AcroRd32 -ErrorAction SilentlyContinue | Stop-Process -Force
 
-          Get-AppxPackage PodpisPdf | Format-List Name, Version
-          # Odinstalowanie samo usuwa pakiet menu i wpisy użytkownika (PodpisPdf.exe --odinstaluj).
-          $u = Start-Process msiexec.exe -ArgumentList '/x', "`"$((Resolve-Path wynik/PodpisPdf.msi).Path)`"", '/qn' -Wait -PassThru
+          Get-AppxPackage PodpiszPdf | Format-List Name, Version
+          # Odinstalowanie samo usuwa pakiet menu i wpisy użytkownika (PodpiszPdf.exe --odinstaluj).
+          $u = Start-Process msiexec.exe -ArgumentList '/x', "`"$((Resolve-Path wynik/PodpiszPdf.msi).Path)`"", '/qn' -Wait -PassThru
           if ($u.ExitCode -ne 0) { throw "Odinstalowanie: kod $($u.ExitCode)" }
           if (Test-Path $exe) { throw "Program został po odinstalowaniu" }
-          if (Get-AppxPackage PodpisPdf) { throw "Pakiet menu Windows 11 został po odinstalowaniu" }
-          if (Test-Path 'HKCU:\Software\Classes\SystemFileAssociations\.pdf\shell\PodpisPdf') { throw "Menu kontekstowe zostało po odinstalowaniu" }
+          if (Get-AppxPackage PodpiszPdf) { throw "Pakiet menu Windows 11 został po odinstalowaniu" }
+          if (Test-Path 'HKCU:\Software\Classes\SystemFileAssociations\.pdf\shell\PodpiszPdf') { throw "Menu kontekstowe zostało po odinstalowaniu" }
           if (Get-ChildItem Cert:\LocalMachine\TrustedPeople | Where-Object Thumbprint -eq $odcisk) { throw "Certyfikat został po odinstalowaniu" }
           "Instalator: instalacja, start, certyfikat i odinstalowanie działają"
 
       - name: Suma kontrolna SHA-256
         shell: pwsh
         run: |
-          $suma = (Get-FileHash wynik/PodpisPdf.msi -Algorithm SHA256).Hash.ToLowerInvariant()
-          Set-Content wynik/PodpisPdf.msi.sha256 "$suma  PodpisPdf.msi" -NoNewline -Encoding ascii
+          $suma = (Get-FileHash wynik/PodpiszPdf.msi -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content wynik/PodpiszPdf.msi.sha256 "$suma  PodpiszPdf.msi" -NoNewline -Encoding ascii
           "SHA-256: $suma"
 
       # Gotowy, przetestowany instalator — z tego artefaktu korzysta zadanie „wydanie” (bez ponownej budowy).
       - uses: actions/upload-artifact@v6
         with:
-          name: PodpisPdf
+          name: PodpiszPdf
           path: |
-            wynik/PodpisPdf.msi
-            wynik/PodpisPdf.msi.sha256
-            pakiet/wynik/PodpisPdf.cer
+            wynik/PodpiszPdf.msi
+            wynik/PodpiszPdf.msi.sha256
+            pakiet/wynik/PodpiszPdf.cer
           if-no-files-found: error
 
-  # Wydanie z przetestowanego instalatora tego przebiegu, gdy wersja z PodpisPdf.csproj nie ma jeszcze
+  # Wydanie z przetestowanego instalatora tego przebiegu, gdy wersja z PodpiszPdf.csproj nie ma jeszcze
   # znacznika v<wersja>. Środowisko „wydanie” wymaga zatwierdzenia przez właściciela repozytorium
   # (Settings → Environments) — dopiero wtedy zadanie dostaje klucz podpisu aktualizacji i token wydań.
   wydanie:
@@ -336,18 +336,18 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
-          sparse-checkout: src/PodpisPdf.Core/PodpisAktualizacji.cs
+          sparse-checkout: src/PodpiszPdf.Core/PodpisAktualizacji.cs
           sparse-checkout-cone-mode: false
 
       - uses: actions/download-artifact@v7
         with:
-          name: PodpisPdf
+          name: PodpiszPdf
           path: wynik
 
       - name: Kontrola plików
         run: |
           ls -la wynik wynik/* 2>/dev/null || true
-          msi=$(find wynik -name PodpisPdf.msi | head -1); sum=$(find wynik -name PodpisPdf.msi.sha256 | head -1); cer=$(find wynik -name PodpisPdf.cer | head -1)
+          msi=$(find wynik -name PodpiszPdf.msi | head -1); sum=$(find wynik -name PodpiszPdf.msi.sha256 | head -1); cer=$(find wynik -name PodpiszPdf.cer | head -1)
           [ -n "$msi" ] && [ -n "$sum" ] && [ -n "$cer" ] || { echo "::error::Niepełny artefakt"; exit 1; }
           oczekiwana=$(cut -d' ' -f1 "$sum"); faktyczna=$(sha256sum "$msi" | cut -d' ' -f1)
           [ "$oczekiwana" = "$faktyczna" ] || { echo "::error::Suma SHA-256 instalatora się nie zgadza"; exit 1; }
@@ -361,14 +361,14 @@ jobs:
           [ -n "$KLUCZ_AKTUALIZACJI" ] || { echo "::error::Brak sekretu KLUCZ_AKTUALIZACJI w środowisku „wydanie”"; exit 1; }
           umask 077
           printf '%s\n' "$KLUCZ_AKTUALIZACJI" > "$RUNNER_TEMP/klucz.pem"
-          sha=$(cut -d' ' -f1 pliki/PodpisPdf.msi.sha256 | tr 'a-f' 'A-F')
-          printf 'PodpisPdf-aktualizacja\nwersja=%s\nplik=PodpisPdf.msi\nsha256=%s\n' "$WERSJA" "$sha" > "$RUNNER_TEMP/wiadomosc.txt"
-          openssl dgst -sha256 -sign "$RUNNER_TEMP/klucz.pem" "$RUNNER_TEMP/wiadomosc.txt" | base64 -w0 > pliki/PodpisPdf.msi.sig
+          sha=$(cut -d' ' -f1 pliki/PodpiszPdf.msi.sha256 | tr 'a-f' 'A-F')
+          printf 'PodpiszPdf-aktualizacja\nwersja=%s\nplik=PodpiszPdf.msi\nsha256=%s\n' "$WERSJA" "$sha" > "$RUNNER_TEMP/wiadomosc.txt"
+          openssl dgst -sha256 -sign "$RUNNER_TEMP/klucz.pem" "$RUNNER_TEMP/wiadomosc.txt" | base64 -w0 > pliki/PodpiszPdf.msi.sig
           # Klucz musi odpowiadać jednemu z kluczy publicznych wbudowanych w program.
           publiczny=$(openssl pkey -in "$RUNNER_TEMP/klucz.pem" -pubout -outform DER | base64 -w0)
           rm -f "$RUNNER_TEMP/klucz.pem"
-          grep -qF "\"$publiczny\"" src/PodpisPdf.Core/PodpisAktualizacji.cs || { echo "::error::Klucz nie pasuje do kluczy w PodpisAktualizacji.cs"; exit 1; }
-          base64 -d pliki/PodpisPdf.msi.sig > "$RUNNER_TEMP/podpis.der"
+          grep -qF "\"$publiczny\"" src/PodpiszPdf.Core/PodpisAktualizacji.cs || { echo "::error::Klucz nie pasuje do kluczy w PodpisAktualizacji.cs"; exit 1; }
+          base64 -d pliki/PodpiszPdf.msi.sig > "$RUNNER_TEMP/podpis.der"
           echo "$publiczny" | base64 -d > "$RUNNER_TEMP/publiczny.der"
           openssl dgst -sha256 -verify "$RUNNER_TEMP/publiczny.der" -keyform DER -signature "$RUNNER_TEMP/podpis.der" "$RUNNER_TEMP/wiadomosc.txt"
 
@@ -377,7 +377,7 @@ jobs:
         with:
           tag_name: v${{ needs.build.outputs.wersja }}
           target_commitish: ${{ github.sha }}
-          name: PodpisPdf v${{ needs.build.outputs.wersja }}
+          name: PodpiszPdf v${{ needs.build.outputs.wersja }}
           files: pliki/*
           generate_release_notes: true
 
@@ -386,16 +386,16 @@ jobs:
         if: env.TOKEN_WYDANIA != ''
         uses: softprops/action-gh-release@v3
         with:
-          repository: Orinoko357/PodpisPdf-wydania
+          repository: Orinoko357/PodpiszPdf-wydania
           token: ${{ secrets.TOKEN_WYDANIA }}
           tag_name: v${{ needs.build.outputs.wersja }}
-          name: PodpisPdf v${{ needs.build.outputs.wersja }}
+          name: PodpiszPdf v${{ needs.build.outputs.wersja }}
           body: |
-            Kwalifikowany podpis elektroniczny PAdES plików PDF. Pobierz i uruchom instalator **PodpisPdf.msi**
+            Kwalifikowany podpis elektroniczny PAdES plików PDF. Pobierz i uruchom instalator **PodpiszPdf.msi**
             (Windows 10/11, 64-bit, instalacja dla całego komputera). Zainstalowany program aktualizuje się sam.
-            Cicha instalacja: `msiexec /i PodpisPdf.msi /qn`.
+            Cicha instalacja: `msiexec /i PodpiszPdf.msi /qn`.
 
-            Certyfikat **PodpisPdf.cer** jest potrzebny tylko do pozycji w nowym menu kontekstowym Windows 11
+            Certyfikat **PodpiszPdf.cer** jest potrzebny tylko do pozycji w nowym menu kontekstowym Windows 11
             (instalator dodaje go sam).
           files: pliki/*
 
@@ -404,7 +404,7 @@ jobs:
         if: env.TOKEN_WYDANIA != ''
         run: |
           sleep 5
-          curl -sf -H "Authorization: Bearer $TOKEN_WYDANIA" https://api.github.com/repos/Orinoko357/PodpisPdf-wydania/releases/latest -o najnowsze.json
+          curl -sf -H "Authorization: Bearer $TOKEN_WYDANIA" https://api.github.com/repos/Orinoko357/PodpiszPdf-wydania/releases/latest -o najnowsze.json
           jq -r '.tag_name, (.assets[].name)' najnowsze.json
           [ "$(jq -r .tag_name najnowsze.json)" = "v${{ needs.build.outputs.wersja }}" ] || { echo "::error::Najnowsze wydanie w repozytorium aktualizacji to nie v${{ needs.build.outputs.wersja }}"; exit 1; }
-          jq -e '[.assets[].name] | index("PodpisPdf.msi") and index("PodpisPdf.msi.sha256") and index("PodpisPdf.msi.sig")' najnowsze.json > /dev/null || { echo "::error::Brak instalatora, sumy lub podpisu"; exit 1; }
+          jq -e '[.assets[].name] | index("PodpiszPdf.msi") and index("PodpiszPdf.msi.sha256") and index("PodpiszPdf.msi.sig")' najnowsze.json > /dev/null || { echo "::error::Brak instalatora, sumy lub podpisu"; exit 1; }

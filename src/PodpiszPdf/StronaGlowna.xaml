@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="PodpiszPdf.StronaGlowna"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PodpiszPdf"
+    NavigationCacheMode="Required"
+    AllowDrop="True"
+    DragOver="PrzyPrzeciaganiu"
+    Drop="PrzyUpuszczeniu">
+
+    <Grid Background="Transparent">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Padding="32,4,32,16" RowSpacing="14">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Spacing="2">
+                <TextBlock Text="Podpisz dokument" Style="{StaticResource TitleTextBlockStyle}" />
+                <TextBlock Text="Kwalifikowany podpis elektroniczny PAdES ze znacznikiem czasu" Style="{StaticResource DrugiStyl}" />
+            </StackPanel>
+
+            <!-- Dokument: pusty stan (miejsce na plik) albo wybrany plik z miniaturą -->
+            <Border Grid.Row="1" Style="{StaticResource KartaStyl}" MinHeight="104">
+                <Grid>
+                    <Grid x:Name="BezPliku" ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <FontIcon Glyph="&#xE8E5;" FontSize="28" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="Przeciągnij tutaj plik PDF" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="albo wybierz go z dysku. Plik można też otworzyć z menu pod prawym przyciskiem myszy." Style="{StaticResource DrugiStyl}" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="2" Content="Wybierz plik…" Click="PrzyWyborzePliku" VerticalAlignment="Center" />
+                    </Grid>
+
+                    <Grid x:Name="ZPlikiem" ColumnSpacing="16" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Border Width="52" Height="70" Background="White" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="2">
+                            <Image x:Name="Miniatura" Stretch="Uniform" />
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="DOKUMENT" Style="{StaticResource SekcjaStyl}" />
+                            <TextBlock x:Name="NazwaPliku" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="OpisPliku" Style="{StaticResource DrugiStyl}" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button x:Name="PrzyciskZmien" Content="Zmień plik…" Click="PrzyWyborzePliku" />
+                            <Button x:Name="PrzyciskUsun" Click="PrzyUsunieciuPliku" ToolTipService.ToolTip="Usuń plik" AutomationProperties.Name="Usuń plik">
+                                <FontIcon Glyph="&#xE711;" FontSize="14" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- Certyfikat -->
+            <Border Grid.Row="2" Style="{StaticResource KartaStyl}" Padding="16,12">
+                <Grid RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <TextBlock Text="CERTYFIKAT" Style="{StaticResource SekcjaStyl}" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        <HyperlinkButton x:Name="PrzyciskOdswiez" Content="Odśwież" HorizontalAlignment="Right" Click="PrzyOdswiezeniu" />
+                    </Grid>
+                    <ListView x:Name="ListaCertyfikatow" Grid.Row="1" SelectionMode="Single" SelectionChanged="PrzyWyborzeCertyfikatu"
+                              DoubleTapped="PrzyDwukliku" AutomationProperties.Name="Certyfikaty do podpisu">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="local:ElementCertyfikatu">
+                                <Grid Padding="4,10" ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Glyph="&#xEB95;" FontSize="20" VerticalAlignment="Center"
+                                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <TextBlock Text="{x:Bind Nazwa}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                            <Border Visibility="{x:Bind WidocznyKwalifikowany}" CornerRadius="10" Padding="8,1"
+                                                    Background="{ThemeResource SystemFillColorSuccessBackgroundBrush}" VerticalAlignment="Center">
+                                                <TextBlock Text="Kwalifikowany" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold"
+                                                           Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+                                            </Border>
+                                            <Border Visibility="{x:Bind WidocznyNiekwalifikowany}" CornerRadius="10" Padding="8,1"
+                                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}" VerticalAlignment="Center">
+                                                <TextBlock Text="Niekwalifikowany" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold"
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="{x:Bind Opis}" Style="{StaticResource DrugiStyl}" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <StackPanel x:Name="BrakCertyfikatow" Grid.Row="1" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6">
+                        <FontIcon Glyph="&#xE8D7;" FontSize="28" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Text="Nie znaleziono certyfikatu do podpisu" Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Center" />
+                        <TextBlock Text="Włóż kartę do czytnika (lub zaloguj się w SimplySign Desktop) i kliknij „Odśwież”."
+                                   Style="{StaticResource DrugiStyl}" TextAlignment="Center" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ProgressRing x:Name="WczytywanieCertyfikatow" Grid.Row="1" IsActive="False" Width="32" Height="32" />
+                </Grid>
+            </Border>
+
+            <StackPanel Grid.Row="3" Spacing="8">
+                <InfoBar x:Name="Aktualizacja" IsOpen="False" IsClosable="True" Severity="Success" Title="Dostępna nowa wersja">
+                    <InfoBar.ActionButton>
+                        <Button x:Name="PrzyciskAktualizacji" Content="Zaktualizuj teraz" Click="PrzyAktualizacji" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+                <InfoBar x:Name="Informacja" IsOpen="True" IsClosable="False" Severity="Informational" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Stopka -->
+        <Grid Grid.Row="1" Padding="32,14" ColumnSpacing="10" Background="{ThemeResource LayerFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ProgressRing x:Name="Postep" IsActive="False" Width="18" Height="18" Margin="0,0,4,0" />
+            <TextBlock x:Name="Status" Grid.Column="1" Style="{StaticResource DrugiStyl}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <Button x:Name="PrzyciskUstawienia" Grid.Column="2" Click="PrzyUstawieniach" MinWidth="120">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE713;" FontSize="14" />
+                    <TextBlock Text="Ustawienia" />
+                </StackPanel>
+            </Button>
+            <Button x:Name="PrzyciskPodpisz" Grid.Column="3" Content="Podpisz…" Style="{StaticResource AccentButtonStyle}"
+                    MinWidth="150" Click="PrzyPodpisie" IsEnabled="False" />
+        </Grid>
+    </Grid>
+</Page>

@@ -1,4 +1,4 @@
-# PodpisPdf — specyfikacja
+# PodpiszPdf — specyfikacja
 
 Mała aplikacja na Windows do składania **kwalifikowanego podpisu elektronicznego** pod dokumentami **PDF**.
 Podpis zawiera **znacznik czasu** i **widoczną wizualizację** na stronie dokumentu.
@@ -22,7 +22,7 @@ Typowe zastosowanie w SZUP: podpisywanie wniosków PDF z polem „Podpis kwalifi
 
 ## 2. Jak to działa dla użytkownika
 
-1. Użytkownik uruchamia `PodpisPdf.exe` i przeciąga plik PDF do okna (albo wybiera go przyciskiem).
+1. Użytkownik uruchamia `PodpiszPdf.exe` i przeciąga plik PDF do okna (albo wybiera go przyciskiem).
 2. Wybiera certyfikat z listy.
 3. Klika **Podpisz**; otwiera się podgląd wszystkich stron, na którym kliknięciem wskazuje miejsce podpisu.
 4. Sterownik karty pokazuje własne okno do wpisania PIN-u. Aplikacja nie widzi PIN-u.
@@ -80,21 +80,21 @@ Pusty element (np. brak logo) znika, a prostokąt dopasowuje się do reszty. Czc
 
 ## 6. Ustawienia programu
 
-Zapisywane w pliku `%APPDATA%\PodpisPdf\config.json` i edytowane w oknie „Ustawienia”:
+Zapisywane w pliku `%APPDATA%\PodpiszPdf\config.json` i edytowane w oknie „Ustawienia”:
 
 - stanowisko (tekst, opcjonalny),
-- logo (SVG, PDF, PNG lub JPG, opcjonalne) — kopia pliku zapisywana jako `%APPDATA%\PodpisPdf\logo.*`,
+- logo (SVG, PDF, PNG lub JPG, opcjonalne) — kopia pliku zapisywana jako `%APPDATA%\PodpiszPdf\logo.*`,
 - adres serwera znacznika czasu oraz opcjonalnie login i hasło,
 - położenie początkowe wizualizacji na podglądzie: strona (pierwsza, ostatnia albo numer), narożnik i odległość od krawędzi,
-- uruchamianie przy logowaniu do Windows (kopia programu w `%APPDATA%\PodpisPdf`, aktualizowana przez nowszą wersję),
-- minimalizacja do zasobnika systemowego, pozycja „Podpisz w PodpisPdf” w menu kontekstowym plików PDF,
+- uruchamianie przy logowaniu do Windows (kopia programu w `%APPDATA%\PodpiszPdf`, aktualizowana przez nowszą wersję),
+- minimalizacja do zasobnika systemowego, pozycja „Podpisz w PodpiszPdf” w menu kontekstowym plików PDF,
 - przyrostek nazwy pliku wynikowego (domyślnie `_podpisany`).
 
 ---
 
 ## 7. Technologia
 
-- **C# / .NET 10, WinUI 3 (Windows App SDK, bez pakietu MSIX).** Wynikiem jest jeden plik `PodpisPdf.exe` (self-contained), który nie wymaga instalacji .NET.
+- **C# / .NET 10, WinUI 3 (Windows App SDK, bez pakietu MSIX).** Wynikiem jest jeden plik `PodpiszPdf.exe` (self-contained), który nie wymaga instalacji .NET.
 - **iText 9 + BouncyCastle** do podpisu PAdES. Licencja AGPL: przy użytku wewnętrznym albo udostępnieniu kodu źródłowego nie ma problemu.
 - Dostęp do klucza przez mechanizmy kryptograficzne Windows (CNG/CSP), czyli przez sterownik producenta karty.
 - System: Windows 10 lub 11, 64-bit.
