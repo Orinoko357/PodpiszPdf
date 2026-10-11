@@ -248,7 +248,14 @@ jobs:
           if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'PodpiszPdf.lnk'))) { throw "Brak skrótu w menu Start" }
           $s = Start-Process $exe -ArgumentList '--sprawdz' -PassThru
           if (-not $s.WaitForExit(180000)) { $s.Kill(); throw "Zainstalowany program: brak zakończenia" }
-          if ($s.ExitCode -ne 0) { Get-Content "$env:TEMP/PodpiszPdf-blad.txt" -ErrorAction SilentlyContinue; throw "Zainstalowany program: kod $($s.ExitCode)" }
+          if ($s.ExitCode -ne 0) {
+            Get-Content "$env:TEMP/PodpiszPdf-blad.txt" -ErrorAction SilentlyContinue
+            # Wyjątek sprzed obsługi błędów programu (np. brak biblioteki) — z dziennika zdarzeń Windows.
+            Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = '.NET Runtime', 'Application Error'; StartTime = (Get-Date).AddMinutes(-5) } -ErrorAction SilentlyContinue |
+              Select-Object -First 3 | ForEach-Object { $_.Message }
+            "Tłumaczenia w zainstalowanym programie: $((Get-ChildItem (Split-Path $exe) -Recurse -Filter *.mui | ForEach-Object { $_.Directory.Name } | Sort-Object -Unique) -join ', ')"
+            throw "Zainstalowany program: kod $($s.ExitCode)"
+          }
           Get-Content "$env:TEMP/PodpiszPdf-sprawdz.txt" -ErrorAction SilentlyContinue
           Remove-Item "$env:TEMP/PodpiszPdf-blad.txt" -ErrorAction SilentlyContinue
           $z = Start-Process $exe -PassThru
