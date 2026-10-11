@@ -60,27 +60,21 @@ public class MotywyWizualizacjiTesty
         var f = Tekst(new DaneWizualizacji("Anna Nowak", "Inspektor", null, Czas));
         Assert.Equal(6.5f, Wiersz(f, "PODPISANO").Rozmiar, 0.01);
         Assert.InRange(Wiersz(f, "Inspektor").Rozmiar, 7f, 9f); // stanowisko 7–9 pt
-        Assert.StartsWith("Data: 2026-10-11", string.Concat(f.SkipWhile(x => !x.Tekst.StartsWith("Data")).Select(x => x.Tekst)).Trim());
+        Assert.StartsWith("Data: 11.10.2026", string.Concat(f.SkipWhile(x => !x.Tekst.StartsWith("Data")).Select(x => x.Tekst)).Trim());
     }
 
     [Theory]
-    [InlineData(MotywWizualizacji.Klasyczny, "Data: 2026-10-11 16:02 (UTC+02:00)")]
-    [InlineData(MotywWizualizacji.Hierarchia, "11.10.2026, 16:02 (UTC+02:00)")]
-    [InlineData(MotywWizualizacji.Linia, "Data podpisu: 11.10.2026, 16:02")]
-    [InlineData(MotywWizualizacji.Akcent, "11.10.2026, 16:02 (UTC+02:00)")]
-    public void FormatDaty(MotywWizualizacji motyw, string oczekiwany)
+    [InlineData(MotywWizualizacji.Klasyczny)]
+    [InlineData(MotywWizualizacji.Hierarchia)]
+    [InlineData(MotywWizualizacji.Linia)]
+    [InlineData(MotywWizualizacji.Akcent)]
+    [InlineData(MotywWizualizacji.DataPodKreska)]
+    public void DataTaSamaWeWszystkichMotywach(MotywWizualizacji motyw)
     {
         var czas = new DateTimeOffset(2026, 10, 11, 16, 2, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 10, 11, 16, 2, 0)));
-        var tekst = Wizualizacja.TekstDaty(new DaneWizualizacji("A", null, null, czas, motyw));
         var strefa = czas.Offset;
-        Assert.Equal(oczekiwany.Replace("UTC+02:00", $"UTC{(strefa < TimeSpan.Zero ? "-" : "+")}{strefa.Duration():hh\\:mm}"), tekst);
-    }
-
-    [Fact]
-    public void DataPodKreskaToSamaData()
-    {
-        var tekst = Wizualizacja.TekstDaty(new DaneWizualizacji("A", null, null, Czas, MotywWizualizacji.DataPodKreska, true));
-        Assert.Equal(Wizualizacja.FormatujCzasPolski(Czas, zeStrefa: true), tekst);
+        Assert.Equal($"Data: 11.10.2026, 16:02 (UTC{(strefa < TimeSpan.Zero ? "-" : "+")}{strefa.Duration():hh\\:mm})",
+            Wizualizacja.TekstDaty(new DaneWizualizacji("A", null, null, czas, motyw, true)));
     }
 
     [Fact]
@@ -156,5 +150,21 @@ public class MotywyWizualizacjiTesty
     {
         var zasoby = strumien.GetAsDictionary(PdfName.Resources);
         procesor.ProcessContent(strumien.GetBytes(), new PdfResources(zasoby ?? new PdfDictionary()));
+    }
+
+    [Theory]
+    [InlineData(1f, 11f)]
+    [InlineData(1.5f, 16.5f)]
+    [InlineData(1.37f, 15f)]
+    [InlineData(0.6f, 7f)]   // poniżej najmniejszego rozmiaru
+    [InlineData(5f, 33f)]    // powyżej największego
+    public void SkalaZaokraglonaDoPolPunktuImieniaINazwiska(float skala, float oczekiwanyRozmiar)
+    {
+        var s = Wizualizacja.ZaokraglijSkale(skala);
+        Assert.Equal(oczekiwanyRozmiar, Wizualizacja.RozmiarNazwiskaWSkali(s), 0.001);
+        // Imię i nazwisko w podpisie ma dokładnie ten rozmiar, reszta proporcjonalnie.
+        var f = Tekst(new DaneWizualizacji("Anna Nowak", "Inspektor", null, Czas, MotywWizualizacji.Hierarchia), s);
+        Assert.Equal(oczekiwanyRozmiar, Wiersz(f, "Anna").Rozmiar, 0.01);
+        Assert.Equal(9f * s, Wiersz(f, "Inspektor").Rozmiar, 0.01);
     }
 }

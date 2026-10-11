@@ -537,7 +537,7 @@ public sealed partial class StronaGlowna : Page
         var serwer = Uri.TryCreate(u.AdresTsa, UriKind.Absolute, out var uri) ? uri.Host : u.AdresTsa;
         var skala = u.SkalaPodpisu;
         Informacja.Title = $"PAdES {(u.PoziomLT ? "B-LT" : "B-T")}";
-        Informacja.Message = $"Znacznik czasu: {serwer}  ·  wizualizacja Arial, imię i nazwisko {11 * skala:0.#} pt" +
+        Informacja.Message = $"Znacznik czasu: {serwer}  ·  wizualizacja Arial, imię i nazwisko {Wizualizacja.RozmiarNazwiskaWSkali(skala):0.#} pt" +
                              (string.IsNullOrEmpty(u.SciezkaLogo) ? "" : " z logo");
     }
 

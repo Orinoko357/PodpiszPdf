@@ -87,7 +87,7 @@ public class WyrownanieWizualizacjiTesty
 public class SkalowanieWizualizacjiTesty
 {
     [Theory]
-    [InlineData(0.6f)]
+    [InlineData(0.64f)] // blisko najmniejszego (imię i nazwisko 7 pt)
     [InlineData(1.5f)]
     [InlineData(2.2f)] // największy, który mieści się na szerokości A4
     public void PodpisWSkaliMaProporcjonalnyRozmiar(float skala)

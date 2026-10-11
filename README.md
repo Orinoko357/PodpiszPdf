@@ -13,7 +13,7 @@ Specyfikacja: [docs/SPECYFIKACJA.md](docs/SPECYFIKACJA.md).
 2. Wybierz certyfikat z listy (★ — certyfikat kwalifikowany).
 3. Kliknij **Podpisz**. Otworzy się podgląd wszystkich stron dokumentu — **kliknij miejsce**, w którym ma
    się znaleźć podpis, albo **przeciągnij myszą**, aby narysować go w wybranym rozmiarze (proporcje są zawsze
-   zachowane, rozmiar 51 × 15 mm – 255 × 75 mm, program zapamiętuje ostatni). Zatwierdź przyciskiem **Podpisz**.
+   zachowane, rozmiar pokazywany jako wielkość imienia i nazwiska 7–33 pt, co 0,5 pt; program zapamiętuje ostatni). Zatwierdź przyciskiem **Podpisz**.
 4. Wpisz PIN w oknie sterownika karty (program nie widzi PIN-u).
 5. Podpisany dokument zastępuje oryginał (podpis dopisany do pliku). Opcjonalnie, w ustawieniach: zapis jako nowy plik obok oryginału, `wniosek.pdf` → `wniosek_podpisany.pdf`.
 
@@ -75,7 +75,7 @@ Okno **Ustawienia…**; zapis w `%APPDATA%\PodpiszPdf\config.json`:
 
 Wizualizacja jest pisana **Arialem**: imię i nazwisko 11 pt (pogrubione), nagłówek i data 8 pt, stanowisko 7–9 pt
 (jak największe, byle nie szersze od pozostałych wierszy). Rozmiar prostokąta wynika z treści; rysując podpis
-na podglądzie, można go powiększyć lub pomniejszyć (0,6–3×) — całość skaluje się proporcjonalnie. Bez ramki
+na podglądzie, można go powiększyć lub pomniejszyć (imię i nazwisko 7–33 pt) — reszta skaluje się proporcjonalnie. Bez ramki
 i z przezroczystym tłem (nie zasłania formularza).
 Logo wektorowe (SVG lub PDF — pierwsza strona) trafia do podpisu jako grafika wektorowa, ostra przy każdym
 powiększeniu. Napisy w SVG najlepiej zamienić na krzywe (w SVG bez osadzonych czcionek użyta zostanie czcionka zastępcza).

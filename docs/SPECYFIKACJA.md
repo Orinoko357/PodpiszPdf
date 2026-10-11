@@ -60,7 +60,7 @@ Opcjonalnie, do decyzji: poziom **B-LT**, czyli dołączenie do pliku danych OCS
 
 ## 5. Wizualizacja podpisu
 
-Tekst czcionką Arial: imię i nazwisko 11 pt, nagłówek i data 8 pt, stanowisko 7–9 pt (dopasowane do szerokości pozostałych wierszy). Rozmiar prostokąta wynika z treści; na podglądzie można go narysować myszą w skali 0,6–3× (treść skaluje się proporcjonalnie, proporcje stałe), bez ramki i z przezroczystym tłem, w miejscu wskazanym kliknięciem na podglądzie. Zawiera:
+Tekst czcionką Arial: imię i nazwisko 11 pt, nagłówek i data 8 pt, stanowisko 7–9 pt (dopasowane do szerokości pozostałych wierszy). Rozmiar prostokąta wynika z treści; na podglądzie można go narysować myszą w innym rozmiarze, pokazywanym jako wielkość imienia i nazwiska (7–33 pt, co 0,5 pt; reszta treści skaluje się proporcjonalnie, proporcje stałe), bez ramki i z przezroczystym tłem, w miejscu wskazanym kliknięciem na podglądzie. Zawiera:
 
 | Element | Źródło | Obowiązkowy |
 |---|---|---|

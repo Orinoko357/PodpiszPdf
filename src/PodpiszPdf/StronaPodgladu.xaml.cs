@@ -175,7 +175,7 @@ public sealed partial class StronaPodgladu : Page
         base.OnNavigatedTo(e);
         _zadanie = (ZadaniePodgladu)e.Parameter;
         _strony = _zadanie.Strony;
-        _skalaPodpisu = Math.Clamp(_zadanie.Skala, Wizualizacja.MinSkala, Wizualizacja.MaksSkala);
+        _skalaPodpisu = Wizualizacja.ZaokraglijSkale(_zadanie.Skala);
         Okno.UstawPodtytul($"Wskaż miejsce podpisu — {System.IO.Path.GetFileName(_zadanie.Plik)}");
         Okno.PowiekszDoPodgladu();
         Utworz();
@@ -466,8 +466,9 @@ public sealed partial class StronaPodgladu : Page
         PrzyciskPodpisz.IsEnabled = _miejsce != null;
     }
 
-    private string OpisRozmiaru(float skala) =>
-        $"{Rozmiar.SzerokoscMm * skala:0} × {Rozmiar.WysokoscMm * skala:0} mm (imię i nazwisko {11 * skala:0.#} pt)";
+    /// <summary>Rozmiar podpisu jako wielkość imienia i nazwiska (reszta skaluje się proporcjonalnie).</summary>
+    private static string OpisRozmiaru(float skala) =>
+        $"imię i nazwisko {Wizualizacja.RozmiarNazwiskaWSkali(skala):0.#} pt";
 
     private RozmiarWizualizacji Rozmiar => _zadanie.Rozmiar;
 
@@ -621,9 +622,12 @@ public sealed partial class StronaPodgladu : Page
         w = Math.Clamp(w, bazowa * Wizualizacja.MinSkala, bazowa * Wizualizacja.MaksSkala);
         var h = w / proporcje;
 
+        // Rozmiar skokami 0,5 pt imienia i nazwiska (reszta podpisu w tej samej proporcji).
+        var skala = Wizualizacja.ZaokraglijSkale(w / bazowa);
+        w = bazowa * skala;
+        h = w / proporcje;
         var x = dx >= 0 ? ax : ax - w;
         var y = dy >= 0 ? ay : ay - h;
-        var skala = w / bazowa;
         // Przy krawędzi strony minimalny rozmiar może nie zmieścić się od punktu zaczepienia — dosuwamy.
         (x, y) = Wizualizacja.DopasujDoStrony(s.Prostokat, x + w / 2, y + h / 2, Rozmiar, skala);
         return new MiejscePodpisu(indeks + 1, x, y, skala);

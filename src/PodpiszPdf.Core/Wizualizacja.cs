@@ -53,14 +53,25 @@ public static class Wizualizacja
     public const float PunktowNaMm = 72f / 25.4f;
 
     /// <summary>
-    /// Zakres skali przy rysowaniu podpisu na podglądzie. Skala 1 = rozmiar podstawowy: imię i nazwisko
-    /// Arial 11 pt, nagłówek i data 8 pt; prostokąt wynika z treści.
+    /// Rozmiar podpisu opisuje wielkość imienia i nazwiska: skala 1 = 11 pt, a cała reszta (pozostałe napisy,
+    /// logo, odstępy) skaluje się w tej samej proporcji. Zakres przy rysowaniu na podglądzie: 7–33 pt.
     /// </summary>
-    public const float MinSkala = 0.6f;
+    public const float RozmiarImieniaINazwiska = 11f;
+    public const float MinSkala = 7f / RozmiarImieniaINazwiska;
     public const float MaksSkala = 3f;
 
+    /// <summary>Wielkość imienia i nazwiska (pt) w danej skali.</summary>
+    public static float RozmiarNazwiskaWSkali(float skala) => RozmiarImieniaINazwiska * skala;
+
+    /// <summary>
+    /// Skala dobrana tak, żeby imię i nazwisko miało pełne pół punktu (11; 11,5; 12…) — przy rysowaniu
+    /// podpisu na podglądzie rozmiar zmienia się skokami 0,5 pt.
+    /// </summary>
+    public static float ZaokraglijSkale(float skala) =>
+        Math.Clamp(MathF.Round(RozmiarNazwiskaWSkali(skala) * 2) / 2 / RozmiarImieniaINazwiska, MinSkala, MaksSkala);
+
     // Rozmiary czcionek (pt) przy skali 1.
-    private const float RozmiarNazwiska = 11f;
+    private const float RozmiarNazwiska = RozmiarImieniaINazwiska;
     private const float RozmiarDaty = 8f;
     // Stanowisko: jak największe w tym zakresie, byle nie szersze od pozostałych wierszy.
     private const float MaksRozmiarStanowiska = 9f;
@@ -115,13 +126,9 @@ public static class Wizualizacja
         };
     }
 
-    /// <summary>Wiersz daty w motywie.</summary>
-    internal static string TekstDaty(DaneWizualizacji dane) => dane.Motyw switch
-    {
-        MotywWizualizacji.Klasyczny => "Data: " + FormatujCzas(dane.Czas),
-        MotywWizualizacji.Linia => "Data podpisu: " + FormatujCzasPolski(dane.Czas, zeStrefa: false),
-        _ => FormatujCzasPolski(dane.Czas, zeStrefa: true),
-    };
+    /// <summary>Wiersz daty — ta sama treść we wszystkich motywach (różni się tylko wygląd).</summary>
+    internal static string TekstDaty(DaneWizualizacji dane) => "Data: " + FormatujCzasPolski(dane.Czas, zeStrefa: true);
+
     // Zapas szerokości bloku tekstu na zaokrąglenia układu, żeby wiersz się nie zawinął.
     private const float ZapasSzerokosci = 1.02f;
     // Tolerancja przy sprawdzaniu, czy prostokąt mieści się na stronie.
@@ -450,15 +457,6 @@ public static class Wizualizacja
         var przesuniecie = lokalny.Offset;
         var znak = przesuniecie < TimeSpan.Zero ? "-" : "+";
         return tekst + $" (UTC{znak}{przesuniecie.Duration():hh\\:mm})";
-    }
-
-    internal static string FormatujCzas(DateTimeOffset czas)
-    {
-        var lokalny = czas.ToLocalTime();
-        var przesuniecie = lokalny.Offset;
-        var znak = przesuniecie < TimeSpan.Zero ? "-" : "+";
-        return lokalny.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) +
-               $" (UTC{znak}{przesuniecie.Duration():hh\\:mm})";
     }
 
     /// <summary>Wysokość wiersza tak, jak liczy ją iText: interlinia × (ascender − descender) czcionki.</summary>
