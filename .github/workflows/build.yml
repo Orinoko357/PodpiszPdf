@@ -85,6 +85,15 @@ jobs:
       - name: Publikacja PodpiszPdf.exe
         run: dotnet publish src/PodpiszPdf -c Release -r win-x64 -p:Platform=x64 -o publish
 
+      - name: Tylko polskie i angielskie tłumaczenia WinUI
+        shell: pwsh
+        run: |
+          $jezyki = Get-ChildItem publish -Recurse -Filter *.mui | ForEach-Object { $_.Directory.Name } | Sort-Object -Unique
+          "Języki: $($jezyki -join ', '); plików w folderze programu: $((Get-ChildItem publish -Recurse -File).Count)"
+          $inne = $jezyki | Where-Object { $_ -notin @('pl-PL', 'en-us') }
+          if ($inne) { throw "Zbędne tłumaczenia: $($inne -join ', ')" }
+          if ('pl-PL' -notin $jezyki -or 'en-us' -notin $jezyki) { throw "Brak tłumaczeń pl-PL lub en-us" }
+
       - name: Test uruchomienia PodpiszPdf.exe (i czas startu)
         shell: pwsh
         run: |
