@@ -5,3 +5,6 @@ publish/
 .vs/
 TestResults/
 pakiet/wynik/
+
+# Robocze kopie repozytorium narzędzi Claude Code
+.claude/worktrees/
