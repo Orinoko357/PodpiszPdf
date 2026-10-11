@@ -64,7 +64,7 @@ Tekst czcionką Arial: imię i nazwisko 11 pt, nagłówek i data 8 pt, stanowisk
 
 | Element | Źródło | Obowiązkowy |
 |---|---|---|
-| **Nagłówek „Podpisano elektronicznie przez:”** | Stały tekst na samej górze, przed imieniem i nazwiskiem | tak |
+| **Nagłówek „PODPISANO ELEKTRONICZNIE”** (wersaliki, mniejszy, szary) | Stały tekst na samej górze, przed imieniem i nazwiskiem | tak |
 | **Imię i nazwisko** (zawsze pogrubione) | Z certyfikatu (pola *GivenName* i *Surname*; jeśli ich brak, pole *CN*) | tak |
 | **Stanowisko** | Wpisane w ustawieniach programu; Enter wymusza podział wiersza, bez tego zawija się samo do dwóch wierszy (gdy i to za mało — prostokąt się poszerza) | nie |
 | **Logo** | Plik SVG lub PDF (wektorowe) albo PNG/JPG wskazany w ustawieniach; kopia zapisywana w folderze ustawień; grafika wektorowa pozostaje wektorowa, rastrowa w oryginalnej rozdzielczości; puste marginesy pomijane | nie |

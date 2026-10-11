@@ -27,13 +27,12 @@ public enum MotywWizualizacji
     Linia,
     /// <summary>Nagłówek wersalikami z rozstrzeleniem, imię i nazwisko w granacie.</summary>
     Akcent,
-    /// <summary>Data pod poziomą kreską, z informacją o rodzaju podpisu (kwalifikowany).</summary>
+    /// <summary>Data pod poziomą kreską.</summary>
     DataPodKreska,
 }
 
 /// <summary>Dane pokazywane w prostokącie podpisu.</summary>
-/// <param name="Kwalifikowany">Certyfikat kwalifikowany — motyw <see cref="MotywWizualizacji.DataPodKreska"/> pisze wtedy
-/// „Kwalifikowany podpis elektroniczny”.</param>
+/// <param name="Kwalifikowany">Certyfikat kwalifikowany (informacyjnie; nie jest pokazywany na wizualizacji).</param>
 public sealed record DaneWizualizacji(string ImieNazwisko, string? Stanowisko, string? SciezkaLogo, DateTimeOffset Czas,
     MotywWizualizacji Motyw = MotywWizualizacji.Klasyczny, bool Kwalifikowany = false);
 
@@ -62,7 +61,6 @@ public static class Wizualizacja
 
     // Rozmiary czcionek (pt) przy skali 1.
     private const float RozmiarNazwiska = 11f;
-    private const float RozmiarNaglowka = 8f;
     private const float RozmiarDaty = 8f;
     // Stanowisko: jak największe w tym zakresie, byle nie szersze od pozostałych wierszy.
     private const float MaksRozmiarStanowiska = 9f;
@@ -79,7 +77,10 @@ public static class Wizualizacja
     private const float GornyLuzWiersza = 0.23f;
     private const float DolnyLuzWiersza = 0.10f;
 
-    internal const string Naglowek = "Podpisano elektronicznie przez:";
+    // Nagłówek we wszystkich motywach: wersaliki z rozstrzeleniem, mniejsze i szare.
+    internal const string Naglowek = "PODPISANO ELEKTRONICZNIE";
+    private const float RozmiarNaglowkaWersalikami = 6.5f;
+    private const float RozstrzelenieNaglowka = 0.6f;
 
     // Motywy inne niż klasyczny: stanowisko w stałym rozmiarze, zawijane dopiero powyżej tej szerokości (pt).
     private const float StalyRozmiarStanowiska = 9f;
@@ -106,11 +107,11 @@ public static class Wizualizacja
     {
         public static Styl Dla(MotywWizualizacji motyw) => motyw switch
         {
-            MotywWizualizacji.Hierarchia => new(Naglowek, 7f, 0, Szary, Czarny, Czarny, true, 7f, Szary, false, false),
-            MotywWizualizacji.Linia => new(Naglowek, 7f, 0, Szary, Czarny, Grafitowy, true, 7f, Szary, false, true),
-            MotywWizualizacji.Akcent => new("PODPISANO ELEKTRONICZNIE", 6.5f, 0.6f, Szary, Granatowy, PrawieCzarny, true, 7f, Szary, false, false),
-            MotywWizualizacji.DataPodKreska => new(Naglowek, 7f, 0, Szary, Czarny, Czarny, true, 6.5f, Szary, true, false),
-            _ => new(Naglowek, Wizualizacja.RozmiarNaglowka, 0, Czarny, Czarny, Czarny, false, Wizualizacja.RozmiarDaty, Czarny, false, false),
+            MotywWizualizacji.Hierarchia => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Czarny, true, 7f, Szary, false, false),
+            MotywWizualizacji.Linia => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Grafitowy, true, 7f, Szary, false, true),
+            MotywWizualizacji.Akcent => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Granatowy, PrawieCzarny, true, 7f, Szary, false, false),
+            MotywWizualizacji.DataPodKreska => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Czarny, true, 6.5f, Szary, true, false),
+            _ => new(Naglowek, RozmiarNaglowkaWersalikami, RozstrzelenieNaglowka, Szary, Czarny, Czarny, false, Wizualizacja.RozmiarDaty, Czarny, false, false),
         };
     }
 
@@ -119,8 +120,6 @@ public static class Wizualizacja
     {
         MotywWizualizacji.Klasyczny => "Data: " + FormatujCzas(dane.Czas),
         MotywWizualizacji.Linia => "Data podpisu: " + FormatujCzasPolski(dane.Czas, zeStrefa: false),
-        MotywWizualizacji.DataPodKreska => (dane.Kwalifikowany ? "Kwalifikowany podpis elektroniczny" : "Podpis elektroniczny") +
-                                           " · " + FormatujCzasPolski(dane.Czas, zeStrefa: true),
         _ => FormatujCzasPolski(dane.Czas, zeStrefa: true),
     };
     // Zapas szerokości bloku tekstu na zaokrąglenia układu, żeby wiersz się nie zawinął.

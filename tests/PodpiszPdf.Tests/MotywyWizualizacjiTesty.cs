@@ -35,10 +35,10 @@ public class MotywyWizualizacjiTesty
         f.First(x => x.Tekst.StartsWith(poczatek, StringComparison.Ordinal));
 
     [Theory]
-    [InlineData(MotywWizualizacji.Hierarchia, "Podpisano", 7f)]
-    [InlineData(MotywWizualizacji.Linia, "Podpisano", 7f)]
+    [InlineData(MotywWizualizacji.Hierarchia, "PODPISANO", 6.5f)]
+    [InlineData(MotywWizualizacji.Linia, "PODPISANO", 6.5f)]
     [InlineData(MotywWizualizacji.Akcent, "PODPISANO", 6.5f)]
-    [InlineData(MotywWizualizacji.DataPodKreska, "Podpisano", 7f)]
+    [InlineData(MotywWizualizacji.DataPodKreska, "PODPISANO", 6.5f)]
     public void StanowiskoWyrazniejszeNizNaglowekIData(MotywWizualizacji motyw, string naglowek, float rozmiarNaglowka)
     {
         var f = Tekst(new DaneWizualizacji("Anna Nowak", "Kierownik Biura Informatyki\nUrzędu Miasta Wodzisławia Śląskiego", null, Czas, motyw, true));
@@ -55,10 +55,11 @@ public class MotywyWizualizacjiTesty
     }
 
     [Fact]
-    public void KlasycznyBezZmian()
+    public void KlasycznyZNaglowkiemWersalikami()
     {
         var f = Tekst(new DaneWizualizacji("Anna Nowak", "Inspektor", null, Czas));
-        Assert.Equal(8f, Wiersz(f, "Podpisano").Rozmiar, 0.01);
+        Assert.Equal(6.5f, Wiersz(f, "PODPISANO").Rozmiar, 0.01);
+        Assert.InRange(Wiersz(f, "Inspektor").Rozmiar, 7f, 9f); // stanowisko 7–9 pt
         Assert.StartsWith("Data: 2026-10-11", string.Concat(f.SkipWhile(x => !x.Tekst.StartsWith("Data")).Select(x => x.Tekst)).Trim());
     }
 
@@ -75,13 +76,11 @@ public class MotywyWizualizacjiTesty
         Assert.Equal(oczekiwany.Replace("UTC+02:00", $"UTC{(strefa < TimeSpan.Zero ? "-" : "+")}{strefa.Duration():hh\\:mm}"), tekst);
     }
 
-    [Theory]
-    [InlineData(true, "Kwalifikowany podpis elektroniczny · ")]
-    [InlineData(false, "Podpis elektroniczny · ")]
-    public void DataPodKreskaPodajeRodzajPodpisu(bool kwalifikowany, string poczatek)
+    [Fact]
+    public void DataPodKreskaToSamaData()
     {
-        var tekst = Wizualizacja.TekstDaty(new DaneWizualizacji("A", null, null, Czas, MotywWizualizacji.DataPodKreska, kwalifikowany));
-        Assert.StartsWith(poczatek, tekst);
+        var tekst = Wizualizacja.TekstDaty(new DaneWizualizacji("A", null, null, Czas, MotywWizualizacji.DataPodKreska, true));
+        Assert.Equal(Wizualizacja.FormatujCzasPolski(Czas, zeStrefa: true), tekst);
     }
 
     [Fact]

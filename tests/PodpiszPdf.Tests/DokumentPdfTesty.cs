@@ -256,7 +256,7 @@ public class RozmiaryCzcionekTesty
 
         float Rozmiar(string poczatek) => z.Fragmenty.First(f => f.Tekst.StartsWith(poczatek)).Rozmiar;
         Assert.Equal(11 * skala, Rozmiar("Anna"), 0.01);
-        Assert.Equal(8 * skala, Rozmiar("Podpisano"), 0.01);
+        Assert.Equal(6.5f * skala, Rozmiar("PODPISANO"), 0.01);
         Assert.Equal(8 * skala, Rozmiar("Data"), 0.01);
         Assert.InRange(Rozmiar("Inspektor"), 7 * skala - 0.01, 9 * skala + 0.01);
         Assert.All(z.Fragmenty, f => Assert.Matches("Arial|LiberationSans", f.Czcionka));
