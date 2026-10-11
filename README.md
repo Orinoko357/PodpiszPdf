@@ -132,9 +132,17 @@ dotnet run --project tools/PodpisTestowy -- podpisz wniosek.pdf test.pfx haslo
 - Na stronach obróconych (/Rotate) nie można umieścić podpisu — podgląd na to nie pozwala.
 - Pliki PDF zabezpieczone hasłem trzeba najpierw odbezpieczyć.
 
-## Licencje
+## Licencja
 
-- iText 9 — AGPL. Użytek wewnętrzny albo udostępnienie kodu źródłowego nie stanowi problemu.
+PodpisPdf jest oprogramowaniem otwartym na licencji **GNU Affero General Public License v3.0** (AGPL-3.0),
+pełny tekst w pliku [`LICENSE`](LICENSE). Copyright © 2026 Orinoko357.
+Kod źródłowy: https://github.com/Orinoko357/PodpiszPdf
+
+Program jest dostarczany „tak jak jest”, bez żadnej gwarancji (zob. punkty 15–16 licencji).
+
+### Biblioteki i zasoby
+
+- iText 9 — AGPL-3.0 (stąd licencja całego programu).
 - PDFium (BSD/Apache 2.0, biblioteka z pakietu Docnet.Core, MIT) — podgląd stron.
 - Windows App SDK / WinUI 3, Windows Community Toolkit, H.NotifyIcon — MIT.
 - Czcionka Arial z systemu Windows; gdy jej brak — wbudowana Liberation Sans (metrycznie zgodna z Arialem), licencja SIL OFL 1.1, zob. `src/PodpisPdf.Core/Zasoby/LiberationSans-LICENSE.txt`.
