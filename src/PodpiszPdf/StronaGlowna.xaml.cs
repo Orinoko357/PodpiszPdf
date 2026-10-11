@@ -606,8 +606,8 @@ public sealed partial class StronaGlowna : Page
 
         var wejscie = _plik;
         var ustawienia = Ustawienia;
-        var wyjscie = PodpisywaczPdf.NazwaPlikuWynikowego(wejscie, ustawienia.Przyrostek);
-        if (File.Exists(wyjscie))
+        var wyjscie = ustawienia.PlikWynikowy(wejscie);
+        if (!string.Equals(Path.GetFullPath(wyjscie), Path.GetFullPath(wejscie), StringComparison.OrdinalIgnoreCase) && File.Exists(wyjscie))
         {
             var odpowiedz = await Dialogi.PokazAsync(XamlRoot, "Plik już istnieje",
                 $"Plik {Path.GetFileName(wyjscie)} już istnieje. Zastąpić go?", "Anuluj", "Zastąp", domyslnieGlowny: false);

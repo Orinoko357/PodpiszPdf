@@ -89,6 +89,8 @@ public sealed partial class StronaUstawien : Page
         MarginesX.Value = Math.Clamp(p.MarginesPoziomyMm, 0, 500);
         MarginesY.Value = Math.Clamp(p.MarginesPionowyMm, 0, 500);
         Przyrostek.Text = u.Przyrostek;
+        DodawajPrzyrostek.IsOn = u.DodawajPrzyrostek;
+        Przyrostek.IsEnabled = u.DodawajPrzyrostek;
         PoziomLT.IsOn = u.PoziomLT;
         Zasobnik.IsOn = u.MinimalizujDoZasobnika;
         MinimalizujPoPodpisie.IsOn = u.MinimalizujPoPodpisie;
@@ -398,12 +400,20 @@ public sealed partial class StronaUstawien : Page
         "Przy logowaniu do serwera znacznika czasu adres musi zaczynać się od https:// — przez http login i hasło " +
         "byłyby wysyłane otwartym tekstem. Zmień adres na https:// albo usuń login (darmowy serwer Certum go nie wymaga).";
 
+    private void PrzyZmianiePrzyrostka(object sender, RoutedEventArgs e)
+    {
+        if (Przyrostek != null) // zdarzenie może przyjść w trakcie InitializeComponent
+            Przyrostek.IsEnabled = DodawajPrzyrostek.IsOn;
+    }
+
     private static bool CzyHttps(string adres) =>
         Uri.TryCreate(adres, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
 
     private async Task<bool> ZapiszZPol()
     {
         var przyrostek = Przyrostek.Text.Trim();
+        if (!DodawajPrzyrostek.IsOn && przyrostek.Length == 0)
+            przyrostek = Ustawienia.DomyslnyPrzyrostek;
         if (przyrostek.Length == 0 || przyrostek.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
             return await Blad(2, "Przyrostek nazwy pliku nie może być pusty ani zawierać znaków \\ / : * ? \" < > |.", Przyrostek);
 
@@ -465,6 +475,7 @@ public sealed partial class StronaUstawien : Page
             MarginesPionowyMm = double.IsNaN(MarginesY.Value) ? 15 : (float)MarginesY.Value,
         };
         u.Przyrostek = przyrostek;
+        u.DodawajPrzyrostek = DodawajPrzyrostek.IsOn;
         u.PoziomLT = PoziomLT.IsOn;
         u.MinimalizujDoZasobnika = Zasobnik.IsOn;
         u.MinimalizujPoPodpisie = MinimalizujPoPodpisie.IsOn;

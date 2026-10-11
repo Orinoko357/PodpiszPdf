@@ -26,7 +26,7 @@ Typowe zastosowanie w SZUP: podpisywanie wniosków PDF z polem „Podpis kwalifi
 2. Wybiera certyfikat z listy.
 3. Klika **Podpisz**; otwiera się podgląd wszystkich stron, na którym kliknięciem wskazuje miejsce podpisu.
 4. Sterownik karty pokazuje własne okno do wpisania PIN-u. Aplikacja nie widzi PIN-u.
-5. Aplikacja pobiera znacznik czasu i zapisuje wynik obok oryginału: `wniosek.pdf` → `wniosek_podpisany.pdf`. Oryginał zostaje bez zmian.
+5. Aplikacja pobiera znacznik czasu i zapisuje podpisany dokument w miejsce oryginału (podpis dopisany przyrostowo). Opcjonalnie (ustawienia) jako nowy plik obok oryginału: `wniosek.pdf` → `wniosek_podpisany.pdf`.
 6. Na koniec wyświetla komunikat o powodzeniu albo zrozumiały opis błędu, np. brak karty, zły PIN, serwer znacznika czasu niedostępny.
 
 ---
@@ -88,7 +88,7 @@ Zapisywane w pliku `%APPDATA%\PodpiszPdf\config.json` i edytowane w oknie „Ust
 - położenie początkowe wizualizacji na podglądzie: strona (pierwsza, ostatnia albo numer), narożnik i odległość od krawędzi,
 - uruchamianie przy logowaniu do Windows (kopia programu w `%APPDATA%\PodpiszPdf`, aktualizowana przez nowszą wersję),
 - minimalizacja do zasobnika systemowego, pozycja „Podpisz w PodpiszPdf” w menu kontekstowym plików PDF,
-- przyrostek nazwy pliku wynikowego (domyślnie `_podpisany`).
+- zapis jako nowy plik z przyrostkiem zamiast zastąpienia oryginału (domyślnie wyłączony) i przyrostek (domyślnie `_podpisany`).
 
 ---
 

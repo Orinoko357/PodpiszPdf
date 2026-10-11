@@ -211,7 +211,13 @@
                                     <x:String>Zawsze otwieraj do przeglądania</x:String>
                                 </ComboBox>
                             </ctk:SettingsCard>
-                            <ctk:SettingsCard Header="Przyrostek nazwy podpisanego pliku" Description="Np. wniosek.pdf → wniosek_podpisany.pdf; oryginał zostaje bez zmian">
+                            <ctk:SettingsCard Header="Zapisuj jako nowy plik z przyrostkiem" Description="Wyłączone: podpisany plik zastępuje oryginał. Włączone: np. wniosek.pdf → wniosek_podpisany.pdf, oryginał zostaje bez zmian">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE8AC;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <ToggleSwitch x:Name="DodawajPrzyrostek" OnContent="Włączone" OffContent="Wyłączone" Toggled="PrzyZmianiePrzyrostka" />
+                            </ctk:SettingsCard>
+                            <ctk:SettingsCard Header="Przyrostek nazwy podpisanego pliku" Description="Dopisywany przed .pdf, gdy zapis jako nowy plik jest włączony">
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE8AC;" />
                                 </ctk:SettingsCard.HeaderIcon>

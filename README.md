@@ -15,7 +15,7 @@ Specyfikacja: [docs/SPECYFIKACJA.md](docs/SPECYFIKACJA.md).
    się znaleźć podpis, albo **przeciągnij myszą**, aby narysować go w wybranym rozmiarze (proporcje są zawsze
    zachowane, rozmiar 51 × 15 mm – 255 × 75 mm, program zapamiętuje ostatni). Zatwierdź przyciskiem **Podpisz**.
 4. Wpisz PIN w oknie sterownika karty (program nie widzi PIN-u).
-5. Wynik zapisuje się obok oryginału: `wniosek.pdf` → `wniosek_podpisany.pdf`. Oryginał zostaje bez zmian.
+5. Podpisany dokument zastępuje oryginał (podpis dopisany do pliku). Opcjonalnie, w ustawieniach: zapis jako nowy plik obok oryginału, `wniosek.pdf` → `wniosek_podpisany.pdf`.
 
 **Z Eksploratora Windows:** prawy przycisk myszy na pliku PDF → **Podpisz w PodpiszPdf** (w Windows 11:
 *Pokaż więcej opcji*). Program otwiera od razu podgląd do wskazania miejsca podpisu. Jeśli program już działa
@@ -62,6 +62,7 @@ Okno **Ustawienia…**; zapis w `%APPDATA%\PodpiszPdf\config.json`:
 | Położenie początkowe na podglądzie: strona (pierwsza / ostatnia / numer), narożnik, odległość od krawędzi [mm] | ostatnia strona, prawy dolny róg, 15 × 15 mm |
 | Serwer znacznika czasu (TSA), login, hasło | `http://time.certum.pl`, bez logowania |
 | PAdES B-LT (dołączenie OCSP/CRL do pliku) | wyłączone |
+| Zapis jako nowy plik z przyrostkiem (zamiast zastąpienia oryginału) | wyłączony |
 | Przyrostek nazwy pliku wynikowego | `_podpisany` |
 | Minimalizacja do zasobnika systemowego | włączona |
 | Uruchamianie przy logowaniu do Windows (autostart) | wyłączone |

@@ -34,6 +34,16 @@ internal sealed class Ustawienia
     /// <summary>Rozmiar podpisu ostatnio narysowany na podglądzie (1 = imię i nazwisko 11 pt).</summary>
     public float SkalaPodpisu { get; set; } = 1f;
     public string Przyrostek { get; set; } = DomyslnyPrzyrostek;
+
+    /// <summary>
+    /// Zapis podpisanego dokumentu pod nową nazwą (z przyrostkiem). Domyślnie wyłączone — podpisany plik
+    /// zastępuje oryginał.
+    /// </summary>
+    public bool DodawajPrzyrostek { get; set; }
+
+    /// <summary>Ścieżka podpisanego pliku: oryginał albo plik z przyrostkiem obok niego.</summary>
+    public string PlikWynikowy(string wejscie) =>
+        DodawajPrzyrostek ? PodpisywaczPdf.NazwaPlikuWynikowego(wejscie, Przyrostek) : wejscie;
     public bool PoziomLT { get; set; }
 
     /// <summary>Minimalizacja chowa okno do zasobnika systemowego (obok zegara).</summary>

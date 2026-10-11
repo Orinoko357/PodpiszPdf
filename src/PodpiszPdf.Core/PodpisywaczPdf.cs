@@ -45,8 +45,6 @@ public sealed class PodpisywaczPdf
     {
         if (!File.Exists(wejscie))
             throw new BladPodpisu($"Nie znaleziono pliku: {wejscie}");
-        if (string.Equals(Path.GetFullPath(wejscie), Path.GetFullPath(wyjscie), StringComparison.OrdinalIgnoreCase))
-            throw new BladPodpisu("Plik wynikowy musi być inny niż oryginał.");
         if (!certyfikat.HasPrivateKey)
             throw new BladPodpisu("Wybrany certyfikat nie ma klucza prywatnego.");
         // Lista certyfikatów mogła powstać wiele dni temu (program działa w zasobniku).
@@ -95,7 +93,17 @@ public sealed class PodpisywaczPdf
                 }
             }
 
-            File.Move(tymczasowy, wyjscie, overwrite: true);
+            // Wynik może zastąpić oryginał (wyjscie == wejscie): czytnik oryginału jest już zamknięty, a podpisany
+            // plik powstał obok jako tymczasowy, więc przy błędzie oryginał zostaje nienaruszony.
+            try
+            {
+                File.Move(tymczasowy, wyjscie, overwrite: true);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                throw new BladPodpisu($"Nie można zapisać pliku {Path.GetFileName(wyjscie)} — jest otwarty w innym programie " +
+                                      "(np. w przeglądarce PDF) albo tylko do odczytu. Zamknij go i spróbuj ponownie.", e);
+            }
         }
         finally
         {

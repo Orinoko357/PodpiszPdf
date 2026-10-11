@@ -17,6 +17,28 @@ public class PodpisywaczPdfTesty
         Assert.Equal("wniosek_podpisany.pdf", Path.GetFileName(wynik));
     }
 
+    [Fact]
+    public void PodpisZastepujeOryginal()
+    {
+        var folder = PlikiTestowe.Folder();
+        var plik = PlikiTestowe.UtworzPdf(folder);
+        var oryginal = File.ReadAllBytes(plik);
+        using var cert = CertyfikatyTestowe.Utworz();
+
+        // Dwa podpisy z rzędu w tym samym pliku: drugi dopisuje się do pierwszego, oba ważne.
+        new PodpisywaczPdf(new TestowyTsa()).Podpisz(plik, plik, cert, new OpcjePodpisu());
+        new PodpisywaczPdf(new TestowyTsa()).Podpisz(plik, plik, cert, new OpcjePodpisu { Miejsce = new MiejscePodpisu(1, 100, 100) });
+
+        var podpisany = File.ReadAllBytes(plik);
+        Assert.Equal(oryginal, podpisany.Take(oryginal.Length)); // zapis przyrostowy na oryginale
+        Assert.Single(Directory.GetFiles(folder, "*.pdf")); // bez dodatkowych plików
+        Assert.Empty(Directory.GetFiles(folder, "*.tmp"));
+        using var pdf = new PdfDocument(new PdfReader(plik));
+        var su = new SignatureUtil(pdf);
+        Assert.Equal(2, su.GetSignatureNames().Count);
+        Assert.All(su.GetSignatureNames(), n => Assert.True(su.ReadSignatureData(n).VerifySignatureIntegrityAndAuthenticity()));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

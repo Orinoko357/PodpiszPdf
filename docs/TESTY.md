@@ -23,7 +23,9 @@ Przed testem:
       przycisku podpis ma ten rozmiar. Kolejne kliknięcie (i następny dokument) używa ostatniego rozmiaru.
 - [ ] W pliku wynikowym podpis jest dokładnie w wskazanym miejscu, bez ramki; logo jest ostre przy dużym powiększeniu.
 - [ ] Pojawia się okno PIN-u **sterownika karty** (nie programu PodpiszPdf), na wierzchu.
-- [ ] Po wpisaniu PIN-u: komunikat o powodzeniu, obok oryginału powstaje `…_podpisany.pdf`; oryginał nie zmienia się (data modyfikacji).
+- [ ] Po wpisaniu PIN-u: komunikat o powodzeniu, podpisany dokument zastępuje oryginał (bez dodatkowych plików).
+- [ ] Ustawienia → *Zapisuj jako nowy plik z przyrostkiem* włączone: obok oryginału powstaje `…_podpisany.pdf`, oryginał bez zmian.
+- [ ] Plik otwarty w Acrobacie podczas podpisu (zastępowanie oryginału) → zrozumiały komunikat, oryginał nienaruszony.
 - [ ] Wizualizacja na stronie: imię i nazwisko, stanowisko (jeśli ustawione), logo (jeśli ustawione), data i godzina.
 - [ ] Przy kolejnym uruchomieniu zaznaczony jest ostatnio użyty certyfikat.
 
@@ -85,7 +87,7 @@ Przed testem:
 - [ ] Zły PIN → komunikat „Nieprawidłowy PIN…” (nie wpisuj złego PIN-u więcej niż raz — grozi blokadą karty).
 - [ ] *Anuluj* w oknie PIN-u → „Podpisywanie zostało anulowane”.
 - [ ] Brak karty w czytniku → komunikat o braku karty.
-- [ ] Wyłączona sieć (lub zły adres TSA) → komunikat o niedostępnym serwerze znacznika czasu; plik `_podpisany.pdf` nie powstaje.
+- [ ] Wyłączona sieć (lub zły adres TSA) → komunikat o niedostępnym serwerze znacznika czasu; oryginał się nie zmienia.
 - [ ] Plik wynikowy otwarty w Adobe Reader podczas ponownego podpisu → komunikat, że plik jest otwarty w innym programie.
 
 ## 6. Weryfikacja podpisanego pliku
