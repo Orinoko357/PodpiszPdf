@@ -59,7 +59,8 @@ public sealed class PodpisywaczPdf
         var czas = czasSerwera ?? DateTimeOffset.Now;
 
         var dane = new DaneWizualizacji(
-            CertyfikatInfo.PobierzImieNazwisko(certyfikat), opcje.Stanowisko, opcje.SciezkaLogo, czas);
+            CertyfikatInfo.PobierzImieNazwisko(certyfikat), opcje.Stanowisko, opcje.SciezkaLogo, czas,
+            opcje.Motyw, CertyfikatInfo.CzyKwalifikowany(certyfikat));
         var (numerStrony, prostokat) = UstalMiejscePodpisu(dokument.Czytnik(), opcje, Wizualizacja.Rozmiar(dane));
         var lancuch = ZbudujLancuch(certyfikat);
 

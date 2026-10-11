@@ -55,7 +55,11 @@ Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagaj�
 
 ## Wizualizacja podpisu
 
-Arial (z `C:\Windows\Fonts`, zastępczo wbudowana Liberation Sans): imię i nazwisko 11 pt, nagłówek i data 8 pt,
+Motywy (`MotywWizualizacji`, wybór w ustawieniach „Wygląd podpisu”): Klasyczny (opis niżej), Hierarchia (nagłówek i data
+7 pt szare, stanowisko 9 pt czarne, data „dd.MM.yyyy, HH:mm (UTC…)”), Linia (jak Hierarchia + pionowa kreska przy logo,
+„Data podpisu: …” bez strefy), Akcent (nagłówek „PODPISANO ELEKTRONICZNIE” 6,5 pt z rozstrzeleniem, nazwisko granatowe),
+DataPodKreska (data 6,5 pt pod poziomą kreską z „Kwalifikowany podpis elektroniczny ·” dla certyfikatu kwalifikowanego).
+Klasyczny: Arial (z `C:\Windows\Fonts`, zastępczo wbudowana Liberation Sans): imię i nazwisko 11 pt, nagłówek i data 8 pt,
 stanowisko 7–9 pt. Rozmiar prostokąta wynika z treści (`Wizualizacja.Rozmiar(dane)`, bez stałego 85 × 25 mm);
 na podglądzie można go narysować w skali 0,6–3× (cała treść skaluje się proporcjonalnie, `MiejscePodpisu.Skala`). Bez ramki, przezroczyste tło. Kolejność: „Podpisano elektronicznie przez:”,
 imię i nazwisko (zawsze pogrubione), stanowisko (Enter = podział wiersza), data bez sekund. Logo po lewej,

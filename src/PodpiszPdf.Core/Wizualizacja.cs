@@ -16,8 +16,26 @@ using Path = System.IO.Path;
 
 namespace PodpiszPdf.Core;
 
+/// <summary>Wygląd wizualizacji podpisu (wybór w ustawieniach).</summary>
+public enum MotywWizualizacji
+{
+    /// <summary>Wszystkie wiersze czarne; nagłówek, stanowisko (7–9 pt) i data podobnej wielkości.</summary>
+    Klasyczny,
+    /// <summary>Nagłówek i data mniejsze i szare, stanowisko 9 pt czarne.</summary>
+    Hierarchia,
+    /// <summary>Jak <see cref="Hierarchia"/>, z pionową kreską między logo a tekstem; data bez strefy czasowej.</summary>
+    Linia,
+    /// <summary>Nagłówek wersalikami z rozstrzeleniem, imię i nazwisko w granacie.</summary>
+    Akcent,
+    /// <summary>Data pod poziomą kreską, z informacją o rodzaju podpisu (kwalifikowany).</summary>
+    DataPodKreska,
+}
+
 /// <summary>Dane pokazywane w prostokącie podpisu.</summary>
-public sealed record DaneWizualizacji(string ImieNazwisko, string? Stanowisko, string? SciezkaLogo, DateTimeOffset Czas);
+/// <param name="Kwalifikowany">Certyfikat kwalifikowany — motyw <see cref="MotywWizualizacji.DataPodKreska"/> pisze wtedy
+/// „Kwalifikowany podpis elektroniczny”.</param>
+public sealed record DaneWizualizacji(string ImieNazwisko, string? Stanowisko, string? SciezkaLogo, DateTimeOffset Czas,
+    MotywWizualizacji Motyw = MotywWizualizacji.Klasyczny, bool Kwalifikowany = false);
 
 /// <summary>Wymiary wizualizacji w punktach PDF.</summary>
 public readonly record struct RozmiarWizualizacji(float Szerokosc, float Wysokosc)
@@ -62,6 +80,49 @@ public static class Wizualizacja
     private const float DolnyLuzWiersza = 0.10f;
 
     internal const string Naglowek = "Podpisano elektronicznie przez:";
+
+    // Motywy inne niż klasyczny: stanowisko w stałym rozmiarze, zawijane dopiero powyżej tej szerokości (pt).
+    private const float StalyRozmiarStanowiska = 9f;
+    private const float SzerokoscZawijaniaStanowiska = 170f;
+    // Kreska nad datą (motyw „data pod kreską”): odstęp nad kreską, grubość, odstęp pod nią.
+    private const float OdstepNadKreska = 2.5f;
+    private const float GruboscKreski = 0.5f;
+    private const float OdstepPodKreska = 2f;
+    // Kreska między logo a tekstem (motyw „linia”): grubość i odstęp od tekstu.
+    private const float GruboscLinii = 0.75f;
+    private const float OdstepOdLinii = 5f;
+
+    private static readonly Color Czarny = ColorConstants.BLACK;
+    private static readonly Color Szary = new DeviceRgb(0x59, 0x59, 0x59);
+    private static readonly Color SzaryKreski = new DeviceRgb(0x9A, 0x9A, 0x9A);
+    private static readonly Color Grafitowy = new DeviceRgb(0x22, 0x22, 0x22);
+    private static readonly Color PrawieCzarny = new DeviceRgb(0x1F, 0x1F, 0x1F);
+    private static readonly Color Granatowy = new DeviceRgb(0x1B, 0x3A, 0x5C);
+
+    /// <summary>Wygląd poszczególnych wierszy w motywie.</summary>
+    private sealed record Styl(string TekstNaglowka, float RozmiarNaglowka, float OdstepZnakowNaglowka, Color KolorNaglowka,
+        Color KolorNazwiska, Color KolorStanowiska, bool StaleStanowisko, float RozmiarDaty, Color KolorDaty,
+        bool KreskaNadData, bool LiniaPrzyLogo)
+    {
+        public static Styl Dla(MotywWizualizacji motyw) => motyw switch
+        {
+            MotywWizualizacji.Hierarchia => new(Naglowek, 7f, 0, Szary, Czarny, Czarny, true, 7f, Szary, false, false),
+            MotywWizualizacji.Linia => new(Naglowek, 7f, 0, Szary, Czarny, Grafitowy, true, 7f, Szary, false, true),
+            MotywWizualizacji.Akcent => new("PODPISANO ELEKTRONICZNIE", 6.5f, 0.6f, Szary, Granatowy, PrawieCzarny, true, 7f, Szary, false, false),
+            MotywWizualizacji.DataPodKreska => new(Naglowek, 7f, 0, Szary, Czarny, Czarny, true, 6.5f, Szary, true, false),
+            _ => new(Naglowek, Wizualizacja.RozmiarNaglowka, 0, Czarny, Czarny, Czarny, false, Wizualizacja.RozmiarDaty, Czarny, false, false),
+        };
+    }
+
+    /// <summary>Wiersz daty w motywie.</summary>
+    internal static string TekstDaty(DaneWizualizacji dane) => dane.Motyw switch
+    {
+        MotywWizualizacji.Klasyczny => "Data: " + FormatujCzas(dane.Czas),
+        MotywWizualizacji.Linia => "Data podpisu: " + FormatujCzasPolski(dane.Czas, zeStrefa: false),
+        MotywWizualizacji.DataPodKreska => (dane.Kwalifikowany ? "Kwalifikowany podpis elektroniczny" : "Podpis elektroniczny") +
+                                           " · " + FormatujCzasPolski(dane.Czas, zeStrefa: true),
+        _ => FormatujCzasPolski(dane.Czas, zeStrefa: true),
+    };
     // Zapas szerokości bloku tekstu na zaokrąglenia układu, żeby wiersz się nie zawinął.
     private const float ZapasSzerokosci = 1.02f;
     // Tolerancja przy sprawdzaniu, czy prostokąt mieści się na stronie.
@@ -175,7 +236,7 @@ public static class Wizualizacja
 
     /// <summary>Układ wizualizacji przy skali 1 (pt).</summary>
     private sealed record Uklad(List<Wiersz> Linie, float TekstW, float LogoW, float LogoH, float LogoHPelne, float Szerokosc, float Wysokosc,
-        (PdfXObject Obraz, float Proporcje)? Logo);
+        (PdfXObject Obraz, float Proporcje)? Logo, Styl Styl, float WciecieTekstu);
 
     /// <summary>
     /// Wiersze, rozmiary czcionek i wymiary przy skali 1. Szerokość wyznacza najszerszy wiersz,
@@ -186,18 +247,21 @@ public static class Wizualizacja
         (zwykla, pogrubiona) = Czcionki();
         SprawdzZnaki(dane.ImieNazwisko, pogrubiona, "Imię i nazwisko z certyfikatu zawiera", "Nie da się ich pokazać na wizualizacji podpisu.");
         SprawdzZnaki(dane.Stanowisko, zwykla, "Stanowisko zawiera", "Usuń je ze stanowiska w ustawieniach.");
-        var naglowek = new Wiersz(Naglowek, zwykla, RozmiarNaglowka);
-        var nazwisko = new Wiersz(dane.ImieNazwisko, pogrubiona, RozmiarNazwiska);
-        var data = new Wiersz("Data: " + FormatujCzas(dane.Czas), zwykla, RozmiarDaty);
+        var styl = Styl.Dla(dane.Motyw);
+        var naglowek = new Wiersz(styl.TekstNaglowka, zwykla, styl.RozmiarNaglowka, styl.KolorNaglowka, styl.OdstepZnakowNaglowka);
+        var nazwisko = new Wiersz(dane.ImieNazwisko, pogrubiona, RozmiarNazwiska, styl.KolorNazwiska);
+        var data = new Wiersz(TekstDaty(dane), zwykla, styl.RozmiarDaty, styl.KolorDaty, KreskaNad: styl.KreskaNadData);
 
         var bazowa = new[] { naglowek, nazwisko, data }.Max(w => Szerokosc(w));
-        var (stanowisko, szerokoscStanowiska) = UlozStanowisko(WierszeStanowiska(dane.Stanowisko), zwykla, bazowa);
+        var (stanowisko, szerokoscStanowiska) = styl.StaleStanowisko
+            ? UlozStanowiskoStale(WierszeStanowiska(dane.Stanowisko), zwykla, Math.Max(bazowa, SzerokoscZawijaniaStanowiska))
+            : UlozStanowisko(WierszeStanowiska(dane.Stanowisko), zwykla, bazowa);
 
         var linie = new List<Wiersz> { naglowek, nazwisko };
-        linie.AddRange(stanowisko);
+        linie.AddRange(stanowisko.Select(w => w with { Kolor = styl.KolorStanowiska }));
         linie.Add(data);
         var tekstW = Math.Max(bazowa, szerokoscStanowiska);
-        var tekstH = linie.Sum(w => WysokoscWiersza(w.Czcionka, w.Rozmiar));
+        var tekstH = linie.Sum(w => WysokoscWiersza(w.Czcionka, w.Rozmiar) + (w.KreskaNad ? OdstepNadKreska + GruboscKreski + OdstepPodKreska : 0));
 
         var logo = WczytajLogo(dane.SciezkaLogo, bezPrzezroczystosci);
         float logoW = 0, logoH = 0, logoHPelne = 0, odstepLogo = 0;
@@ -209,9 +273,11 @@ public static class Wizualizacja
             logoH = logoW / logo.Value.Proporcje;
             odstepLogo = OdstepLogo;
         }
-        var szerokosc = 2 * Odstep + logoW + odstepLogo + tekstW * ZapasSzerokosci;
+        // Kreska między logo a tekstem — tylko gdy jest logo.
+        var wciecie = logo != null && styl.LiniaPrzyLogo ? GruboscLinii + OdstepOdLinii : 0;
+        var szerokosc = 2 * Odstep + logoW + odstepLogo + wciecie + tekstW * ZapasSzerokosci;
         var wysokosc = 2 * Odstep + tekstH;
-        return new Uklad(linie, tekstW * ZapasSzerokosci, logoW, logoH, logoHPelne, szerokosc, wysokosc, logo);
+        return new Uklad(linie, tekstW * ZapasSzerokosci, logoW, logoH, logoHPelne, szerokosc, wysokosc, logo, styl, wciecie);
     }
 
     /// <summary>
@@ -244,6 +310,26 @@ public static class Wizualizacja
         return (wynik.Select(t => new Wiersz(t, czcionka, min)).ToList(), wynik.Max(t => czcionka.GetWidth(t, min)));
     }
 
+    /// <summary>
+    /// Stanowisko w stałym rozmiarze 9 pt (motywy inne niż klasyczny): podział wpisany przez użytkownika
+    /// jest zachowany, bez niego stanowisko szersze niż <paramref name="szerokosc"/> zawija się do dwóch
+    /// wierszy; dłuższe poszerza wizualizację.
+    /// </summary>
+    private static (List<Wiersz> Wiersze, float Szerokosc) UlozStanowiskoStale(List<string> wiersze, PdfFont czcionka, float szerokosc)
+    {
+        if (wiersze.Count == 0)
+            return (new(), 0);
+        var r = StalyRozmiarStanowiska;
+        var wynik = wiersze;
+        if (wiersze.Count == 1)
+        {
+            var w = Math.Max(szerokosc, czcionka.GetWidth(wiersze[0], r) / MaksWierszyStanowiska);
+            while ((wynik = Zawin(wiersze[0], czcionka, r, w)).Count > MaksWierszyStanowiska)
+                w += 2;
+        }
+        return (wynik.Select(t => new Wiersz(t, czcionka, r)).ToList(), wynik.Max(t => czcionka.GetWidth(t, r)));
+    }
+
     /// <summary>Zawinięcie tekstu na granicach słów; słowo dłuższe od szerokości zostaje w swoim wierszu.</summary>
     internal static List<string> Zawin(string tekst, PdfFont czcionka, float rozmiar, float szerokosc)
     {
@@ -267,7 +353,7 @@ public static class Wizualizacja
         return wiersze;
     }
 
-    private static float Szerokosc(Wiersz w) => w.Czcionka.GetWidth(w.Tekst, w.Rozmiar);
+    private static float Szerokosc(Wiersz w) => w.Czcionka.GetWidth(w.Tekst, w.Rozmiar) + w.OdstepZnakow * w.Tekst.Length;
 
     /// <summary>
     /// Zawartość wizualizacji: układ ze skali 1 pomnożony przez skalę, więc wizualizacja w innej skali
@@ -279,13 +365,22 @@ public static class Wizualizacja
         var tekst = new Div().SetPadding(0).SetMargin(0).SetWidth(u.TekstW * skala);
         foreach (var w in u.Linie)
         {
-            tekst.Add(new Paragraph(w.Tekst)
+            var akapit = new Paragraph(w.Tekst)
                 .SetFont(w.Czcionka)
                 .SetFontSize(w.Rozmiar * skala)
-                .SetFontColor(ColorConstants.BLACK)
+                .SetFontColor(w.Kolor ?? Czarny)
                 .SetMultipliedLeading(InterliniaWzgledna)
                 .SetMargin(0)
-                .SetPadding(0));
+                .SetPadding(0);
+            if (w.OdstepZnakow > 0)
+                akapit.SetCharacterSpacing(w.OdstepZnakow * skala);
+            if (w.KreskaNad)
+            {
+                akapit.SetBorderTop(new SolidBorder(SzaryKreski, GruboscKreski * skala))
+                    .SetMarginTop(OdstepNadKreska * skala)
+                    .SetPaddingTop(OdstepPodKreska * skala);
+            }
+            tekst.Add(akapit);
         }
 
         var zawartosc = new Div()
@@ -302,9 +397,9 @@ public static class Wizualizacja
             return zawartosc;
         }
 
-        var tabela = new Table(UnitValue.CreatePointArray(new[] { (u.LogoW + OdstepLogo) * skala, u.TekstW * skala }))
+        var tabela = new Table(UnitValue.CreatePointArray(new[] { (u.LogoW + OdstepLogo) * skala, (u.WciecieTekstu + u.TekstW) * skala }))
             .SetFixedLayout()
-            .SetWidth((u.LogoW + OdstepLogo + u.TekstW) * skala)
+            .SetWidth((u.LogoW + OdstepLogo + u.WciecieTekstu + u.TekstW) * skala)
             .SetBorder(Border.NO_BORDER)
             .SetMargin(0);
         var obraz = (logo.Obraz switch
@@ -321,11 +416,17 @@ public static class Wizualizacja
             .SetPaddingTop(gora * skala)
             .SetPaddingRight(OdstepLogo * skala)
             .SetVerticalAlignment(VerticalAlignment.TOP));
-        tabela.AddCell(new Cell()
+        var komorkaTekstu = new Cell()
             .Add(tekst)
             .SetBorder(Border.NO_BORDER)
             .SetPadding(0)
-            .SetVerticalAlignment(VerticalAlignment.TOP));
+            .SetVerticalAlignment(VerticalAlignment.TOP);
+        if (u.WciecieTekstu > 0)
+        {
+            komorkaTekstu.SetBorderLeft(new SolidBorder(SzaryKreski, GruboscLinii * skala))
+                .SetPaddingLeft(OdstepOdLinii * skala);
+        }
+        tabela.AddCell(komorkaTekstu);
         zawartosc.Add(tabela);
         return zawartosc;
     }
@@ -339,6 +440,18 @@ public static class Wizualizacja
             .Select(w => w.Trim())
             .Where(w => w.Length > 0)
             .ToList();
+
+    /// <summary>Data po polsku: „11.10.2026, 16:02” (opcjonalnie ze strefą czasową).</summary>
+    internal static string FormatujCzasPolski(DateTimeOffset czas, bool zeStrefa)
+    {
+        var lokalny = czas.ToLocalTime();
+        var tekst = lokalny.ToString("dd.MM.yyyy, HH:mm", CultureInfo.InvariantCulture);
+        if (!zeStrefa)
+            return tekst;
+        var przesuniecie = lokalny.Offset;
+        var znak = przesuniecie < TimeSpan.Zero ? "-" : "+";
+        return tekst + $" (UTC{znak}{przesuniecie.Duration():hh\\:mm})";
+    }
 
     internal static string FormatujCzas(DateTimeOffset czas)
     {
@@ -356,7 +469,8 @@ public static class Wizualizacja
         return InterliniaWzgledna * (m.GetAscender() - m.GetDescender()) / 1000f * rozmiar;
     }
 
-    private sealed record Wiersz(string Tekst, PdfFont Czcionka, float Rozmiar);
+    private sealed record Wiersz(string Tekst, PdfFont Czcionka, float Rozmiar, Color? Kolor = null, float OdstepZnakow = 0,
+        bool KreskaNad = false);
 
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte[]> DaneCzcionek = new();
 

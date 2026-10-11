@@ -41,6 +41,9 @@ internal sealed class Ustawienia
     /// </summary>
     public bool DodawajPrzyrostek { get; set; }
 
+    /// <summary>Wygląd wizualizacji podpisu.</summary>
+    public MotywWizualizacji MotywWizualizacji { get; set; } = MotywWizualizacji.Klasyczny;
+
     /// <summary>Ścieżka podpisanego pliku: oryginał albo plik z przyrostkiem obok niego.</summary>
     public string PlikWynikowy(string wejscie) =>
         DodawajPrzyrostek ? PodpisywaczPdf.NazwaPlikuWynikowego(wejscie, Przyrostek) : wejscie;
@@ -215,6 +218,7 @@ internal sealed class Ustawienia
     {
         Stanowisko = Stanowisko,
         SciezkaLogo = SciezkaLogo,
+        Motyw = MotywWizualizacji,
         Polozenie = Polozenie,
         PoziomLT = PoziomLT,
     };

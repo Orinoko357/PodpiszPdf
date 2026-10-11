@@ -517,9 +517,12 @@ public sealed partial class StronaGlowna : Page
 
     // ---- Ustawienia ----
 
-    private void PrzyUstawieniach(object sender, RoutedEventArgs e)
+    private void PrzyUstawieniach(object sender, RoutedEventArgs e) => OtworzUstawienia();
+
+    /// <summary>Strona ustawień (przycisk albo menu ikony w zasobniku) — gdy nic nie jest w toku.</summary>
+    internal void OtworzUstawienia()
     {
-        if (Zajeta)
+        if (Zajeta || !ReferenceEquals(Okno.Ramka_.Content, this))
             return;
         Okno.OdswiezPoOtwarciuPdf(); // mógł go zmienić osobny proces („Zapamiętaj mój wybór”)
         Okno.Ramka_.Navigate(typeof(StronaUstawien), Ustawienia.Kopia(), new DrillInNavigationTransitionInfo());
@@ -623,7 +626,8 @@ public sealed partial class StronaGlowna : Page
 
         // Podgląd wszystkich stron: użytkownik klika, gdzie ma być wizualizacja podpisu.
         UstawStatus("Otwieranie podglądu…");
-        var dane = new DaneWizualizacji(certyfikat.ImieNazwisko, ustawienia.Stanowisko, ustawienia.SciezkaLogo, DateTimeOffset.Now);
+        var dane = new DaneWizualizacji(certyfikat.ImieNazwisko, ustawienia.Stanowisko, ustawienia.SciezkaLogo, DateTimeOffset.Now,
+            ustawienia.MotywWizualizacji, certyfikat.Kwalifikowany);
         var zadanie = await Task.Run(() => ZadaniePodgladu.Przygotuj(wejscie, dane, ustawienia.Polozenie, ustawienia.SkalaPodpisu));
         UstawStatus("Wskaż na podglądzie miejsce podpisu.");
         Okno.Ramka_.Navigate(typeof(StronaPodgladu), zadanie, new DrillInNavigationTransitionInfo());

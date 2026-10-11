@@ -62,6 +62,7 @@ Okno **Ustawienia…**; zapis w `%APPDATA%\PodpiszPdf\config.json`:
 | Położenie początkowe na podglądzie: strona (pierwsza / ostatnia / numer), narożnik, odległość od krawędzi [mm] | ostatnia strona, prawy dolny róg, 15 × 15 mm |
 | Serwer znacznika czasu (TSA), login, hasło | `http://time.certum.pl`, bez logowania |
 | PAdES B-LT (dołączenie OCSP/CRL do pliku) | wyłączone |
+| Wygląd podpisu: klasyczny / czytelna hierarchia / linia oddzielająca logo / akcent kolorystyczny / data pod kreską | klasyczny |
 | Zapis jako nowy plik z przyrostkiem (zamiast zastąpienia oryginału) | wyłączony |
 | Przyrostek nazwy pliku wynikowego | `_podpisany` |
 | Minimalizacja do zasobnika systemowego | włączona |

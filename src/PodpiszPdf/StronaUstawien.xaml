@@ -66,6 +66,19 @@
                                 </StackPanel>
                             </Border>
 
+                            <ctk:SettingsCard Header="Wygląd podpisu" Description="Układ, wielkość i kolor napisów na wizualizacji">
+                                <ctk:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE790;" />
+                                </ctk:SettingsCard.HeaderIcon>
+                                <ComboBox x:Name="ListaMotywow" Width="280" SelectionChanged="PrzyZmianieMotywu">
+                                    <x:String>Klasyczny</x:String>
+                                    <x:String>Czytelna hierarchia</x:String>
+                                    <x:String>Linia oddzielająca logo</x:String>
+                                    <x:String>Akcent kolorystyczny</x:String>
+                                    <x:String>Data pod kreską</x:String>
+                                </ComboBox>
+                            </ctk:SettingsCard>
+
                             <ctk:SettingsCard Header="Stanowisko" Description="Enter dzieli stanowisko na wiersze; bez tego zawija się samo">
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE77B;" />

@@ -35,6 +35,8 @@ Przed testem:
       program otwiera podgląd tego pliku.
 - [ ] Zminimalizuj program — znika z paska zadań, ikona jest obok zegara. Podpisz plik z menu kontekstowego —
       otwiera się działające okno (nie druga kopia programu).
+- [ ] Prawy przycisk na ikonie w zasobniku → *Ustawienia…* otwiera okno na stronie ustawień.
+- [ ] Ustawienia → *Wygląd podpisu*: każdy z 5 motywów zmienia podgląd w ustawieniach; podpis w wybranym motywie wygląda jak podgląd.
 - [ ] Dwuklik na ikonie w zasobniku przywraca okno; *Zakończ* w menu ikony zamyka program.
 - [ ] *Zakończ* (albo X) w trakcie podpisu — komunikat „Trwa praca programu”, program się nie zamyka; przy otwartym
       podglądzie — pytanie, czy zamknąć.

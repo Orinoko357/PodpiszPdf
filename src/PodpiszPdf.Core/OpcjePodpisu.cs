@@ -45,6 +45,9 @@ public sealed class OpcjePodpisu
     /// <summary>Ścieżka do logo SVG/PDF (wektorowe) albo PNG/JPG (opcjonalna).</summary>
     public string? SciezkaLogo { get; set; }
 
+    /// <summary>Wygląd wizualizacji.</summary>
+    public MotywWizualizacji Motyw { get; set; }
+
     /// <summary>Położenie domyślne (z ustawień), używane gdy nie wskazano <see cref="Miejsce"/>.</summary>
     public PolozenieWizualizacji Polozenie { get; set; } = new();
 

@@ -16,7 +16,7 @@
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <Product>PodpiszPdf</Product>
-    <Version>3.2.0.1</Version>
+    <Version>4.0.0.0</Version>
     <Description>Kwalifikowany podpis elektroniczny PAdES dla plików PDF</Description>
 
     <!-- Aplikacja bez pakietu MSIX, z własnym środowiskiem Windows App SDK (nie wymaga instalacji). -->

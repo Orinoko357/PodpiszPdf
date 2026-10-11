@@ -90,6 +90,7 @@ public sealed partial class StronaUstawien : Page
         MarginesY.Value = Math.Clamp(p.MarginesPionowyMm, 0, 500);
         Przyrostek.Text = u.Przyrostek;
         DodawajPrzyrostek.IsOn = u.DodawajPrzyrostek;
+        ListaMotywow.SelectedIndex = Math.Clamp((int)u.MotywWizualizacji, 0, ListaMotywow.Items.Count - 1);
         Przyrostek.IsEnabled = u.DodawajPrzyrostek;
         PoziomLT.IsOn = u.PoziomLT;
         Zasobnik.IsOn = u.MinimalizujDoZasobnika;
@@ -111,6 +112,15 @@ public sealed partial class StronaUstawien : Page
         NumerStrony.IsEnabled = ListaStron.SelectedIndex >= 0 && Strony[ListaStron.SelectedIndex] == WyborStrony.Numer;
 
     private void PrzyZmianieStanowiska(object sender, TextChangedEventArgs e) => OdswiezPodglad();
+
+    private MotywWizualizacji WybranyMotyw =>
+        ListaMotywow == null || ListaMotywow.SelectedIndex < 0 ? MotywWizualizacji.Klasyczny : (MotywWizualizacji)ListaMotywow.SelectedIndex;
+
+    private void PrzyZmianieMotywu(object sender, SelectionChangedEventArgs e)
+    {
+        if (PodgladWizualizacji != null && Stanowisko != null) // zdarzenie może przyjść w trakcie InitializeComponent
+            OdswiezPodglad();
+    }
 
     /// <summary>Stanowisko z pola: wiersze bez pustych i bez spacji na brzegach.</summary>
     private string StanowiskoZPola() =>
@@ -139,6 +149,7 @@ public sealed partial class StronaUstawien : Page
         var numer = ++_numerPodgladu;
         var stanowisko = StanowiskoZPola();
         var logo = _sciezkaLogo;
+        var motyw = WybranyMotyw;
         var gestosc = XamlRoot?.RasterizationScale ?? 1.5;
         var (maksW, maksH) = (PodgladWizualizacji.Width * gestosc, PodgladWizualizacji.Height * gestosc);
         try
@@ -148,7 +159,7 @@ public sealed partial class StronaUstawien : Page
                 return;
             var obraz = await Task.Run(() =>
             {
-                var dane = new DaneWizualizacji("Imię Nazwisko", stanowisko, logo, DateTimeOffset.Now);
+                var dane = new DaneWizualizacji("Imię Nazwisko", stanowisko, logo, DateTimeOffset.Now, motyw, Kwalifikowany: true);
                 var rozmiar = Wizualizacja.Rozmiar(dane);
                 return DokumentPdf.Renderuj(Wizualizacja.PodgladPdf(dane), 0,
                     Math.Min(maksW / rozmiar.Szerokosc, maksH / rozmiar.Wysokosc));
@@ -476,6 +487,7 @@ public sealed partial class StronaUstawien : Page
         };
         u.Przyrostek = przyrostek;
         u.DodawajPrzyrostek = DodawajPrzyrostek.IsOn;
+        u.MotywWizualizacji = WybranyMotyw;
         u.PoziomLT = PoziomLT.IsOn;
         u.MinimalizujDoZasobnika = Zasobnik.IsOn;
         u.MinimalizujPoPodpisie = MinimalizujPoPodpisie.IsOn;

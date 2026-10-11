@@ -273,6 +273,15 @@ public sealed partial class OknoGlowne : Window
                 StronaGlowna?.WybierzIPodpisz();
             }),
         });
+        menu.Items.Add(new MenuFlyoutItem
+        {
+            Text = "Ustawienia…",
+            Command = new Polecenie(() =>
+            {
+                Przywroc();
+                StronaGlowna?.OtworzUstawienia();
+            }),
+        });
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(new MenuFlyoutItem { Text = "Zakończ", Command = new Polecenie(ZamknijNaZadanie) });
 
