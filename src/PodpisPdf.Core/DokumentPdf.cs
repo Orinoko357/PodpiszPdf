@@ -4,7 +4,7 @@ using iText.Kernel.Pdf;
 
 namespace PodpisPdf.Core;
 
-/// <summary>Wymiary strony: CropBox w punktach (układ współrzędnych PDF) i obrót.</summary>
+/// <summary>Wymiary strony: widoczna część (CropBox ∩ MediaBox) w punktach (układ współrzędnych PDF) i obrót.</summary>
 public sealed record StronaPdf(int Numer, float Lewo, float Dol, float Szerokosc, float Wysokosc, int Obrot)
 {
     public float Prawo => Lewo + Szerokosc;
@@ -59,6 +59,28 @@ public static class DokumentPdf
         return wynik.Task.GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Czy autor ograniczył uprawnienia do zmian (plik zaszyfrowany samym hasłem właściciela): dokument można
+    /// obejrzeć, ale nie podpisać. Plik z hasłem otwarcia kończy się wyjątkiem <c>BadPasswordException</c>.
+    /// </summary>
+    public static bool CzyZablokowanyDoZmian(string sciezka)
+    {
+        using var czytnik = new PdfReader(sciezka);
+        using var dokument = new PdfDocument(czytnik);
+        return czytnik.IsEncrypted() && !czytnik.IsOpenedWithFullPermission();
+    }
+
+    /// <summary>
+    /// Widoczna część strony: CropBox przycięty do MediaBox — tak samo jak w PDFium, żeby położenie
+    /// na podglądzie odpowiadało położeniu w podpisie.
+    /// </summary>
+    internal static iText.Kernel.Geom.Rectangle ObszarStrony(PdfPage strona)
+    {
+        var media = strona.GetMediaBox();
+        var wspolna = strona.GetCropBox().GetIntersection(media);
+        return wspolna != null && wspolna.GetWidth() > 0 && wspolna.GetHeight() > 0 ? wspolna : media;
+    }
+
     public static IReadOnlyList<StronaPdf> Strony(string sciezka)
     {
         using var dokument = new PdfDocument(new PdfReader(sciezka));
@@ -66,7 +88,7 @@ public static class DokumentPdf
         for (var i = 1; i <= dokument.GetNumberOfPages(); i++)
         {
             var strona = dokument.GetPage(i);
-            var c = strona.GetCropBox();
+            var c = ObszarStrony(strona);
             wynik.Add(new StronaPdf(i, c.GetLeft(), c.GetBottom(), c.GetWidth(), c.GetHeight(), ((strona.GetRotation() % 360) + 360) % 360));
         }
         return wynik;

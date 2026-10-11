@@ -21,6 +21,10 @@ public static class KomunikatyBledow
     private const int NteUserCancelled = unchecked((int)0x80090036);
     private const int NteSilentContext = unchecked((int)0x80090022);
 
+    internal const string ZablokowanyDoZmian =
+        "Autor pliku ograniczył uprawnienia do zmian w dokumencie (hasło właściciela), więc nie można go podpisać " +
+        "bez naruszenia tych ograniczeń. Poproś autora o wersję bez zabezpieczeń.";
+
     public static string Opisz(Exception wyjatek)
     {
         foreach (var w in Lancuch(wyjatek))
@@ -53,8 +57,15 @@ public static class KomunikatyBledow
                     return "Sterownik karty wymaga wpisania PIN-u, ale nie mógł wyświetlić okna. Spróbuj ponownie.";
             }
 
-            if (w is iText.Kernel.Exceptions.BadPasswordException)
-                return "Plik PDF jest zabezpieczony hasłem. Usuń zabezpieczenie i spróbuj ponownie.";
+            if (w is iText.Kernel.Exceptions.BadPasswordException bpe)
+            {
+                // Bez hasła otwarcia plik da się odczytać, ale zmiany (także podpis) wymagają hasła właściciela.
+                return bpe.Message.Contains("owner password", StringComparison.OrdinalIgnoreCase)
+                    ? ZablokowanyDoZmian
+                    : "Plik PDF jest zabezpieczony hasłem. Usuń zabezpieczenie i spróbuj ponownie.";
+            }
+            if (w is iText.Pdfa.Exceptions.PdfAConformanceException pdfa)
+                return "Dokument jest w formacie PDF/A, a wizualizacja podpisu nie spełnia jego wymagań: " + pdfa.Message;
             if (w is UnauthorizedAccessException)
                 return "Brak uprawnień do zapisu w folderze z dokumentem. Skopiuj plik do innego folderu (np. Dokumenty).";
             if (w is FileNotFoundException fnf)

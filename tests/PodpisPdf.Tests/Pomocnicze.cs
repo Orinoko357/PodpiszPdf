@@ -157,6 +157,40 @@ internal static class PlikiTestowe
         return sciezka;
     }
 
+    /// <summary>PNG 60x30 px z kanałem alfa (półprzezroczysty prostokąt i koło na przezroczystym tle).</summary>
+    public static string UtworzLogoZAlfa(string folder)
+    {
+        var sciezka = Path.Combine(folder, "logo-alfa.png");
+        File.WriteAllBytes(sciezka, Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAADwAAAAeCAYAAABwmH1PAAAApUlEQVR4nO3YyxGAMAhFUbQqi7Bci7AsV2wyQP4ZiO/s43BloyECAAjkmPnwl+hpPXsR3SNnYUOCe8Jq9b6I5uCVkZqW+OpgD6GpmvDiYI+hqZLwbHCE0JQVfloHI8YS2XOrwVFjmTa/ueEdicHRt8ukDmx4d2LwrO/Y1aQObJhF37I2v7nhqNHW3PiWzvEYPuVvKeUhfMn/sOQXNx4lPN5pAUBsH1bpIiAx1lPIAAAAAElFTkSuQmCC"));
+        return sciezka;
+    }
+
+    /// <summary>
+    /// Dokument PDF/A (część 1 lub 2, poziom B) z osadzoną czcionką i profilem sRGB
+    /// (wbudowany profil lcms „sRGB built-in”, bez praw autorskich).
+    /// </summary>
+    public static string UtworzPdfA(string folder, int czesc, string nazwa = "pdfa.pdf")
+    {
+        const string ProfilSrgb =
+            "AAACTGxjbXMEQAAAbW50clJHQiBYWVogB+oACgALAAQAMAAoYWNzcEFQUEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPbWAAEAAAAA0y1sY21zAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALZGVzYwAAAQgAAAA2Y3BydAAAAUAAAABMd3RwdAAAAYwAAAAUY2hhZAAAAaAAAAAsclhZWgAAAcwAAAAUYlhZWgAAAeAAAAAUZ1hZWgAAAfQAAAAUclRSQwAAAggAAAAgZ1RSQwAAAggAAAAgYlRSQwAAAggAAAAgY2hybQAAAigAAAAkbWx1YwAAAAAAAAABAAAADGVuVVMAAAAaAAAAHABzAFIARwBCACAAYgB1AGkAbAB0AC0AaQBuAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAADAAAAAcAE4AbwAgAGMAbwBwAHkAcgBpAGcAaAB0ACwAIAB1AHMAZQAgAGYAcgBlAGUAbAB5WFlaIAAAAAAAAPbWAAEAAAAA0y1zZjMyAAAAAAABDEIAAAXe///zJQAAB5MAAP2Q///7of///aIAAAPcAADAblhZWiAAAAAAAABvoAAAOPUAAAOQWFlaIAAAAAAAACSfAAAPhAAAtsNYWVogAAAAAAAAYpcAALeHAAAY2XBhcmEAAAAAAAMAAAACZmYAAPKnAAANWQAAE9AAAApbY2hybQAAAAAAAwAAAACj1wAAVHsAAEzNAACZmgAAJmYAAA9c";
+        var sciezka = Path.Combine(folder, nazwa);
+        var zgodnosc = czesc == 1 ? PdfAConformance.PDF_A_1B : PdfAConformance.PDF_A_2B;
+        var profil = new PdfOutputIntent("Custom", "", "http://www.color.org", "sRGB IEC61966-2.1",
+            new MemoryStream(Convert.FromBase64String(ProfilSrgb)));
+        using (var pdf = new iText.Pdfa.PdfADocument(new PdfWriter(sciezka), zgodnosc, profil))
+        using (var doc = new Document(pdf))
+        {
+            using var zasob = typeof(PodpisPdf.Core.Wizualizacja).Assembly.GetManifestResourceStream("PodpisPdf.Core.LiberationSans-Regular.ttf")!;
+            using var bajty = new MemoryStream();
+            zasob.CopyTo(bajty);
+            var czcionka = iText.Kernel.Font.PdfFontFactory.CreateFont(bajty.ToArray(), iText.IO.Font.PdfEncodings.IDENTITY_H,
+                iText.Kernel.Font.PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED);
+            doc.Add(new Paragraph("Dokument PDF/A z systemu EZD").SetFont(czcionka));
+        }
+        return sciezka;
+    }
+
     /// <summary>Mały PNG 40x20 px (dwa kolorowe pola).</summary>
     public static string UtworzLogo(string folder)
     {

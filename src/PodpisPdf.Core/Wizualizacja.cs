@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using iText.Forms.Form.Element;
 using iText.IO.Font;
 using iText.IO.Image;
@@ -78,6 +79,7 @@ public static class Wizualizacja
     {
         var w = rozmiar.Szerokosc * skala;
         var h = rozmiar.Wysokosc * skala;
+        SprawdzRozmiarStrony(strona, w, h, naPodgladzie: false);
         var mx = p.MarginesPoziomyMm * PunktowNaMm;
         var my = p.MarginesPionowyMm * PunktowNaMm;
 
@@ -102,6 +104,7 @@ public static class Wizualizacja
         if (miejsce.Skala < MinSkala - 0.001f || miejsce.Skala > MaksSkala + 0.001f)
             throw new BladPodpisu("Nieprawidłowy rozmiar podpisu. Wskaż miejsce ponownie.");
         var prostokat = new Rectangle(miejsce.X, miejsce.Y, rozmiar.Szerokosc * miejsce.Skala, rozmiar.Wysokosc * miejsce.Skala);
+        SprawdzRozmiarStrony(strona, prostokat.GetWidth(), prostokat.GetHeight(), naPodgladzie: true);
         if (!MiesciSie(strona, prostokat))
             throw new BladPodpisu("Wskazane miejsce podpisu wychodzi poza stronę. Wskaż miejsce ponownie.");
         return prostokat;
@@ -119,16 +122,33 @@ public static class Wizualizacja
         return (x, y);
     }
 
+    /// <summary>
+    /// Wizualizacja większa niż cała strona (np. bardzo długie stanowisko) — żadne położenie nie pomoże,
+    /// więc komunikat wskazuje prawdziwą przyczynę.
+    /// </summary>
+    private static void SprawdzRozmiarStrony(Rectangle strona, float w, float h, bool naPodgladzie)
+    {
+        var rada = naPodgladzie ? " lub zmniejsz podpis na podglądzie" : "";
+        if (w > strona.GetWidth() + Tolerancja)
+        {
+            throw new BladPodpisu(
+                $"Wizualizacja podpisu jest szersza niż strona — skróć stanowisko w ustawieniach (Enter dzieli je na wiersze){rada}.");
+        }
+        if (h > strona.GetHeight() + Tolerancja)
+            throw new BladPodpisu($"Wizualizacja podpisu jest wyższa niż strona — skróć stanowisko w ustawieniach{rada}.");
+    }
+
     private static bool MiesciSie(Rectangle strona, Rectangle p) =>
         p.GetLeft() >= strona.GetLeft() - Tolerancja && p.GetBottom() >= strona.GetBottom() - Tolerancja &&
         p.GetRight() <= strona.GetRight() + Tolerancja && p.GetTop() <= strona.GetTop() + Tolerancja;
 
     /// <summary>Wygląd pola podpisu: bez ramki i z przezroczystym tłem.</summary>
     /// <param name="skala">Skala całej wizualizacji (rozmiar, czcionki, odstępy); proporcje pozostają stałe.</param>
-    internal static SignatureFieldAppearance Utworz(DaneWizualizacji dane, float skala = 1f)
+    /// <param name="bezPrzezroczystosci">Dokument PDF/A-1 — logo bez przezroczystości (zob. <see cref="Logo.Wczytaj"/>).</param>
+    internal static SignatureFieldAppearance Utworz(DaneWizualizacji dane, float skala = 1f, bool bezPrzezroczystosci = false)
     {
         var wyglad = new SignatureFieldAppearance(SignerProperties.IGNORED_ID);
-        wyglad.SetContent(UtworzZawartosc(dane, skala, out var czcionka));
+        wyglad.SetContent(UtworzZawartosc(dane, skala, out var czcionka, bezPrzezroczystosci));
         wyglad.SetBorder(Border.NO_BORDER);
         foreach (var bok in new[] { Property.PADDING_LEFT, Property.PADDING_RIGHT, Property.PADDING_TOP, Property.PADDING_BOTTOM })
             wyglad.SetProperty(bok, UnitValue.CreatePointValue(0));
@@ -161,9 +181,11 @@ public static class Wizualizacja
     /// Wiersze, rozmiary czcionek i wymiary przy skali 1. Szerokość wyznacza najszerszy wiersz,
     /// wysokość — suma wierszy (lub logo); wszystko jest potem mnożone przez skalę.
     /// </summary>
-    private static Uklad Zaplanuj(DaneWizualizacji dane, out PdfFont zwykla, out PdfFont pogrubiona)
+    private static Uklad Zaplanuj(DaneWizualizacji dane, out PdfFont zwykla, out PdfFont pogrubiona, bool bezPrzezroczystosci = false)
     {
         (zwykla, pogrubiona) = Czcionki();
+        SprawdzZnaki(dane.ImieNazwisko, pogrubiona, "Imię i nazwisko z certyfikatu zawiera", "Nie da się ich pokazać na wizualizacji podpisu.");
+        SprawdzZnaki(dane.Stanowisko, zwykla, "Stanowisko zawiera", "Usuń je ze stanowiska w ustawieniach.");
         var naglowek = new Wiersz(Naglowek, zwykla, RozmiarNaglowka);
         var nazwisko = new Wiersz(dane.ImieNazwisko, pogrubiona, RozmiarNazwiska);
         var data = new Wiersz("Data: " + FormatujCzas(dane.Czas), zwykla, RozmiarDaty);
@@ -177,7 +199,7 @@ public static class Wizualizacja
         var tekstW = Math.Max(bazowa, szerokoscStanowiska);
         var tekstH = linie.Sum(w => WysokoscWiersza(w.Czcionka, w.Rozmiar));
 
-        var logo = WczytajLogo(dane.SciezkaLogo);
+        var logo = WczytajLogo(dane.SciezkaLogo, bezPrzezroczystosci);
         float logoW = 0, logoH = 0, logoHPelne = 0, odstepLogo = 0;
         if (logo != null)
         {
@@ -251,9 +273,9 @@ public static class Wizualizacja
     /// Zawartość wizualizacji: układ ze skali 1 pomnożony przez skalę, więc wizualizacja w innej skali
     /// jest dokładnym powiększeniem lub pomniejszeniem.
     /// </summary>
-    private static Div UtworzZawartosc(DaneWizualizacji dane, float skala, out PdfFont czcionkaPodstawowa)
+    private static Div UtworzZawartosc(DaneWizualizacji dane, float skala, out PdfFont czcionkaPodstawowa, bool bezPrzezroczystosci = false)
     {
-        var u = Zaplanuj(dane, out czcionkaPodstawowa, out _);
+        var u = Zaplanuj(dane, out czcionkaPodstawowa, out _, bezPrzezroczystosci);
         var tekst = new Div().SetPadding(0).SetMargin(0).SetWidth(u.TekstW * skala);
         foreach (var w in u.Linie)
         {
@@ -374,7 +396,26 @@ public static class Wizualizacja
         return PdfFontFactory.CreateFont(program, PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED);
     }
 
-    private static (PdfXObject Obraz, float Proporcje)? WczytajLogo(string? sciezka)
+    /// <summary>
+    /// Znaki, których czcionka nie zawiera, iText po cichu pomija — zamiast niepełnego nazwiska na podpisie
+    /// pokazujemy błąd z listą tych znaków.
+    /// </summary>
+    private static void SprawdzZnaki(string? tekst, PdfFont czcionka, string poczatek, string rada)
+    {
+        if (string.IsNullOrEmpty(tekst))
+            return;
+        var brakujace = tekst.EnumerateRunes()
+            .Where(z => !Rune.IsControl(z) && !Rune.IsWhiteSpace(z) && !czcionka.ContainsGlyph(z.Value))
+            .Select(z => z.ToString())
+            .Distinct()
+            .ToList();
+        if (brakujace.Count == 0)
+            return;
+        var lista = string.Join(" ", brakujace.Take(10)) + (brakujace.Count > 10 ? " …" : "");
+        throw new BladPodpisu($"{poczatek} znaki, których nie ma w czcionce podpisu (Arial): {lista}. {rada}");
+    }
+
+    private static (PdfXObject Obraz, float Proporcje)? WczytajLogo(string? sciezka, bool bezPrzezroczystosci)
     {
         if (string.IsNullOrWhiteSpace(sciezka))
             return null;
@@ -382,7 +423,7 @@ public static class Wizualizacja
             throw new BladPodpisu($"Nie znaleziono pliku logo: {sciezka}. Popraw ścieżkę w ustawieniach lub usuń logo.");
         try
         {
-            return Logo.Wczytaj(sciezka);
+            return Logo.Wczytaj(sciezka, bezPrzezroczystosci);
         }
         catch (Exception e) when (e is not BladPodpisu)
         {

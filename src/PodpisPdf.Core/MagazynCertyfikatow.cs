@@ -10,10 +10,29 @@ public static class MagazynCertyfikatow
     {
         using var magazyn = new X509Store(StoreName.My, StoreLocation.CurrentUser);
         magazyn.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
-        var teraz = DateTime.Now;
-        return magazyn.Certificates
-            .Where(c => CertyfikatInfo.CzyNadajeSieDoPodpisu(c, teraz))
-            .Select(c => new CertyfikatInfo(c))
+        return ZbudujListe(magazyn.Certificates, DateTime.Now);
+    }
+
+    /// <summary>
+    /// Lista certyfikatów do podpisu. Certyfikat, którego nie da się odczytać (nietypowa budowa, uszkodzenie),
+    /// jest pomijany — nie może zablokować całej listy.
+    /// </summary>
+    internal static IReadOnlyList<CertyfikatInfo> ZbudujListe(IEnumerable<X509Certificate2> certyfikaty, DateTime teraz)
+    {
+        var wynik = new List<CertyfikatInfo>();
+        foreach (var c in certyfikaty)
+        {
+            try
+            {
+                if (CertyfikatInfo.CzyNadajeSieDoPodpisu(c, teraz))
+                    wynik.Add(new CertyfikatInfo(c));
+            }
+            catch (Exception)
+            {
+                // Pomijamy tylko ten certyfikat.
+            }
+        }
+        return wynik
             .OrderByDescending(c => c.Kwalifikowany)
             .ThenBy(c => c.ImieNazwisko, StringComparer.CurrentCultureIgnoreCase)
             .ThenByDescending(c => c.WaznyDo)

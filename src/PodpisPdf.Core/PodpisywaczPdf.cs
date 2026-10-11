@@ -49,6 +49,12 @@ public sealed class PodpisywaczPdf
             throw new BladPodpisu("Plik wynikowy musi być inny niż oryginał.");
         if (!certyfikat.HasPrivateKey)
             throw new BladPodpisu("Wybrany certyfikat nie ma klucza prywatnego.");
+        // Lista certyfikatów mogła powstać wiele dni temu (program działa w zasobniku).
+        if (CertyfikatInfo.PowodNiewaznosci(certyfikat, DateTime.Now) is { } niewazny)
+            throw new BladPodpisu(niewazny);
+
+        // Przed znacznikiem czasu: dokument, którego nie da się podpisać, nie wymaga połączenia z serwerem.
+        var dokument = SprawdzDokument(wejscie);
 
         var podpis = new PodpisKluczemCertyfikatu(certyfikat, opcje.PrzygotujKlucz);
         var czasSerwera = _czasSerwera();
@@ -56,10 +62,10 @@ public sealed class PodpisywaczPdf
 
         var dane = new DaneWizualizacji(
             CertyfikatInfo.PobierzImieNazwisko(certyfikat), opcje.Stanowisko, opcje.SciezkaLogo, czas);
-        var (numerStrony, prostokat) = UstalMiejscePodpisu(wejscie, opcje, Wizualizacja.Rozmiar(dane));
+        var (numerStrony, prostokat) = UstalMiejscePodpisu(dokument.Czytnik(), opcje, Wizualizacja.Rozmiar(dane));
         var lancuch = ZbudujLancuch(certyfikat);
 
-        var wyglad = Wizualizacja.Utworz(dane, opcje.Miejsce?.Skala ?? 1f);
+        var wyglad = Wizualizacja.Utworz(dane, opcje.Miejsce?.Skala ?? 1f, bezPrzezroczystosci: dokument.PdfA1);
 
         var wlasciwosci = new SignerProperties()
             .SetPageNumber(numerStrony)
@@ -72,7 +78,7 @@ public sealed class PodpisywaczPdf
         var tymczasowy = Path.Combine(folder, $".{Path.GetFileName(wyjscie)}.{Guid.NewGuid():N}.tmp");
         try
         {
-            using (var czytnik = new PdfReader(wejscie))
+            using (var czytnik = dokument.Czytnik())
             using (var strumien = new FileStream(tymczasowy, FileMode.CreateNew, FileAccess.Write))
             {
                 var padesSigner = new PdfPadesSigner(czytnik, strumien);
@@ -107,9 +113,77 @@ public sealed class PodpisywaczPdf
         return new WynikPodpisu(wyjscie, czas, czasSerwera != null);
     }
 
-    private static (int Numer, Rectangle Prostokat) UstalMiejscePodpisu(string wejscie, OpcjePodpisu opcje, RozmiarWizualizacji rozmiar)
+    /// <summary>Dokument do podpisu: oryginał albo jego naprawiona kopia w pamięci.</summary>
+    private sealed record DokumentDoPodpisu(string Sciezka, byte[]? NaprawionaKopia, bool PdfA1)
+    {
+        public PdfReader Czytnik() =>
+            NaprawionaKopia != null ? new PdfReader(new MemoryStream(NaprawionaKopia)) : new PdfReader(Sciezka);
+    }
+
+    /// <summary>
+    /// Sprawdza, czy dokument da się podpisać w trybie dopisywania (bez naruszania wcześniejszych podpisów):
+    /// uprawnienia, certyfikacja „bez zmian”, uszkodzona tabela xref; rozpoznaje PDF/A-1.
+    /// </summary>
+    private static DokumentDoPodpisu SprawdzDokument(string wejscie)
     {
         using var czytnik = new PdfReader(wejscie);
+        using var dokument = new PdfDocument(czytnik);
+
+        // Bez hasła właściciela iText nie dopisze podpisu — a obejście ograniczeń autora nie wchodzi w grę.
+        if (czytnik.IsEncrypted() && !czytnik.IsOpenedWithFullPermission())
+            throw new BladPodpisu(KomunikatyBledow.ZablokowanyDoZmian);
+
+        if (CzyCertyfikacjaBezZmian(dokument))
+        {
+            throw new BladPodpisu(
+                "Autor dokumentu zablokował wszelkie zmiany (certyfikacja „bez zmian”) — kolejny podpis unieważniłby certyfikację.");
+        }
+
+        var pdfA1 = dokument.GetConformance()?.GetAConformance()?.GetPart() == "1";
+
+        if (!czytnik.HasRebuiltXref())
+            return new DokumentDoPodpisu(wejscie, null, pdfA1);
+
+        // Uszkodzona tabela xref (częste przy skanerach): iText odczytał plik, odbudowując ją, ale nie dopisze
+        // do niego podpisu. Bez wcześniejszych podpisów wystarczy podpisać zapisaną od nowa (naprawioną) kopię;
+        // z podpisami przepisanie pliku unieważniłoby je.
+        if (new SignatureUtil(dokument).GetSignatureNames().Count > 0)
+        {
+            throw new BladPodpisu(
+                "Plik PDF jest uszkodzony (błędna tabela odsyłaczy xref) i ma już podpisy. Nie można dodać kolejnego podpisu " +
+                "bez unieważnienia poprzednich — poproś nadawcę o poprawny plik.");
+        }
+        using var naprawiony = new MemoryStream();
+        using (var czytnikKopii = new PdfReader(wejscie))
+        using (new PdfDocument(czytnikKopii, new PdfWriter(naprawiony)))
+        {
+            // Zamknięcie dokumentu zapisuje go od nowa, z poprawną tabelą xref.
+        }
+        return new DokumentDoPodpisu(wejscie, naprawiony.ToArray(), pdfA1);
+    }
+
+    /// <summary>Czy dokument ma certyfikację DocMDP z P=1 (żadne zmiany niedozwolone).</summary>
+    private static bool CzyCertyfikacjaBezZmian(PdfDocument dokument)
+    {
+        var podpis = dokument.GetCatalog().GetPdfObject().GetAsDictionary(PdfName.Perms)?.GetAsDictionary(PdfName.DocMDP);
+        var odwolania = podpis?.GetAsArray(PdfName.Reference);
+        if (odwolania == null)
+            return false;
+        for (var i = 0; i < odwolania.Size(); i++)
+        {
+            var odwolanie = odwolania.GetAsDictionary(i);
+            if (odwolanie == null || !PdfName.DocMDP.Equals(odwolanie.GetAsName(PdfName.TransformMethod)))
+                continue;
+            // Brak /P oznacza wartość domyślną 2 (wypełnianie formularzy i podpisy dozwolone).
+            var p = odwolanie.GetAsDictionary(PdfName.TransformParams)?.GetAsNumber(PdfName.P)?.IntValue() ?? 2;
+            if (p == 1)
+                return true;
+        }
+        return false;
+    }
+
+    private static (int Numer, Rectangle Prostokat) UstalMiejscePodpisu(PdfReader czytnik, OpcjePodpisu opcje, RozmiarWizualizacji rozmiar)
+    {
         using var dokument = new PdfDocument(czytnik);
         var liczbaStron = dokument.GetNumberOfPages();
 
@@ -117,8 +191,8 @@ public sealed class PodpisywaczPdf
         {
             if (miejsce.NumerStrony < 1 || miejsce.NumerStrony > liczbaStron)
                 throw new BladPodpisu($"Dokument ma {liczbaStron} str., a wskazano stronę {miejsce.NumerStrony}.");
-            var cropBox = dokument.GetPage(miejsce.NumerStrony).GetCropBox();
-            return (miejsce.NumerStrony, Wizualizacja.ProstokatWMiejscu(cropBox, miejsce, rozmiar));
+            var widoczna = DokumentPdf.ObszarStrony(dokument.GetPage(miejsce.NumerStrony));
+            return (miejsce.NumerStrony, Wizualizacja.ProstokatWMiejscu(widoczna, miejsce, rozmiar));
         }
 
         var polozenie = opcje.Polozenie;
@@ -133,7 +207,7 @@ public sealed class PodpisywaczPdf
             throw new BladPodpisu(
                 $"Dokument ma {liczbaStron} str., a w ustawieniach wybrano stronę {numer} na podpis. Popraw numer strony w ustawieniach.");
 
-        var strona = dokument.GetPage(numer).GetCropBox();
+        var strona = DokumentPdf.ObszarStrony(dokument.GetPage(numer));
         return (numer, Wizualizacja.ObliczProstokat(strona, polozenie, rozmiar));
     }
 
