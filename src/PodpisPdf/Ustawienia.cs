@@ -123,6 +123,24 @@ internal sealed class Ustawienia
         return new Ustawienia();
     }
 
+    /// <summary>
+    /// Wybór „po otwarciu pliku PDF” zapisany w pliku — zmienia go także osobny proces (okno „Podpisz / Przeglądaj”
+    /// z „Zapamiętaj mój wybór”), gdy ten program działa w zasobniku. Null, gdy pliku nie ma lub jest nieczytelny.
+    /// </summary>
+    public static PoOtwarciuPdf? OdczytajPoOtwarciuPdf()
+    {
+        try
+        {
+            if (File.Exists(SciezkaPliku))
+                return JsonSerializer.Deserialize<Ustawienia>(File.ReadAllText(SciezkaPliku), OpcjeJson)?.PoOtwarciuPdf;
+        }
+        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+        {
+            // Bez odczytu zostaje wartość z pamięci.
+        }
+        return null;
+    }
+
     public void Zapisz()
     {
         Directory.CreateDirectory(Folder);

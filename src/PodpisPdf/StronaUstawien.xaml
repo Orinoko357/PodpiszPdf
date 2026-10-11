@@ -172,9 +172,9 @@
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE921;" />
                                 </ctk:SettingsCard.HeaderIcon>
-                                <ToggleSwitch x:Name="Zasobnik" OnContent="Włączone" OffContent="Wyłączone" />
+                                <ToggleSwitch x:Name="Zasobnik" OnContent="Włączone" OffContent="Wyłączone" Toggled="PrzyZmianieZasobnika" />
                             </ctk:SettingsCard>
-                            <ctk:SettingsCard Header="Minimalizuj po podpisaniu" Description="Bez okienka z podsumowaniem — okno od razu się minimalizuje (do zasobnika, jeśli włączony)">
+                            <ctk:SettingsCard Header="Minimalizuj po podpisaniu" Description="Bez okienka z podsumowaniem — okno chowa się do zasobnika, wynik pokazuje dymek (wymaga „Minimalizuj do zasobnika”)">
                                 <ctk:SettingsCard.HeaderIcon>
                                     <FontIcon Glyph="&#xE73F;" />
                                 </ctk:SettingsCard.HeaderIcon>
@@ -192,7 +192,6 @@
                                 </ctk:SettingsCard.HeaderIcon>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <ProgressRing x:Name="PostepMenu11" IsActive="False" Width="18" Height="18" />
-                                    <Button x:Name="PrzyciskCertyfikatu" Content="Zainstaluj certyfikat…" Click="PrzyInstalacjiCertyfikatu" Visibility="Collapsed" />
                                     <Button x:Name="PrzyciskMenu11" Content="Dodaj do menu" Click="PrzyMenu11" />
                                 </StackPanel>
                             </ctk:SettingsCard>

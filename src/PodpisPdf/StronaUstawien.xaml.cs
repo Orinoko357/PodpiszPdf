@@ -92,6 +92,7 @@ public sealed partial class StronaUstawien : Page
         PoziomLT.IsOn = u.PoziomLT;
         Zasobnik.IsOn = u.MinimalizujDoZasobnika;
         MinimalizujPoPodpisie.IsOn = u.MinimalizujPoPodpisie;
+        MinimalizujPoPodpisie.IsEnabled = Zasobnik.IsOn;
         Autostart.IsOn = u.Autostart;
         MenuKontekstowe.IsOn = u.MenuKontekstowe;
         ListaPoOtwarciu.SelectedIndex = (int)u.PoOtwarciuPdf;
@@ -99,6 +100,10 @@ public sealed partial class StronaUstawien : Page
         OdswiezStanIntegracji();
         OdswiezLogo();
     }
+
+    /// <summary>„Minimalizuj po podpisaniu” działa tylko z zasobnikiem — wynik pokazuje wtedy dymek z ikony.</summary>
+    private void PrzyZmianieZasobnika(object sender, RoutedEventArgs e) =>
+        MinimalizujPoPodpisie.IsEnabled = Zasobnik.IsOn;
 
     private void PrzyZmianieStrony(object sender, SelectionChangedEventArgs e) =>
         NumerStrony.IsEnabled = ListaStron.SelectedIndex >= 0 && Strony[ListaStron.SelectedIndex] == WyborStrony.Numer;
@@ -182,6 +187,11 @@ public sealed partial class StronaUstawien : Page
         var adres = AdresTsa.Text.Trim();
         var login = string.IsNullOrWhiteSpace(LoginTsa.Text) ? null : LoginTsa.Text.Trim();
         var haslo = HasloTsa.Password;
+        if (login != null && !CzyHttps(adres))
+        {
+            await Dialogi.BladAsync(XamlRoot, KomunikatHttps, "Popraw ustawienia");
+            return;
+        }
         PrzyciskTestuTsa.IsEnabled = false;
         TestTsaPostep.IsActive = true;
         try
@@ -232,7 +242,6 @@ public sealed partial class StronaUstawien : Page
             : "Pliki PDF otwierane dwuklikiem trafią do PodpisPdf, a ten zapyta: podpisać czy przeglądać (w Adobe Acrobat Reader)";
         PrzyciskDomyslnej.Content = DomyslnaAplikacja.JestDomyslna ? "Ustawienia Windows…" : "Ustaw jako domyślną…";
 
-        PrzyciskCertyfikatu.Visibility = Visibility.Collapsed;
         if (!MenuWindows11.JestWindows11)
         {
             KartaMenu11.Description = "Dostępne tylko w Windows 11. W Windows 10 działa zwykłe menu kontekstowe.";
@@ -251,8 +260,7 @@ public sealed partial class StronaUstawien : Page
             ? $"„{PodpisPdf.MenuKontekstowe.Etykieta}” jest w menu Windows 11 (bez „Pokaż więcej opcji”)"
             : zaufany
                 ? $"Dodaje „{PodpisPdf.MenuKontekstowe.Etykieta}” bezpośrednio do menu Windows 11"
-                : "Wymaga jednorazowej instalacji certyfikatu PodpisPdf na komputerze (uprawnienia administratora)";
-        PrzyciskCertyfikatu.Visibility = !zarejestrowana && !zaufany ? Visibility.Visible : Visibility.Collapsed;
+                : "Certyfikat PodpisPdf nie jest zaufany na tym komputerze — zainstaluj program ponownie instalatorem MSI (dodaje certyfikat)";
         PrzyciskMenu11.Content = zarejestrowana ? "Usuń z menu" : "Dodaj do menu";
         PrzyciskMenu11.IsEnabled = zarejestrowana || zaufany;
     }
@@ -265,7 +273,7 @@ public sealed partial class StronaUstawien : Page
             {
                 DomyslnaAplikacja.Zarejestruj(Okno.Ustawienia);
                 _ustawienia.PoprzedniaAplikacjaPdf = Okno.Ustawienia.PoprzedniaAplikacjaPdf;
-                Okno.Ustawienia.Zapisz();
+                Okno.ZapiszUstawienia();
             }
             if (!DomyslnaAplikacja.JestDomyslna)
             {
@@ -278,26 +286,6 @@ public sealed partial class StronaUstawien : Page
         catch (Exception ex)
         {
             await Dialogi.BladAsync(XamlRoot, "Nie udało się zarejestrować PodpisPdf jako aplikacji do PDF.\n\n" + KomunikatyBledow.Opisz(ex));
-        }
-    }
-
-    private async void PrzyInstalacjiCertyfikatu(object sender, RoutedEventArgs e)
-    {
-        PostepMenu11.IsActive = true;
-        try
-        {
-            var zainstalowano = await Task.Run(MenuWindows11.ZainstalujCertyfikat);
-            if (!zainstalowano)
-                await Dialogi.BladAsync(XamlRoot, "Certyfikat nie został zainstalowany (wymaga zgody administratora).");
-        }
-        catch (Exception ex)
-        {
-            await Dialogi.BladAsync(XamlRoot, KomunikatyBledow.Opisz(ex));
-        }
-        finally
-        {
-            PostepMenu11.IsActive = false;
-            OdswiezStanIntegracji();
         }
     }
 
@@ -315,7 +303,7 @@ public sealed partial class StronaUstawien : Page
             // Zmiana działa od razu — zapisujemy ją niezależnie od przycisku „Zapisz”.
             _ustawienia.PozycjaMenuWindows11 = dodaj;
             Okno.Ustawienia.PozycjaMenuWindows11 = dodaj;
-            Okno.Ustawienia.Zapisz();
+            Okno.ZapiszUstawienia();
             if (dodaj)
                 await Dialogi.PokazAsync(XamlRoot, "Gotowe",
                     $"„{PodpisPdf.MenuKontekstowe.Etykieta}” pojawi się w menu kontekstowym plików PDF. " +
@@ -373,10 +361,20 @@ public sealed partial class StronaUstawien : Page
 
     private async void PrzyZapisie(object sender, RoutedEventArgs e)
     {
-        if (_zakonczono || !await ZapiszZPol())
-            return;
+        try
+        {
+            if (_zakonczono || !await ZapiszZPol())
+                return;
+            // Najpierw zapis i zastosowanie, potem powrót — strona główna od razu pracuje na nowych ustawieniach.
+            var bledy = Okno.StronaGlowna?.PoZmianieUstawien(_ustawienia) ?? new List<string>();
+            if (bledy.Count > 0)
+                await Dialogi.BladAsync(XamlRoot, string.Join("\n\n", bledy));
+        }
+        catch (Exception ex)
+        {
+            await Dialogi.BladAsync(XamlRoot, "Nie udało się zastosować ustawień.\n\n" + KomunikatyBledow.Opisz(ex));
+        }
         Wroc();
-        Okno.StronaGlowna?.PoZmianieUstawien(_ustawienia);
     }
 
     private void Wroc()
@@ -396,6 +394,13 @@ public sealed partial class StronaUstawien : Page
         return false;
     }
 
+    private const string KomunikatHttps =
+        "Przy logowaniu do serwera znacznika czasu adres musi zaczynać się od https:// — przez http login i hasło " +
+        "byłyby wysyłane otwartym tekstem. Zmień adres na https:// albo usuń login (darmowy serwer Certum go nie wymaga).";
+
+    private static bool CzyHttps(string adres) =>
+        Uri.TryCreate(adres, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
+
     private async Task<bool> ZapiszZPol()
     {
         var przyrostek = Przyrostek.Text.Trim();
@@ -405,6 +410,8 @@ public sealed partial class StronaUstawien : Page
         var adres = AdresTsa.Text.Trim();
         if (!Uri.TryCreate(adres, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
             return await Blad(1, "Podaj poprawny adres serwera znacznika czasu, np. http://time.certum.pl", AdresTsa);
+        if (!string.IsNullOrWhiteSpace(LoginTsa.Text) && !CzyHttps(adres))
+            return await Blad(1, KomunikatHttps, AdresTsa);
 
         var logo = _sciezkaLogo ?? "";
         if (logo.Length > 0 && !File.Exists(logo))

@@ -27,6 +27,10 @@ public sealed partial class StronaGlowna : Page
 {
     private string? _plik;
     private bool _trwaPodpisywanie;
+    // Przebieg podpisu od pierwszego kliknięcia (wybór pliku, pytania, podgląd) do końca — jeden naraz.
+    private bool _przebiegPodpisu;
+    // Właściwy podpis albo pobieranie i instalacja aktualizacji — tego nie wolno przerwać zamknięciem programu.
+    private bool _etapKrytyczny;
     private bool _wczytywanieCertyfikatow;
     private bool _zainicjalizowano;
     private bool _gotowa;
@@ -43,16 +47,20 @@ public sealed partial class StronaGlowna : Page
 
     private Ustawienia Ustawienia => Okno.Ustawienia;
 
-    /// <summary>Trwa praca, której nie wolno przerwać (podpisywanie, podgląd).</summary>
-    internal bool Zajeta => _trwaPodpisywanie;
+    /// <summary>Trwa praca, której nie wolno przerwać (podpisywanie z wyborem pliku i pytaniami, podgląd, aktualizacja).</summary>
+    internal bool Zajeta => _trwaPodpisywanie || _przebiegPodpisu;
+
+    /// <summary>Trwa sam podpis albo pobieranie/instalacja aktualizacji.</summary>
+    internal bool EtapKrytyczny => _etapKrytyczny;
 
     private CertyfikatInfo? WybranyCertyfikat => (ListaCertyfikatow.SelectedItem as ElementCertyfikatu)?.Certyfikat;
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (e.NavigationMode == NavigationMode.Back && !_trwaPodpisywanie)
-            PrzetworzZlecenia(); // pliki z menu kontekstowego, które przyszły w czasie pracy w ustawieniach
+        // Pliki z menu kontekstowego, które przyszły w czasie pracy w ustawieniach — po zakończeniu nawigacji.
+        if (e.NavigationMode == NavigationMode.Back)
+            DispatcherQueue.TryEnqueue(PrzetworzZlecenia);
     }
 
     /// <summary>
@@ -70,6 +78,7 @@ public sealed partial class StronaGlowna : Page
         {
             var komunikat = OdswiezInstalacje(ustawienia);
             OdswiezMenuKontekstowe(ustawienia);
+            AktualizacjaProgramu.UsunPobraneInstalatory();
             try
             {
                 // Program przeniesiony lub zaktualizowany: wpisy w rejestrze i pakiet muszą wskazywać na ten plik.
@@ -90,8 +99,8 @@ public sealed partial class StronaGlowna : Page
 
         var komunikat = await instalacja;
         if (Program.PoAktualizacji)
-            komunikat = $"Zaktualizowano PodpisPdf do wersji {Instalacja.BiezacaWersja}.";
-        if (komunikat != null && !_trwaPodpisywanie)
+            komunikat = PokazWynikAktualizacji(Program.KodAktualizacji);
+        if (komunikat != null && !Zajeta)
             UstawStatus(komunikat);
 
         // Przygotowanie bibliotek PDF w tle — pierwszy podgląd i podpis będą szybsze.
@@ -113,6 +122,31 @@ public sealed partial class StronaGlowna : Page
 
     private DostepnaAktualizacja? _aktualizacja;
 
+    /// <summary>
+    /// Program uruchomiony ponownie po instalatorze aktualizacji: komunikat zależny od kodu msiexec
+    /// (null — starsza wersja przekazywała sam parametr po udanej instalacji). Zwraca tekst paska stanu.
+    /// </summary>
+    private string PokazWynikAktualizacji(int? kod)
+    {
+        switch (kod)
+        {
+            case null or 0 or 1641:
+                return $"Zaktualizowano PodpisPdf do wersji {Instalacja.BiezacaWersja}.";
+            case 3010:
+                return $"Zaktualizowano PodpisPdf do wersji {Instalacja.BiezacaWersja}. Windows zaleca ponowne uruchomienie komputera.";
+            case 1602:
+                _ = Dialogi.PokazAsync(XamlRoot, "Aktualizacja anulowana",
+                    $"Aktualizacja została anulowana. Działa dotychczasowa wersja {Instalacja.BiezacaWersja}.");
+                return "Aktualizacja anulowana.";
+            default:
+                _ = Dialogi.PokazAsync(XamlRoot, "Aktualizacja nie powiodła się",
+                    $"Aktualizacja nie powiodła się (kod {kod}). Działa dotychczasowa wersja {Instalacja.BiezacaWersja}.\n\n" +
+                    "Instalacja wymaga uprawnień administratora komputera. " +
+                    $"Nową wersję można też pobrać ręcznie: {Aktualizacje.StronaWydan}");
+                return $"Aktualizacja nie powiodła się (kod {kod}).";
+        }
+    }
+
     private async Task SprawdzAktualizacjeAutomatycznie()
     {
         var u = Ustawienia;
@@ -123,8 +157,9 @@ public sealed partial class StronaGlowna : Page
         try
         {
             var aktualizacja = await AktualizacjaProgramu.SprawdzAsync();
-            u.OstatnieSprawdzenieAktualizacji = DateTimeOffset.Now;
-            ZapiszCicho(u);
+            // Bieżący obiekt ustawień — w czasie sprawdzania mógł zostać zastąpiony (zapis na stronie ustawień).
+            Ustawienia.OstatnieSprawdzenieAktualizacji = DateTimeOffset.Now;
+            ZapiszCicho();
             if (aktualizacja != null)
             {
                 PokazAktualizacje(aktualizacja);
@@ -157,12 +192,13 @@ public sealed partial class StronaGlowna : Page
     /// <summary>Pobiera i instaluje nową wersję, potem uruchamia ją w miejsce tej kopii.</summary>
     internal async void ZainstalujAktualizacje(DostepnaAktualizacja aktualizacja)
     {
-        if (_trwaPodpisywanie)
+        if (Zajeta)
         {
             await Dialogi.PokazAsync(XamlRoot, "Trwa podpisywanie", "Dokończ podpisywanie i spróbuj ponownie.");
             return;
         }
         UstawTrwaPodpisywanie(true);
+        _etapKrytyczny = true;
         PrzyciskAktualizacji.IsEnabled = false;
         try
         {
@@ -175,6 +211,7 @@ public sealed partial class StronaGlowna : Page
         }
         catch (Exception ex)
         {
+            _etapKrytyczny = false;
             UstawTrwaPodpisywanie(false);
             PrzyciskAktualizacji.IsEnabled = true;
             UstawStatus("Nie udało się zaktualizować programu.");
@@ -198,7 +235,7 @@ public sealed partial class StronaGlowna : Page
     internal void PrzetworzZlecenia()
     {
         // Pliki, które przyszły przed wczytaniem certyfikatów, czekają w kolejce (Inicjalizuj wywoła to ponownie).
-        if (!_gotowa || _trwaPodpisywanie || !ReferenceEquals(Okno.Ramka_.Content, this) || !Okno.PobierzZlecenie(out var plik))
+        if (!_gotowa || Zajeta || !ReferenceEquals(Okno.Ramka_.Content, this) || !Okno.PobierzZlecenie(out var plik))
             return;
         Okno.Przywroc();
         if (string.IsNullOrEmpty(plik))
@@ -213,13 +250,11 @@ public sealed partial class StronaGlowna : Page
             PrzetworzZlecenia();
     }
 
-    internal async void WybierzIPodpisz()
+    internal void WybierzIPodpisz()
     {
-        if (_trwaPodpisywanie || !ReferenceEquals(Okno.Ramka_.Content, this))
+        if (Zajeta || !ReferenceEquals(Okno.Ramka_.Content, this))
             return;
-        await WybierzPlik();
-        if (_plik != null)
-            Podpisz();
+        Podpisz(wybierzPlik: true);
     }
 
     // ---- Instalacja i menu kontekstowe ----
@@ -265,8 +300,11 @@ public sealed partial class StronaGlowna : Page
         }
     }
 
-    /// <summary>Nowe ustawienia zatwierdzone na stronie ustawień.</summary>
-    internal async void PoZmianieUstawien(Ustawienia nowe)
+    /// <summary>
+    /// Nowe ustawienia zatwierdzone na stronie ustawień — zapisywane od razu (przed powrotem do strony głównej).
+    /// Zwraca opisy błędów (pusta lista — wszystko się udało).
+    /// </summary>
+    internal List<string> PoZmianieUstawien(Ustawienia nowe)
     {
         nowe.OstatniCertyfikat = Ustawienia.OstatniCertyfikat;
         nowe.OstatnieSprawdzenieAktualizacji = Ustawienia.OstatnieSprawdzenieAktualizacji;
@@ -276,10 +314,10 @@ public sealed partial class StronaGlowna : Page
         Okno.Ustawienia = nowe;
         OdswiezInformacje();
         Okno.OdswiezZasobnik();
-        if (Okno.TrybTestowy)
-            return;
-
         var bledy = new List<string>();
+        if (Okno.TrybTestowy)
+            return bledy;
+
         try
         {
             nowe.Zapisz();
@@ -298,9 +336,7 @@ public sealed partial class StronaGlowna : Page
         }
         if (OdswiezMenuKontekstowe(nowe) is { } blad)
             bledy.Add("Nie udało się zmienić menu kontekstowego plików PDF.\n" + blad);
-
-        if (bledy.Count > 0)
-            await Dialogi.BladAsync(XamlRoot, string.Join("\n\n", bledy));
+        return bledy;
     }
 
     // ---- Certyfikaty ----
@@ -359,10 +395,9 @@ public sealed partial class StronaGlowna : Page
 
     // ---- Dokument ----
 
-    private async Task WybierzPlik()
+    /// <summary>Okno wyboru pliku; zwraca true, gdy wybrano istniejący plik.</summary>
+    private async Task<bool> WybierzPlik()
     {
-        if (_trwaPodpisywanie)
-            return;
         string? plik;
         try
         {
@@ -371,13 +406,32 @@ public sealed partial class StronaGlowna : Page
         catch (Exception e)
         {
             await Dialogi.BladAsync(XamlRoot, "Nie udało się otworzyć okna wyboru pliku.\n\n" + e.Message);
-            return;
+            return false;
         }
-        if (plik != null)
-            UstawPlik(plik);
+        if (plik == null)
+            return false;
+        UstawPlik(plik);
+        return _plik != null;
     }
 
-    private async void PrzyWyborzePliku(object sender, RoutedEventArgs e) => await WybierzPlik();
+    private async void PrzyWyborzePliku(object sender, RoutedEventArgs e)
+    {
+        if (Zajeta)
+            return;
+        // Wybór pliku też blokuje podpis — plik z menu kontekstowego poczeka w kolejce.
+        _przebiegPodpisu = true;
+        OdswiezStan();
+        try
+        {
+            await WybierzPlik();
+        }
+        finally
+        {
+            _przebiegPodpisu = false;
+            OdswiezStan();
+            DispatcherQueue.TryEnqueue(PrzetworzZlecenia);
+        }
+    }
 
     private void PrzyUsunieciuPliku(object sender, RoutedEventArgs e) => UstawPlik(null);
 
@@ -430,7 +484,7 @@ public sealed partial class StronaGlowna : Page
 
     private void PrzyPrzeciaganiu(object sender, DragEventArgs e)
     {
-        if (_trwaPodpisywanie || !e.DataView.Contains(StandardDataFormats.StorageItems))
+        if (Zajeta || !e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             e.AcceptedOperation = DataPackageOperation.None;
             return;
@@ -441,23 +495,33 @@ public sealed partial class StronaGlowna : Page
 
     private async void PrzyUpuszczeniu(object sender, DragEventArgs e)
     {
-        if (_trwaPodpisywanie || !e.DataView.Contains(StandardDataFormats.StorageItems))
+        if (Zajeta || !e.DataView.Contains(StandardDataFormats.StorageItems))
             return;
-        var elementy = await e.DataView.GetStorageItemsAsync();
-        var pdf = elementy.OfType<StorageFile>()
-            .FirstOrDefault(f => string.Equals(Path.GetExtension(f.Path), ".pdf", StringComparison.OrdinalIgnoreCase));
-        if (pdf != null)
-            UstawPlik(pdf.Path);
-        else
-            await Dialogi.BladAsync(XamlRoot, "Przeciągnij plik PDF.");
+        try
+        {
+            var elementy = await e.DataView.GetStorageItemsAsync();
+            var pdf = elementy.OfType<StorageFile>()
+                .FirstOrDefault(f => string.Equals(Path.GetExtension(f.Path), ".pdf", StringComparison.OrdinalIgnoreCase));
+            if (Zajeta)
+                return; // w czasie odczytu zaczął się podpis pliku z menu kontekstowego
+            if (pdf != null)
+                UstawPlik(pdf.Path);
+            else
+                await Dialogi.BladAsync(XamlRoot, "Przeciągnij plik PDF.");
+        }
+        catch (Exception ex)
+        {
+            await Dialogi.BladAsync(XamlRoot, "Nie udało się odczytać przeciągniętego pliku.\n\n" + ex.Message);
+        }
     }
 
     // ---- Ustawienia ----
 
     private void PrzyUstawieniach(object sender, RoutedEventArgs e)
     {
-        if (_trwaPodpisywanie)
+        if (Zajeta)
             return;
+        Okno.OdswiezPoOtwarciuPdf(); // mógł go zmienić osobny proces („Zapamiętaj mój wybór”)
         Okno.Ramka_.Navigate(typeof(StronaUstawien), Ustawienia.Kopia(), new DrillInNavigationTransitionInfo());
     }
 
@@ -478,21 +542,66 @@ public sealed partial class StronaGlowna : Page
 
     private void PrzyPodpisie(object sender, RoutedEventArgs e) => Podpisz();
 
-    private async void Podpisz()
+    /// <summary>
+    /// Cały przebieg podpisu. Blokada obejmuje go od początku (wybór pliku, pytania, podgląd) — pliki z menu
+    /// kontekstowego, które przyjdą w tym czasie, czekają w kolejce.
+    /// </summary>
+    /// <param name="wybierzPlik">Najpierw okno wyboru pliku (menu ikony w zasobniku).</param>
+    private async void Podpisz(bool wybierzPlik = false)
     {
-        if (_trwaPodpisywanie)
+        if (Zajeta)
+            return;
+        _przebiegPodpisu = true;
+        OdswiezStan();
+        try
+        {
+            await PodpiszAsync(wybierzPlik);
+        }
+        catch (Exception e)
+        {
+            UstawStatus("Nie podpisano dokumentu.");
+            await Dialogi.BladAsync(XamlRoot, KomunikatyBledow.Opisz(e), "Nie podpisano dokumentu");
+        }
+        finally
+        {
+            _etapKrytyczny = false;
+            _przebiegPodpisu = false;
+            UstawTrwaPodpisywanie(false);
+            DispatcherQueue.TryEnqueue(PrzetworzZlecenia); // kolejne pliki z menu kontekstowego
+        }
+    }
+
+    private async Task PodpiszAsync(bool wybierzPlik)
+    {
+        if ((wybierzPlik || _plik == null) && !await WybierzPlik())
             return;
         if (_plik == null)
-        {
-            await WybierzPlik();
-            if (_plik == null)
-                return;
-        }
+            return;
         var certyfikat = WybranyCertyfikat;
         if (certyfikat == null)
         {
             await Dialogi.BladAsync(XamlRoot, "Wybierz certyfikat z listy. Jeśli lista jest pusta, włóż kartę i kliknij „Odśwież”.");
             return;
+        }
+
+        // Program działa tygodniami w zasobniku — ważność sprawdzamy w chwili podpisu, nie tylko przy budowie listy.
+        var teraz = DateTime.Now;
+        if (teraz < certyfikat.Certyfikat.NotBefore || teraz > certyfikat.Certyfikat.NotAfter)
+        {
+            await Dialogi.BladAsync(XamlRoot,
+                $"Certyfikat {certyfikat.ImieNazwisko} ({certyfikat.Wystawca}) nie jest teraz ważny " +
+                $"(ważny od {certyfikat.Certyfikat.NotBefore:dd.MM.yyyy} do {certyfikat.Certyfikat.NotAfter:dd.MM.yyyy}).\n\n" +
+                "Lista certyfikatów zostanie odświeżona.", "Certyfikat nieważny");
+            await WczytajCertyfikaty();
+            return;
+        }
+        if (!certyfikat.Kwalifikowany)
+        {
+            var zgoda = await Dialogi.PokazAsync(XamlRoot, "Certyfikat niekwalifikowany",
+                "Ten certyfikat nie jest kwalifikowany — podpis nie będzie kwalifikowanym podpisem elektronicznym. Kontynuować?",
+                "Anuluj", "Kontynuuj", domyslnieGlowny: false);
+            if (zgoda != ContentDialogResult.Primary)
+                return;
         }
 
         var wejscie = _plik;
@@ -511,71 +620,61 @@ public sealed partial class StronaGlowna : Page
         opcje.PrzygotujKlucz = klucz => UstawOknoNadrzedneDlaPinu(klucz, hwnd);
 
         UstawTrwaPodpisywanie(true);
-        try
-        {
-            // Podgląd wszystkich stron: użytkownik klika, gdzie ma być wizualizacja podpisu.
-            UstawStatus("Otwieranie podglądu…");
-            var dane = new DaneWizualizacji(certyfikat.ImieNazwisko, ustawienia.Stanowisko, ustawienia.SciezkaLogo, DateTimeOffset.Now);
-            var zadanie = await Task.Run(() => ZadaniePodgladu.Przygotuj(wejscie, dane, ustawienia.Polozenie, ustawienia.SkalaPodpisu));
-            UstawStatus("Wskaż na podglądzie miejsce podpisu.");
-            Okno.Ramka_.Navigate(typeof(StronaPodgladu), zadanie, new DrillInNavigationTransitionInfo());
-            opcje.Miejsce = await zadanie.Wynik.Task;
-            if (opcje.Miejsce == null)
-            {
-                UstawStatus("Podpisywanie anulowane.");
-                return;
-            }
-            if (Math.Abs(ustawienia.SkalaPodpisu - opcje.Miejsce.Skala) > 0.0001f)
-            {
-                // Narysowany rozmiar staje się rozmiarem domyślnym przy następnym podpisie.
-                ustawienia.SkalaPodpisu = opcje.Miejsce.Skala;
-                ZapiszCicho(ustawienia);
-                OdswiezInformacje();
-            }
 
-            UstawStatus("Podpisywanie… Sterownik karty może poprosić o PIN.");
-            var wynik = await Task.Run(() =>
-            {
-                var tsa = ustawienia.UtworzKlientaTsa();
-                return new PodpisywaczPdf(tsa).Podpisz(wejscie, wyjscie, certyfikat.Certyfikat, opcje);
-            });
-
-            ustawienia.OstatniCertyfikat = certyfikat.Odcisk;
-            ZapiszCicho(ustawienia);
-
-            UstawStatus($"Podpisano: {wynik.SciezkaWyniku}");
-            if (ustawienia.MinimalizujPoPodpisie && !Okno.TrybTestowy)
-            {
-                // Bez pytań: okno znika (do zasobnika, jeśli włączony), a wynik pokazuje dymek.
-                Okno.Minimalizuj();
-                Okno.Powiadom("Dokument został podpisany", Path.GetFileName(wynik.SciezkaWyniku));
-                return;
-            }
-            var zrodloCzasu = wynik.CzasZSerwera ? "z serwera znacznika czasu" : "z zegara komputera — serwer nie odpowiedział przed podpisem";
-            var decyzja = await Dialogi.PokazAsync(XamlRoot, "Dokument został podpisany",
-                $"Zapisano jako:\n{wynik.SciezkaWyniku}\n\n" +
-                $"Czas na wizualizacji: {wynik.CzasNaWizualizacji.ToLocalTime():yyyy-MM-dd HH:mm} ({zrodloCzasu}).\n" +
-                "Wiążący czas podpisu zawiera znacznik czasu.", "Zamknij", "Pokaż w folderze");
-            if (decyzja == ContentDialogResult.Primary)
-                PokazWFolderze(wynik.SciezkaWyniku);
-        }
-        catch (Exception e)
+        // Podgląd wszystkich stron: użytkownik klika, gdzie ma być wizualizacja podpisu.
+        UstawStatus("Otwieranie podglądu…");
+        var dane = new DaneWizualizacji(certyfikat.ImieNazwisko, ustawienia.Stanowisko, ustawienia.SciezkaLogo, DateTimeOffset.Now);
+        var zadanie = await Task.Run(() => ZadaniePodgladu.Przygotuj(wejscie, dane, ustawienia.Polozenie, ustawienia.SkalaPodpisu));
+        UstawStatus("Wskaż na podglądzie miejsce podpisu.");
+        Okno.Ramka_.Navigate(typeof(StronaPodgladu), zadanie, new DrillInNavigationTransitionInfo());
+        opcje.Miejsce = await zadanie.Wynik.Task;
+        if (opcje.Miejsce == null)
         {
-            UstawStatus("Nie podpisano dokumentu.");
-            await Dialogi.BladAsync(XamlRoot, KomunikatyBledow.Opisz(e), "Nie podpisano dokumentu");
+            UstawStatus("Podpisywanie anulowane.");
+            return;
         }
-        finally
+        if (Math.Abs(Ustawienia.SkalaPodpisu - opcje.Miejsce.Skala) > 0.0001f)
         {
-            UstawTrwaPodpisywanie(false);
-            DispatcherQueue.TryEnqueue(PrzetworzZlecenia); // kolejne pliki z menu kontekstowego
+            // Narysowany rozmiar staje się rozmiarem domyślnym przy następnym podpisie.
+            Ustawienia.SkalaPodpisu = opcje.Miejsce.Skala;
+            ZapiszCicho();
+            OdswiezInformacje();
         }
+
+        UstawStatus("Podpisywanie… Sterownik karty może poprosić o PIN.");
+        _etapKrytyczny = true;
+        var wynik = await Task.Run(() =>
+        {
+            var tsa = ustawienia.UtworzKlientaTsa();
+            return new PodpisywaczPdf(tsa).Podpisz(wejscie, wyjscie, certyfikat.Certyfikat, opcje);
+        });
+        _etapKrytyczny = false;
+
+        Ustawienia.OstatniCertyfikat = certyfikat.Odcisk;
+        ZapiszCicho();
+
+        UstawStatus($"Podpisano: {wynik.SciezkaWyniku}");
+        // Bez okienka tylko wtedy, gdy wynik pokaże dymek z ikony w zasobniku i czas pochodzi z serwera
+        // (ostrzeżenie o czasie z zegara komputera musi być widoczne).
+        if (Ustawienia.MinimalizujPoPodpisie && !Okno.TrybTestowy && Okno.MaZasobnik && wynik.CzasZSerwera)
+        {
+            Okno.Minimalizuj();
+            Okno.Powiadom("Dokument został podpisany", Path.GetFileName(wynik.SciezkaWyniku), wymus: true);
+            return;
+        }
+        var zrodloCzasu = wynik.CzasZSerwera ? "z serwera znacznika czasu" : "z zegara komputera — serwer nie odpowiedział przed podpisem";
+        var decyzja = await Dialogi.PokazAsync(XamlRoot, "Dokument został podpisany",
+            $"Zapisano jako:\n{wynik.SciezkaWyniku}\n\n" +
+            $"Czas na wizualizacji: {wynik.CzasNaWizualizacji.ToLocalTime():yyyy-MM-dd HH:mm} ({zrodloCzasu}).\n" +
+            "Wiążący czas podpisu zawiera znacznik czasu.", "Zamknij", "Pokaż w folderze");
+        if (decyzja == ContentDialogResult.Primary)
+            PokazWFolderze(wynik.SciezkaWyniku);
     }
 
-    private void ZapiszCicho(Ustawienia ustawienia)
+    /// <summary>Zapis bieżących ustawień okna (nigdy wcześniej zapamiętanej, nieaktualnej kopii).</summary>
+    private void ZapiszCicho()
     {
-        if (Okno.TrybTestowy)
-            return;
-        try { ustawienia.Zapisz(); } catch (Exception) { /* zapamiętanie wyboru nie jest krytyczne */ }
+        try { Okno.ZapiszUstawienia(); } catch (Exception) { /* zapamiętanie wyboru nie jest krytyczne */ }
     }
 
     /// <summary>
@@ -622,12 +721,13 @@ public sealed partial class StronaGlowna : Page
 
     private void OdswiezStan()
     {
-        PrzyciskPodpisz.IsEnabled = !_trwaPodpisywanie && _plik != null && WybranyCertyfikat != null;
-        PrzyciskZmien.IsEnabled = !_trwaPodpisywanie;
-        PrzyciskUsun.IsEnabled = !_trwaPodpisywanie;
-        PrzyciskOdswiez.IsEnabled = !_trwaPodpisywanie && !_wczytywanieCertyfikatow;
-        PrzyciskUstawienia.IsEnabled = !_trwaPodpisywanie;
-        ListaCertyfikatow.IsEnabled = !_trwaPodpisywanie;
+        var zajeta = Zajeta;
+        PrzyciskPodpisz.IsEnabled = !zajeta && _plik != null && WybranyCertyfikat != null;
+        PrzyciskZmien.IsEnabled = !zajeta;
+        PrzyciskUsun.IsEnabled = !zajeta;
+        PrzyciskOdswiez.IsEnabled = !zajeta && !_wczytywanieCertyfikatow;
+        PrzyciskUstawienia.IsEnabled = !zajeta;
+        ListaCertyfikatow.IsEnabled = !zajeta;
     }
 
     private void UstawStatus(string tekst) => Status.Text = tekst;

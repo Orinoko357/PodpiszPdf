@@ -34,7 +34,15 @@ Przed testem:
 - [ ] Zminimalizuj program — znika z paska zadań, ikona jest obok zegara. Podpisz plik z menu kontekstowego —
       otwiera się działające okno (nie druga kopia programu).
 - [ ] Dwuklik na ikonie w zasobniku przywraca okno; *Zakończ* w menu ikony zamyka program.
+- [ ] *Zakończ* (albo X) w trakcie podpisu — komunikat „Trwa praca programu”, program się nie zamyka; przy otwartym
+      podglądzie — pytanie, czy zamknąć.
+- [ ] Okno schowane w zasobniku przy otwartych ustawieniach: skrót z menu Start pokazuje okno.
+- [ ] Zaznacz kilka plików PDF i otwórz je naraz (Enter), gdy program nie działa — jedno okno, pliki podpisują się
+      po kolei, bez ostrzeżenia o „starszej wersji”.
 - [ ] Ustawienia → *Minimalizuj po podpisaniu* włączone: po podpisie nie ma okienka z podsumowaniem, okno chowa się do zasobnika, a dymek pokazuje nazwę podpisanego pliku.
+      Przy wyłączonym *Minimalizuj do zasobnika* opcja jest wyszarzona; gdy serwer znacznika czasu nie odpowiedział,
+      okienko z podsumowaniem (czas z zegara komputera) pojawia się zawsze.
+- [ ] Certyfikat niekwalifikowany → przed podglądem pytanie „Ten certyfikat nie jest kwalifikowany…”.
 - [ ] Wyłączenie opcji menu kontekstowego w ustawieniach usuwa pozycję z menu.
 
 ## 4. Autostart i aktualizacja
@@ -55,12 +63,22 @@ Przed testem:
 - [ ] Dwuklik pliku PDF → okno **Podpisz / Przeglądaj**. *Przeglądaj* otwiera Acrobat Reader; *Podpisz* otwiera podgląd
       do wskazania miejsca podpisu (także gdy program działa w zasobniku).
 - [ ] Zaznacz „Zapamiętaj mój wybór” → kolejne otwarcie PDF działa bez pytania; zmiana w *Ustawienia → Program → Po otwarciu pliku PDF*.
-- [ ] (Windows 11) *Ustawienia → Program → Nowe menu kontekstowe Windows 11*: *Zainstaluj certyfikat…* (okno UAC),
-      potem *Dodaj do menu*. Prawy przycisk na PDF → **Podpisz w PodpisPdf** od razu w menu, bez *Pokaż więcej opcji*;
+- [ ] Zaznacz „Zapamiętaj mój wybór”, gdy program działa w zasobniku, i podpisz plik — wybór nadal jest zapamiętany
+      (Ustawienia → Program → Po otwarciu pliku PDF).
+- [ ] (Windows 11) *Ustawienia → Program → Nowe menu kontekstowe Windows 11*: *Dodaj do menu* (certyfikat dodaje
+      instalator MSI; bez niego opis każe zainstalować program ponownie). Prawy przycisk na PDF → **Podpisz w PodpisPdf** od razu w menu, bez *Pokaż więcej opcji*;
       działa także, gdy program nie jest uruchomiony i gdy jest w zasobniku. *Usuń z menu* usuwa pozycję.
 - [ ] *Ustawienia → Informacje → Sprawdź teraz*: przy najnowszej wersji — „Masz najnowszą wersję”.
 - [ ] Ze starszą wersją 3.x w `%APPDATA%\PodpisPdf`: pasek „Dostępna nowa wersja” → *Zaktualizuj teraz* → program
       uruchamia się ponownie w nowej wersji (numer w tytule), na pasku stanu „Zaktualizowano PodpisPdf…”.
+- [ ] *Zaktualizuj teraz* → *Nie* w oknie UAC: program wraca w dotychczasowej wersji z komunikatem „Aktualizacja
+      anulowana”; inny błąd instalatora — „Aktualizacja nie powiodła się (kod …)”. Folder
+      `%TEMP%\PodpisPdf-aktualizacja` znika przy następnym starcie.
+- [ ] *Ustawienia → Znacznik czasu*: podany login przy adresie `http://` — zapis odmawia („adres musi zaczynać się od https://”).
+- [ ] Odinstaluj PodpisPdf (*Ustawienia Windows → Aplikacje*): znika „Podpisz w PodpisPdf” z obu menu kontekstowych,
+      PodpisPdf z listy aplikacji do PDF i autostart; dwuklik na PDF (jeśli PodpisPdf był domyślny) pyta o aplikację.
+      `%APPDATA%\PodpisPdf` (ustawienia, logo) zostaje — usuń ręcznie, jeśli niepotrzebny. Sprzątanie dotyczy
+      użytkownika, który odinstalowuje.
 
 ## 5. Błędy
 

@@ -280,11 +280,12 @@ jobs:
           Get-Process msedge, Acrobat, AcroRd32 -ErrorAction SilentlyContinue | Stop-Process -Force
 
           Get-AppxPackage PodpisPdf | Format-List Name, Version
-          Get-AppxPackage PodpisPdf | Remove-AppxPackage
-          Start-Sleep -Seconds 2
+          # Odinstalowanie samo usuwa pakiet menu i wpisy użytkownika (PodpisPdf.exe --odinstaluj).
           $u = Start-Process msiexec.exe -ArgumentList '/x', "`"$((Resolve-Path wynik/PodpisPdf.msi).Path)`"", '/qn' -Wait -PassThru
           if ($u.ExitCode -ne 0) { throw "Odinstalowanie: kod $($u.ExitCode)" }
           if (Test-Path $exe) { throw "Program został po odinstalowaniu" }
+          if (Get-AppxPackage PodpisPdf) { throw "Pakiet menu Windows 11 został po odinstalowaniu" }
+          if (Test-Path 'HKCU:\Software\Classes\SystemFileAssociations\.pdf\shell\PodpisPdf') { throw "Menu kontekstowe zostało po odinstalowaniu" }
           if (Get-ChildItem Cert:\LocalMachine\TrustedPeople | Where-Object Thumbprint -eq $odcisk) { throw "Certyfikat został po odinstalowaniu" }
           "Instalator: instalacja, start, certyfikat i odinstalowanie działają"
 
