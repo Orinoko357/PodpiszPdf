@@ -13,7 +13,8 @@ Specyfikacja: [docs/SPECYFIKACJA.md](docs/SPECYFIKACJA.md).
 2. Wybierz certyfikat z listy (★ — certyfikat kwalifikowany).
 3. Kliknij **Podpisz**. Otworzy się podgląd wszystkich stron dokumentu — **kliknij miejsce**, w którym ma
    się znaleźć podpis, albo **przeciągnij myszą**, aby narysować go w wybranym rozmiarze (proporcje są zawsze
-   zachowane, rozmiar pokazywany jako wielkość imienia i nazwiska 7–33 pt, co 0,5 pt; program zapamiętuje ostatni). Zatwierdź przyciskiem **Podpisz**.
+   zachowane, rozmiar pokazywany jako wielkość imienia i nazwiska 7–33 pt, co 0,5 pt; na start zawsze 11 pt). Podpis
+   można przesuwać, a 8 uchwytów na ramce (narożniki i środki boków) zmienia jego rozmiar. Zatwierdź przyciskiem **Podpisz**.
 4. Wpisz PIN w oknie sterownika karty (program nie widzi PIN-u).
 5. Podpisany dokument zastępuje oryginał (podpis dopisany do pliku). Opcjonalnie, w ustawieniach: zapis jako nowy plik obok oryginału, `wniosek.pdf` → `wniosek_podpisany.pdf`.
 

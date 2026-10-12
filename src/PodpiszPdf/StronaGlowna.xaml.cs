@@ -310,7 +310,6 @@ public sealed partial class StronaGlowna : Page
         nowe.OstatnieSprawdzenieAktualizacji = Ustawienia.OstatnieSprawdzenieAktualizacji;
         nowe.PoprzedniaAplikacjaPdf = Ustawienia.PoprzedniaAplikacjaPdf;
         nowe.PozycjaMenuWindows11 = Ustawienia.PozycjaMenuWindows11;
-        nowe.SkalaPodpisu = Ustawienia.SkalaPodpisu;
         Okno.Ustawienia = nowe;
         OdswiezInformacje();
         Okno.OdswiezZasobnik();
@@ -535,9 +534,8 @@ public sealed partial class StronaGlowna : Page
             return;
         var u = Ustawienia;
         var serwer = Uri.TryCreate(u.AdresTsa, UriKind.Absolute, out var uri) ? uri.Host : u.AdresTsa;
-        var skala = u.SkalaPodpisu;
         Informacja.Title = $"PAdES {(u.PoziomLT ? "B-LT" : "B-T")}";
-        Informacja.Message = $"Znacznik czasu: {serwer}  ·  wizualizacja Arial, imię i nazwisko {Wizualizacja.RozmiarNazwiskaWSkali(skala):0.#} pt" +
+        Informacja.Message = $"Znacznik czasu: {serwer}  ·  wizualizacja Arial, imię i nazwisko {Wizualizacja.RozmiarImieniaINazwiska:0.#} pt" +
                              (string.IsNullOrEmpty(u.SciezkaLogo) ? "" : " z logo");
     }
 
@@ -628,7 +626,7 @@ public sealed partial class StronaGlowna : Page
         UstawStatus("Otwieranie podglądu…");
         var dane = new DaneWizualizacji(certyfikat.ImieNazwisko, ustawienia.Stanowisko, ustawienia.SciezkaLogo, DateTimeOffset.Now,
             ustawienia.MotywWizualizacji, certyfikat.Kwalifikowany);
-        var zadanie = await Task.Run(() => ZadaniePodgladu.Przygotuj(wejscie, dane, ustawienia.Polozenie, ustawienia.SkalaPodpisu));
+        var zadanie = await Task.Run(() => ZadaniePodgladu.Przygotuj(wejscie, dane, ustawienia.Polozenie, 1f)); // zawsze 11 pt na start
         UstawStatus("Wskaż na podglądzie miejsce podpisu.");
         Okno.Ramka_.Navigate(typeof(StronaPodgladu), zadanie, new DrillInNavigationTransitionInfo());
         opcje.Miejsce = await zadanie.Wynik.Task;
@@ -636,13 +634,6 @@ public sealed partial class StronaGlowna : Page
         {
             UstawStatus("Podpisywanie anulowane.");
             return;
-        }
-        if (Math.Abs(Ustawienia.SkalaPodpisu - opcje.Miejsce.Skala) > 0.0001f)
-        {
-            // Narysowany rozmiar staje się rozmiarem domyślnym przy następnym podpisie.
-            Ustawienia.SkalaPodpisu = opcje.Miejsce.Skala;
-            ZapiszCicho();
-            OdswiezInformacje();
         }
 
         UstawStatus("Podpisywanie… Sterownik karty może poprosić o PIN.");

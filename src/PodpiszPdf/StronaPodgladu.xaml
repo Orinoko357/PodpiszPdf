@@ -38,18 +38,6 @@
                     </StackPanel>
                 </Button>
             </StackPanel>
-            <ctk:Segmented x:Name="Tryb" Grid.Column="2" SelectedIndex="0" SelectionChanged="PrzyZmianieTrybu" VerticalAlignment="Center">
-                <ctk:SegmentedItem Content="Kliknij i umieść">
-                    <ctk:SegmentedItem.Icon>
-                        <FontIcon Glyph="&#xE8B0;" />
-                    </ctk:SegmentedItem.Icon>
-                </ctk:SegmentedItem>
-                <ctk:SegmentedItem Content="Narysuj rozmiar">
-                    <ctk:SegmentedItem.Icon>
-                        <FontIcon Glyph="&#xEE56;" />
-                    </ctk:SegmentedItem.Icon>
-                </ctk:SegmentedItem>
-            </ctk:Segmented>
         </Grid>
 
         <!-- Miniatury i strony -->

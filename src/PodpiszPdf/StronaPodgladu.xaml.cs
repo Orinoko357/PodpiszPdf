@@ -41,20 +41,18 @@ internal sealed class ZadaniePodgladu
     public PolozenieWizualizacji Polozenie { get; }
     public float Skala { get; }
 
-    /// <summary>Do zrzutów ekranu: od razu tryb rysowania.</summary>
-    public bool TrybRysowania { get; init; }
 
     public TaskCompletionSource<MiejscePodpisu?> Wynik { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>Wczytanie dokumentu i wizualizacji (w tle, przed pokazaniem podglądu).</summary>
-    public static ZadaniePodgladu Przygotuj(string plik, DaneWizualizacji dane, PolozenieWizualizacji polozenie, float skala, bool trybRysowania = false)
+    public static ZadaniePodgladu Przygotuj(string plik, DaneWizualizacji dane, PolozenieWizualizacji polozenie, float skala)
     {
         var pdf = File.ReadAllBytes(plik);
         var strony = DokumentPdf.Strony(plik);
         if (strony.Count == 0)
             throw new BladPodpisu("Dokument PDF nie ma żadnej strony.");
         var wizualizacja = DokumentPdf.Renderuj(Core.Wizualizacja.PodgladPdf(dane), 0, SkalaPodgladuWizualizacji, bialeTlo: false);
-        return new ZadaniePodgladu(plik, pdf, strony, wizualizacja, Core.Wizualizacja.Rozmiar(dane), polozenie, skala) { TrybRysowania = trybRysowania };
+        return new ZadaniePodgladu(plik, pdf, strony, wizualizacja, Core.Wizualizacja.Rozmiar(dane), polozenie, skala);
     }
 }
 
@@ -97,8 +95,9 @@ internal sealed partial class PowierzchniaPodgladu : Grid
 }
 
 /// <summary>
-/// Podgląd wszystkich stron dokumentu. Kliknięcie umieszcza wizualizację podpisu, przeciągnięcie (w trybie
-/// rysowania) rysuje ją w wybranym rozmiarze, a uchwyty i przeciąganie podpisu pozwalają go poprawić.
+/// Podgląd wszystkich stron dokumentu. Kliknięcie umieszcza wizualizację podpisu, przeciągnięcie po stronie
+/// rysuje ją w wybranym rozmiarze, a przeciąganie podpisu i 8 uchwytów na ramce pozwalają go przesunąć,
+/// powiększyć i pomniejszyć.
 /// Proporcje są zawsze stałe (wynikają z treści wizualizacji).
 /// </summary>
 public sealed partial class StronaPodgladu : Page
@@ -126,7 +125,7 @@ public sealed partial class StronaPodgladu : Page
     private Nakladka _nakladkaMiejsca = null!;
     private Nakladka _nakladkaRysowana = null!;
     private Nakladka _nakladkaPodWskaznikiem = null!;
-    private readonly Rectangle[] _uchwyty = new Rectangle[4];
+    private readonly Rectangle[] _uchwyty = new Rectangle[8];
     private readonly Border _etykieta = new();
     private readonly TextBlock _tekstEtykiety = new();
 
@@ -140,13 +139,13 @@ public sealed partial class StronaPodgladu : Page
 
     private MiejscePodpisu? _miejsce;
     private MiejscePodpisu? _podWskaznikiem;
-    // Skala podpisu przy kliknięciu (ostatnio narysowany rozmiar).
+    // Skala podpisu przy kliknięciu: na start 1 (imię i nazwisko 11 pt), potem ostatnio narysowany rozmiar.
     private float _skalaPodpisu;
     private Przeciaganie? _przeciaganie;
     private MiejscePodpisu? _rysowane;
     private bool _pokazPodpowiedz = true;
 
-    private enum RodzajPrzeciagania { Klikniecie, Rysowanie, Przesuwanie }
+    private enum RodzajPrzeciagania { Rysowanie, Przesuwanie, KrawedzPozioma, KrawedzPionowa }
 
     /// <summary>Rozpoczęte przeciąganie: strona, punkt zaczepienia (PDF) i miejsce wciśnięcia (DIP).</summary>
     private sealed record Przeciaganie(RodzajPrzeciagania Rodzaj, int Indeks, float X, float Y, Point Start);
@@ -179,8 +178,6 @@ public sealed partial class StronaPodgladu : Page
         Okno.UstawPodtytul($"Wskaż miejsce podpisu — {System.IO.Path.GetFileName(_zadanie.Plik)}");
         Okno.PowiekszDoPodgladu();
         Utworz();
-        if (_zadanie.TrybRysowania)
-            Tryb.SelectedIndex = 1;
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -435,22 +432,10 @@ public sealed partial class StronaPodgladu : Page
             PrzewinDoStrony(Miniatury.SelectedIndex);
     }
 
-    private void PrzyZmianieTrybu(object sender, SelectionChangedEventArgs e)
-    {
-        if (TekstPodpowiedzi == null)
-            return; // zdarzenie przy tworzeniu strony (SelectedIndex z XAML)
-        _pokazPodpowiedz = true;
-        OdswiezPodpowiedz();
-        OdswiezInformacje();
-    }
-
-    private bool TrybRysowania => Tryb?.SelectedIndex == 1;
-
     private void OdswiezPodpowiedz()
     {
-        TekstPodpowiedzi.Text = TrybRysowania
-            ? "Przeciągnij na stronie, aby narysować podpis — proporcje są zachowane"
-            : "Kliknij stronę, aby umieścić podpis. Uchwyty w narożnikach zmieniają rozmiar.";
+        TekstPodpowiedzi.Text = "Kliknij stronę, aby umieścić podpis, albo przeciągnij, aby narysować go w innym rozmiarze. " +
+                                "Podpis można przesuwać, a uchwyty na ramce zmieniają rozmiar (proporcje są zachowane).";
         Podpowiedz.Visibility = _pokazPodpowiedz ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -633,16 +618,58 @@ public sealed partial class StronaPodgladu : Page
         return new MiejscePodpisu(indeks + 1, x, y, skala);
     }
 
-    /// <summary>Uchwyty w narożnikach podpisu (DIP) i przeciwległe narożniki (punkty PDF) jako zaczepienie.</summary>
-    private IEnumerable<(Point Srodek, float AX, float AY, InputSystemCursorShape Kursor)> Uchwyty(MiejscePodpisu m)
+    /// <summary>
+    /// Prostokąt przy przeciąganiu uchwytu na środku boku: zaczepiony na środku przeciwległego boku, rozmiar
+    /// z jednego kierunku (poziomo dla boków lewego i prawego, pionowo dla górnego i dolnego), proporcje stałe,
+    /// wyśrodkowany w drugim kierunku.
+    /// </summary>
+    private MiejscePodpisu ProstokatZBoku(int indeks, float ax, float ay, Point wskaznik, bool poziomo)
+    {
+        var s = _strony[indeks];
+        var (cx, cy) = PunktPdf(indeks, wskaznik);
+        cx = Math.Clamp(cx, s.Lewo, s.Prawo);
+        cy = Math.Clamp(cy, s.Dol, s.Gora);
+        var proporcje = Rozmiar.Proporcje;
+        var bazowa = Rozmiar.Szerokosc;
+        var w = poziomo ? Math.Abs(cx - ax) : Math.Abs(cy - ay) * proporcje;
+        w = Math.Clamp(w, bazowa * Wizualizacja.MinSkala, bazowa * Wizualizacja.MaksSkala);
+        var skala = Wizualizacja.ZaokraglijSkale(w / bazowa);
+        w = bazowa * skala;
+        var h = w / proporcje;
+        float x, y;
+        if (poziomo)
+        {
+            x = cx >= ax ? ax : ax - w;
+            y = ay - h / 2;
+        }
+        else
+        {
+            y = cy >= ay ? ay : ay - h;
+            x = ax - w / 2;
+        }
+        (x, y) = Wizualizacja.DopasujDoStrony(s.Prostokat, x + w / 2, y + h / 2, Rozmiar, skala);
+        return new MiejscePodpisu(indeks + 1, x, y, skala);
+    }
+
+    /// <summary>
+    /// 8 uchwytów na ramce podpisu (DIP): w narożnikach (zaczep w przeciwległym narożniku) i na środkach boków
+    /// (zaczep na środku przeciwległego boku). Punkty zaczepienia w układzie PDF.
+    /// </summary>
+    private IEnumerable<(Point Srodek, float AX, float AY, InputSystemCursorShape Kursor, RodzajPrzeciagania Rodzaj)> Uchwyty(MiejscePodpisu m)
     {
         var r = ProstokatNaEkranie(m);
         var w = Rozmiar.Szerokosc * m.Skala;
         var h = Rozmiar.Wysokosc * m.Skala;
-        yield return (new Point(r.Left, r.Top), m.X + w, m.Y, InputSystemCursorShape.SizeNorthwestSoutheast);      // lewy górny → zaczep prawy dolny
-        yield return (new Point(r.Right, r.Top), m.X, m.Y, InputSystemCursorShape.SizeNortheastSouthwest);         // prawy górny → lewy dolny
-        yield return (new Point(r.Left, r.Bottom), m.X + w, m.Y + h, InputSystemCursorShape.SizeNortheastSouthwest); // lewy dolny → prawy górny
-        yield return (new Point(r.Right, r.Bottom), m.X, m.Y + h, InputSystemCursorShape.SizeNorthwestSoutheast);  // prawy dolny → lewy górny
+        double sx = r.Left + r.Width / 2, sy = r.Top + r.Height / 2;
+        const RodzajPrzeciagania Rog = RodzajPrzeciagania.Rysowanie;
+        yield return (new Point(r.Left, r.Top), m.X + w, m.Y, InputSystemCursorShape.SizeNorthwestSoutheast, Rog);      // lewy górny → zaczep prawy dolny
+        yield return (new Point(r.Right, r.Top), m.X, m.Y, InputSystemCursorShape.SizeNortheastSouthwest, Rog);         // prawy górny → lewy dolny
+        yield return (new Point(r.Left, r.Bottom), m.X + w, m.Y + h, InputSystemCursorShape.SizeNortheastSouthwest, Rog); // lewy dolny → prawy górny
+        yield return (new Point(r.Right, r.Bottom), m.X, m.Y + h, InputSystemCursorShape.SizeNorthwestSoutheast, Rog);  // prawy dolny → lewy górny
+        yield return (new Point(sx, r.Top), m.X + w / 2, m.Y, InputSystemCursorShape.SizeNorthSouth, RodzajPrzeciagania.KrawedzPionowa);       // górny → dolny bok
+        yield return (new Point(sx, r.Bottom), m.X + w / 2, m.Y + h, InputSystemCursorShape.SizeNorthSouth, RodzajPrzeciagania.KrawedzPionowa); // dolny → górny bok
+        yield return (new Point(r.Left, sy), m.X + w, m.Y + h / 2, InputSystemCursorShape.SizeWestEast, RodzajPrzeciagania.KrawedzPozioma);     // lewy → prawy bok
+        yield return (new Point(r.Right, sy), m.X, m.Y + h / 2, InputSystemCursorShape.SizeWestEast, RodzajPrzeciagania.KrawedzPozioma);       // prawy → lewy bok
     }
 
     private static bool WUchwycie(Point srodek, Point p) =>
@@ -669,8 +696,8 @@ public sealed partial class StronaPodgladu : Page
             {
                 if (WUchwycie(u.Srodek, p))
                 {
-                    // Zmiana rozmiaru: rysowanie od przeciwległego narożnika, od razu (bez progu).
-                    _przeciaganie = new Przeciaganie(RodzajPrzeciagania.Rysowanie, _miejsce.NumerStrony - 1, u.AX, u.AY, new Point(-1000, -1000));
+                    // Zmiana rozmiaru od przeciwległego narożnika albo boku, od razu (bez progu).
+                    _przeciaganie = new Przeciaganie(u.Rodzaj, _miejsce.NumerStrony - 1, u.AX, u.AY, new Point(-1000, -1000));
                     _powierzchnia.CapturePointer(e.Pointer);
                     return;
                 }
@@ -694,7 +721,8 @@ public sealed partial class StronaPodgladu : Page
             return;
         }
         var (x, y) = PunktPdf(indeks, p);
-        _przeciaganie = new Przeciaganie(TrybRysowania ? RodzajPrzeciagania.Rysowanie : RodzajPrzeciagania.Klikniecie, indeks, x, y, p);
+        // Kliknięcie umieszcza podpis w bieżącym rozmiarze, przeciągnięcie rysuje go w nowym.
+        _przeciaganie = new Przeciaganie(RodzajPrzeciagania.Rysowanie, indeks, x, y, p);
         _rysowane = null;
         _powierzchnia.CapturePointer(e.Pointer);
     }
@@ -706,14 +734,16 @@ public sealed partial class StronaPodgladu : Page
         var p = e.GetCurrentPoint(_plotno).Position;
         if (_przeciaganie is { } d)
         {
-            if (d.Rodzaj == RodzajPrzeciagania.Klikniecie)
-                return;
             if (_rysowane == null && Math.Abs(p.X - d.Start.X) < ProgPrzeciagania && Math.Abs(p.Y - d.Start.Y) < ProgPrzeciagania)
                 return;
             _podWskaznikiem = null;
             if (d.Rodzaj == RodzajPrzeciagania.Rysowanie)
             {
                 _rysowane = ProstokatRysowany(d.Indeks, d.X, d.Y, p);
+            }
+            else if (d.Rodzaj is RodzajPrzeciagania.KrawedzPozioma or RodzajPrzeciagania.KrawedzPionowa)
+            {
+                _rysowane = ProstokatZBoku(d.Indeks, d.X, d.Y, p, d.Rodzaj == RodzajPrzeciagania.KrawedzPozioma);
             }
             else if (_miejsce != null)
             {
@@ -769,7 +799,7 @@ public sealed partial class StronaPodgladu : Page
         _powierzchnia.ReleasePointerCapture(e.Pointer);
 
         // Bez przeciągnięcia — zwykłe kliknięcie: podpis w ostatnim rozmiarze, wyśrodkowany w punkcie kliknięcia.
-        var nowe = _rysowane ?? (d.Rodzaj == RodzajPrzeciagania.Przesuwanie ? null : MiejsceWPunkcie(d.Start));
+        var nowe = _rysowane ?? (d.Rodzaj == RodzajPrzeciagania.Rysowanie ? MiejsceWPunkcie(d.Start) : null);
         _rysowane = null;
         if (nowe != null)
         {

@@ -19,6 +19,7 @@ Przed testem:
 - [ ] Przeciągnij plik PDF do okna. Wybierz certyfikat, kliknij **Podpisz**.
 - [ ] Otwiera się podgląd wszystkich stron; podpis jest wstępnie w położeniu z ustawień. Przewiń, kliknij inne
       miejsce (także na innej stronie) — prostokąt podpisu przenosi się tam. Kliknij **Podpisz**.
+- [ ] Podgląd bez zakładek trybu: kliknięcie umieszcza podpis (na start imię i nazwisko 11 pt), przeciągnięcie po stronie rysuje nowy rozmiar; podpis da się przesunąć, a każdy z 8 uchwytów (narożniki i środki boków) zmienia rozmiar z zachowaniem proporcji.
 - [ ] Przeciągnij myszą na stronie — rysuje się prostokąt o stałych proporcjach z rozmiarem w mm; po puszczeniu
       przycisku podpis ma ten rozmiar. Kolejne kliknięcie (i następny dokument) używa ostatniego rozmiaru.
 - [ ] W pliku wynikowym podpis jest dokładnie w wskazanym miejscu, bez ramki; logo jest ostre przy dużym powiększeniu.
