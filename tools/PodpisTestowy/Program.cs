@@ -22,7 +22,7 @@ try
             return 0;
 
         case "podpisz" when args.Length >= 4:
-            using (var cert = new X509Certificate2(args[2], args[3], X509KeyStorageFlags.EphemeralKeySet))
+            using (var cert = new X509Certificate2(args[2], args[3], PodpiszPdf.Core.KluczeTymczasowe.Flagi))
             {
                 var tsa = KlientZnacznikaCzasu.DlaAdresu(args.ElementAtOrDefault(4) ?? "http://time.certum.pl");
                 var wyjscie = PodpisywaczPdf.NazwaPlikuWynikowego(args[1], "_podpisany");

@@ -42,7 +42,7 @@ public class CertyfikatyNietypoweTesty
         var zadanie = new CertificateRequest(dn, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         zadanie.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.NonRepudiation, critical: true));
         using var cert = zadanie.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
-        return new X509Certificate2(cert.Export(X509ContentType.Pfx, "test"), "test", X509KeyStorageFlags.EphemeralKeySet);
+        return new X509Certificate2(cert.Export(X509ContentType.Pfx, "test"), "test", PodpiszPdf.Core.KluczeTymczasowe.Flagi);
     }
 
     // C3

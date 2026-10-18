@@ -79,7 +79,7 @@ public static class Samotest
         var zadanie = new CertificateRequest(nazwa.Build(), klucz, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         zadanie.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.NonRepudiation, critical: true));
         using var certyfikat = zadanie.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
-        return new X509Certificate2(certyfikat.Export(X509ContentType.Pfx, "samotest"), "samotest", X509KeyStorageFlags.EphemeralKeySet);
+        return new X509Certificate2(certyfikat.Export(X509ContentType.Pfx, "samotest"), "samotest", PodpiszPdf.Core.KluczeTymczasowe.Flagi);
     }
 
     /// <summary>Serwer znacznika czasu (RFC 3161) w pamięci.</summary>

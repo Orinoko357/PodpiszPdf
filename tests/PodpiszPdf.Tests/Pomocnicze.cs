@@ -63,7 +63,7 @@ internal static class CertyfikatyTestowe
             doDnia ?? DateTimeOffset.UtcNow.AddYears(1));
         var pfx = cert.Export(X509ContentType.Pfx, "test");
         klucz.Dispose();
-        return new X509Certificate2(pfx, "test", X509KeyStorageFlags.EphemeralKeySet);
+        return new X509Certificate2(pfx, "test", PodpiszPdf.Core.KluczeTymczasowe.Flagi);
     }
 
     private static byte[] QcStatements()
