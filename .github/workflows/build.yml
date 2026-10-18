@@ -339,12 +339,12 @@ jobs:
         run: brew install softhsm
 
       - name: Testy na macOS
-        run: dotnet test tests/PodpiszPdf.Tests -c Release --blame --results-directory wyniki-testow
+        run: dotnet test tests/PodpiszPdf.Tests -c Release --blame --results-directory "$PWD/wyniki-testow" --logger "console;verbosity=normal"
 
       # Przy awarii procesu testów: które testy były wtedy wykonywane (plik --blame).
       - name: Ostatnie testy przed awarią
         if: failure()
-        run: find wyniki-testow -name 'Sequence_*.xml' -exec tail -c 3000 {} \;
+        run: find . /tmp "$TMPDIR" -name 'Sequence_*.xml' -exec tail -c 3000 {} \; 2>/dev/null || true
 
       - name: Publikacja i obrazy DMG
         id: dmg
