@@ -2,7 +2,7 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace PodpiszPdf.Core;
 
-/// <summary>Odczyt certyfikatów z osobistego magazynu Windows („Osobisty”).</summary>
+/// <summary>Odczyt certyfikatów z osobistego magazynu systemu (Windows: „Osobisty”, macOS: pęk kluczy logowania).</summary>
 public static class MagazynCertyfikatow
 {
     /// <summary>Certyfikaty nadające się do podpisu; kwalifikowane na początku listy.</summary>
@@ -32,7 +32,13 @@ public static class MagazynCertyfikatow
                 // Pomijamy tylko ten certyfikat.
             }
         }
-        return wynik
+        return Uporzadkuj(wynik);
+    }
+
+    /// <summary>Kolejność na liście: kwalifikowane, potem alfabetycznie, nowsze wcześniej.</summary>
+    public static IReadOnlyList<CertyfikatInfo> Uporzadkuj(IEnumerable<CertyfikatInfo> certyfikaty)
+    {
+        return certyfikaty
             .OrderByDescending(c => c.Kwalifikowany)
             .ThenBy(c => c.ImieNazwisko, StringComparer.CurrentCultureIgnoreCase)
             .ThenByDescending(c => c.WaznyDo)

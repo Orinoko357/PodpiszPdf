@@ -4,7 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace PodpiszPdf.Core;
 
-/// <summary>Certyfikat z magazynu Windows wraz z danymi potrzebnymi do wyświetlenia na liście.</summary>
+/// <summary>Certyfikat z magazynu systemu albo z karty (PKCS#11) wraz z danymi potrzebnymi do wyświetlenia na liście.</summary>
 public sealed class CertyfikatInfo
 {
     private const string OidGivenName = "2.5.4.42";
@@ -13,9 +13,10 @@ public sealed class CertyfikatInfo
     private const string OidQcStatements = "1.3.6.1.5.5.7.1.3";
     private const string OidQcCompliance = "0.4.0.1862.1.1";
 
-    public CertyfikatInfo(X509Certificate2 certyfikat)
+    public CertyfikatInfo(X509Certificate2 certyfikat, ZrodloPkcs11? karta = null)
     {
         Certyfikat = certyfikat;
+        Karta = karta;
         ImieNazwisko = PobierzImieNazwisko(certyfikat);
         Wystawca = PobierzCommonName(certyfikat.IssuerName) ?? certyfikat.Issuer;
         WaznyDo = certyfikat.NotAfter;
@@ -23,6 +24,9 @@ public sealed class CertyfikatInfo
     }
 
     public X509Certificate2 Certyfikat { get; }
+
+    /// <summary>Karta, na której jest klucz (podpis przez PKCS#11); null — klucz w magazynie systemu.</summary>
+    public ZrodloPkcs11? Karta { get; }
     public string ImieNazwisko { get; }
     public string Wystawca { get; }
     public DateTime WaznyDo { get; }

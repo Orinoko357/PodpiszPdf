@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>PodpiszPdf</string>
+  <key>CFBundleDisplayName</key>
+  <string>PodpiszPdf</string>
+  <key>CFBundleIdentifier</key>
+  <string>io.github.orinoko357.podpiszpdf</string>
+  <key>CFBundleExecutable</key>
+  <string>PodpiszPdf</string>
+  <key>CFBundleIconFile</key>
+  <string>PodpiszPdf.icns</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>WERSJA_KROTKA</string>
+  <key>CFBundleVersion</key>
+  <string>WERSJA</string>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>pl</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>14.0</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.productivity</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSPrincipalClass</key>
+  <string>NSApplication</string>
+  <key>NSHumanReadableCopyright</key>
+  <string>PodpiszPdf — wolne oprogramowanie, licencja GNU AGPL-3.0</string>
+  <!-- „Otwórz za pomocą → PodpiszPdf” dla plików PDF (bez przejmowania ich domyślnego otwierania). -->
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Dokument PDF</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>com.adobe.pdf</string>
+      </array>
+    </dict>
+  </array>
+</dict>
+</plist>

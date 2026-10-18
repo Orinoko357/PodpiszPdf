@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PodpiszPdf.Mac.OknoGlowne"
+        Title="PodpiszPdf"
+        Icon="avares://PodpiszPdf/Zasoby/ikona.png"
+        Width="780" Height="700" MinWidth="640" MinHeight="580"
+        WindowStartupLocation="CenterScreen">
+  <NativeMenu.Menu>
+    <NativeMenu>
+      <NativeMenuItem Header="Plik">
+        <NativeMenu>
+          <NativeMenuItem Header="Otwórz PDF…" Gesture="Cmd+O" Click="PrzyOtwarciu" />
+          <NativeMenuItem Header="Podpisz…" Gesture="Cmd+Enter" Click="PrzyPodpisie" />
+        </NativeMenu>
+      </NativeMenuItem>
+    </NativeMenu>
+  </NativeMenu.Menu>
+  <ContentControl x:Name="Tresc" />
+</Window>

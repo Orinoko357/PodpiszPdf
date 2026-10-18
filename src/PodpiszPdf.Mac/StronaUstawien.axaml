@@ -1,0 +1,196 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:PodpiszPdf.Mac"
+             x:Class="PodpiszPdf.Mac.StronaUstawien">
+  <Grid RowDefinitions="*,Auto">
+    <Grid ColumnDefinitions="190,*">
+      <!-- Sekcje -->
+      <ListBox x:Name="Nawigacja" SelectionMode="Single" SelectionChanged="PrzyZmianieSekcji" Background="Transparent" Margin="10,16,0,10">
+        <ListBoxItem Content="Wizualizacja" />
+        <ListBoxItem Content="Znacznik czasu" />
+        <ListBoxItem Content="Karta" />
+        <ListBoxItem Content="Program" />
+        <ListBoxItem Content="Informacje" />
+      </ListBox>
+
+      <ScrollViewer x:Name="Przewijanie" Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="20,18,28,24" Spacing="8">
+          <TextBlock x:Name="Tytul" Classes="tytul" Margin="0,0,0,8" />
+
+          <!-- Wizualizacja -->
+          <StackPanel x:Name="SekcjaWizualizacji" Spacing="8">
+            <Border Classes="karta">
+              <Grid RowDefinitions="Auto,Auto" RowSpacing="10">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="Podgląd wizualizacji" FontWeight="SemiBold" />
+                  <TextBlock Text="Tak będzie wyglądał podpis (z Twoim imieniem i nazwiskiem z certyfikatu)" Classes="drugi" TextWrapping="Wrap" />
+                </StackPanel>
+                <Border Grid.Row="1" Background="White" CornerRadius="6" Padding="10" HorizontalAlignment="Left"
+                        BorderBrush="{DynamicResource RamkaKarty}" BorderThickness="1">
+                  <Image x:Name="PodgladWizualizacji" Width="360" Height="110" Stretch="Uniform" HorizontalAlignment="Left" />
+                </Border>
+              </Grid>
+            </Border>
+            <local:KartaUstawien Naglowek="Wygląd podpisu" Opis="Układ, wielkość i kolor napisów na wizualizacji">
+              <ComboBox x:Name="ListaMotywow" Width="250" SelectionChanged="PrzyZmianieMotywu">
+                <ComboBoxItem Content="Klasyczny" />
+                <ComboBoxItem Content="Czytelna hierarchia" />
+                <ComboBoxItem Content="Linia oddzielająca logo" />
+                <ComboBoxItem Content="Akcent kolorystyczny" />
+                <ComboBoxItem Content="Data pod kreską" />
+                <ComboBoxItem Content="Pieczątka" />
+              </ComboBox>
+            </local:KartaUstawien>
+            <Border Classes="karta">
+              <StackPanel Spacing="8">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="Stanowisko" FontWeight="SemiBold" />
+                  <TextBlock Text="Enter dzieli stanowisko na wiersze; bez tego zawija się samo" Classes="drugi" />
+                </StackPanel>
+                <TextBox x:Name="Stanowisko" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="56" TextChanged="PrzyZmianieStanowiska"
+                         Watermark="np. Kierownik Wydziału Organizacyjnego" />
+              </StackPanel>
+            </Border>
+            <local:KartaUstawien Naglowek="Logo" Opis="SVG lub PDF (wektorowe — najlepsza jakość), PNG albo JPG. Kopia jest zapisywana razem z ustawieniami.">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock x:Name="OpisLogo" Classes="drugi" VerticalAlignment="Center" MaxWidth="180" TextTrimming="CharacterEllipsis" />
+                <Button Content="Zmień…" Click="PrzyZmianieLogo" />
+                <Button x:Name="PrzyciskUsunLogo" Content="Usuń" Click="PrzyUsunieciuLogo" />
+              </StackPanel>
+            </local:KartaUstawien>
+            <local:KartaUstawien Naglowek="Strona podpisu" Opis="Gdzie podpis pojawi się na podglądzie — można go tam przesunąć lub narysować">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ComboBox x:Name="ListaStron" Width="170" SelectionChanged="PrzyZmianieStrony">
+                  <ComboBoxItem Content="Ostatnia strona" />
+                  <ComboBoxItem Content="Pierwsza strona" />
+                  <ComboBoxItem Content="Strona o numerze" />
+                </ComboBox>
+                <NumericUpDown x:Name="NumerStrony" Minimum="1" Maximum="9999" Increment="1" FormatString="0" Width="120" />
+              </StackPanel>
+            </local:KartaUstawien>
+            <local:KartaUstawien Naglowek="Narożnik strony" Opis="Od którego narożnika liczona jest odległość podpisu">
+              <ComboBox x:Name="ListaNaroznikow" Width="170">
+                <ComboBoxItem Content="Prawy dolny róg" />
+                <ComboBoxItem Content="Lewy dolny róg" />
+                <ComboBoxItem Content="Prawy górny róg" />
+                <ComboBoxItem Content="Lewy górny róg" />
+              </ComboBox>
+            </local:KartaUstawien>
+            <local:KartaUstawien Naglowek="Odległość od krawędzi strony" Opis="W milimetrach, liczona od wybranego narożnika">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="poziomo" Classes="drugi" VerticalAlignment="Center" />
+                <NumericUpDown x:Name="MarginesX" Minimum="0" Maximum="500" Increment="1" FormatString="0.#" Width="110" />
+                <TextBlock Text="pionowo" Classes="drugi" VerticalAlignment="Center" Margin="6,0,0,0" />
+                <NumericUpDown x:Name="MarginesY" Minimum="0" Maximum="500" Increment="1" FormatString="0.#" Width="110" />
+              </StackPanel>
+            </local:KartaUstawien>
+          </StackPanel>
+
+          <!-- Znacznik czasu -->
+          <StackPanel x:Name="SekcjaZnacznika" Spacing="8" IsVisible="False">
+            <local:KartaUstawien Naglowek="Adres serwera (TSA)" Opis="Np. http://time.certum.pl — znacznik czasu jest dodawany do każdego podpisu">
+              <TextBox x:Name="AdresTsa" Width="260" />
+            </local:KartaUstawien>
+            <local:KartaUstawien Naglowek="Login" Opis="Tylko dla płatnych serwerów kwalifikowanych">
+              <TextBox x:Name="LoginTsa" Width="260" />
+            </local:KartaUstawien>
+            <local:KartaUstawien Naglowek="Hasło" Opis="Zapisywane w pęku kluczy macOS">
+              <TextBox x:Name="HasloTsa" Width="260" PasswordChar="●" />
+            </local:KartaUstawien>
+            <local:KartaUstawien Naglowek="Test połączenia" Opis="Pobiera próbny znacznik czasu z serwera">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ProgressBar x:Name="TestTsaPostep" IsIndeterminate="True" IsVisible="False" Width="50" VerticalAlignment="Center" />
+                <Button x:Name="PrzyciskTestuTsa" Content="Sprawdź połączenie" Click="PrzyTescieTsa" />
+              </StackPanel>
+            </local:KartaUstawien>
+            <local:KartaUstawien Naglowek="Dane do weryfikacji długoterminowej (PAdES B-LT)" Opis="Dołącza do pliku dane OCSP/CRL — podpis da się zweryfikować także po latach">
+              <ToggleSwitch x:Name="PoziomLT" OnContent="Włączone" OffContent="Wyłączone" />
+            </local:KartaUstawien>
+          </StackPanel>
+
+          <!-- Karta -->
+          <StackPanel x:Name="SekcjaKarty" Spacing="8" IsVisible="False">
+            <Border Classes="karta">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Sterownik karty (biblioteka PKCS#11)" FontWeight="SemiBold" />
+                <TextBlock Classes="drugi" TextWrapping="Wrap"
+                           Text="PodpiszPdf czyta certyfikaty z karty przez bibliotekę PKCS#11 z oprogramowania karty (np. proCertum CardManager dla kart Certum albo OpenSC). Zwykle jest znajdowana sama; gdy lista certyfikatów jest pusta, wskaż plik biblioteki (.dylib lub .so) z dokumentacji karty." />
+                <TextBlock x:Name="OpisBiblioteki" TextWrapping="Wrap" Margin="0,4,0,0" />
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                  <Button Content="Wskaż bibliotekę…" Click="PrzyWyborzeBiblioteki" />
+                  <Button x:Name="PrzyciskBibliotekiAutomatycznej" Content="Szukaj automatycznie" Click="PrzyAutomatycznejBibliotece" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <Border Classes="karta">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Znalezione biblioteki" FontWeight="SemiBold" />
+                <TextBlock x:Name="ZnalezioneBiblioteki" Classes="drugi" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+            <Border Classes="karta">
+              <StackPanel Spacing="4">
+                <TextBlock Text="PIN" FontWeight="SemiBold" />
+                <TextBlock Classes="drugi" TextWrapping="Wrap"
+                           Text="PIN wpisujesz w okienku PodpiszPdf przy każdym podpisie (na czytniku z klawiaturą — na czytniku). Program nie zapisuje PIN-u; po podpisie wylogowuje się z karty. Przed ostatnią próbą program ostrzega, że kolejny błąd zablokuje kartę." />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- Program -->
+          <StackPanel x:Name="SekcjaProgramu" Spacing="8" IsVisible="False">
+            <local:KartaUstawien Naglowek="Zapisuj podpisany plik pod nową nazwą" Opis="Domyślnie podpisany plik zastępuje oryginał. Włącz, aby zapisywać kopię z przyrostkiem.">
+              <ToggleSwitch x:Name="DodawajPrzyrostek" OnContent="Włączone" OffContent="Wyłączone" IsCheckedChanged="PrzyZmianiePrzyrostka" />
+            </local:KartaUstawien>
+            <local:KartaUstawien Naglowek="Przyrostek nazwy pliku" Opis="wniosek.pdf → wniosek_podpisany.pdf">
+              <TextBox x:Name="Przyrostek" Width="200" />
+            </local:KartaUstawien>
+            <local:KartaUstawien Naglowek="Sprawdzaj aktualizacje" Opis="Raz na dobę: informacja o nowej wersji z odnośnikiem do pobrania">
+              <ToggleSwitch x:Name="SprawdzajAktualizacje" OnContent="Włączone" OffContent="Wyłączone" />
+            </local:KartaUstawien>
+            <local:KartaUstawien x:Name="KartaFolderu" Naglowek="Folder ustawień">
+              <Button Content="Pokaż w Finderze" Click="PrzyOtwarciuFolderu" />
+            </local:KartaUstawien>
+          </StackPanel>
+
+          <!-- Informacje -->
+          <StackPanel x:Name="SekcjaInformacji" Spacing="8" IsVisible="False">
+            <Border Classes="karta">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+                <Image Source="avares://PodpiszPdf/Zasoby/ikona.png" Width="56" Height="56" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                  <TextBlock x:Name="Wersja" FontWeight="SemiBold" FontSize="15" />
+                  <TextBlock Text="Kwalifikowany podpis elektroniczny PAdES plików PDF" Classes="drugi" />
+                </StackPanel>
+              </Grid>
+            </Border>
+            <local:KartaUstawien x:Name="KartaAktualizacji" Naglowek="Aktualizacje">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <ProgressBar x:Name="PostepAktualizacji" IsIndeterminate="True" IsVisible="False" Width="50" VerticalAlignment="Center" />
+                <Button x:Name="PrzyciskSprawdzenia" Content="Sprawdź teraz" Click="PrzySprawdzeniuAktualizacji" />
+              </StackPanel>
+            </local:KartaUstawien>
+            <local:KartaUstawien Naglowek="Kod źródłowy i licencja" Opis="PodpiszPdf jest wolnym oprogramowaniem na licencji GNU AGPL-3.0">
+              <Button Content="github.com/Orinoko357/PodpiszPdf" Click="PrzyKodzieZrodlowym" />
+            </local:KartaUstawien>
+            <Border Classes="karta">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Składniki" FontWeight="SemiBold" />
+                <TextBlock Classes="drugi" TextWrapping="Wrap"
+                           Text="iText (AGPL-3.0), BouncyCastle (MIT), PDFium (BSD-3-Clause), Pkcs11Interop (Apache-2.0), Avalonia (MIT), czcionka Liberation Sans (SIL OFL 1.1)." />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+
+    <Border Grid.Row="1" Background="{DynamicResource TloStopki}" BorderBrush="{DynamicResource RamkaKarty}" BorderThickness="0,1,0,0"
+            Padding="28,12">
+      <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+        <Button Content="Anuluj" MinWidth="110" HorizontalContentAlignment="Center" Click="PrzyAnulowaniu" IsCancel="True" />
+        <Button Content="Zapisz" MinWidth="140" Classes="accent" HorizontalContentAlignment="Center" Click="PrzyZapisie" />
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

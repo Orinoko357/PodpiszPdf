@@ -1,0 +1,116 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:PodpiszPdf.Mac"
+             x:Class="PodpiszPdf.Mac.App"
+             Name="PodpiszPdf"
+             RequestedThemeVariant="Default">
+
+  <!-- Menu programu w pasku menu macOS (obok „O programie” i „Zakończ”, które dodaje system). -->
+  <NativeMenu.Menu>
+    <NativeMenu>
+      <NativeMenuItem Header="O programie PodpiszPdf" Click="PrzyOProgramie" />
+      <NativeMenuItemSeparator />
+      <NativeMenuItem Header="Ustawienia…" Gesture="Cmd+OemComma" Click="PrzyUstawieniach" />
+    </NativeMenu>
+  </NativeMenu.Menu>
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="TloOkna" Color="#F5F5F7" />
+          <SolidColorBrush x:Key="TloKarty" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="RamkaKarty" Color="#DDDDE1" />
+          <SolidColorBrush x:Key="TekstDrugi" Color="#6E6E73" />
+          <SolidColorBrush x:Key="TloPodgladu" Color="#E5E5EA" />
+          <SolidColorBrush x:Key="TloStopki" Color="#ECECEF" />
+          <SolidColorBrush x:Key="TloZnaczkaKwalifikowany" Color="#DFF6DD" />
+          <SolidColorBrush x:Key="TekstZnaczkaKwalifikowany" Color="#0E700E" />
+          <SolidColorBrush x:Key="TloZnaczka" Color="#E9E9ED" />
+          <SolidColorBrush x:Key="TloInformacji" Color="#EAF3FB" />
+          <SolidColorBrush x:Key="TloAktualizacji" Color="#DFF6DD" />
+          <SolidColorBrush x:Key="TloZaznaczenia" Color="#DCE8F7" />
+          <SolidColorBrush x:Key="TloZaznaczeniaWskazanego" Color="#D0E0F4" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="TloOkna" Color="#1E1E1E" />
+          <SolidColorBrush x:Key="TloKarty" Color="#2A2A2C" />
+          <SolidColorBrush x:Key="RamkaKarty" Color="#3A3A3D" />
+          <SolidColorBrush x:Key="TekstDrugi" Color="#A1A1A6" />
+          <SolidColorBrush x:Key="TloPodgladu" Color="#141414" />
+          <SolidColorBrush x:Key="TloStopki" Color="#252527" />
+          <SolidColorBrush x:Key="TloZnaczkaKwalifikowany" Color="#1F3A1F" />
+          <SolidColorBrush x:Key="TekstZnaczkaKwalifikowany" Color="#6CCB5F" />
+          <SolidColorBrush x:Key="TloZnaczka" Color="#3A3A3D" />
+          <SolidColorBrush x:Key="TloInformacji" Color="#1F2A36" />
+          <SolidColorBrush x:Key="TloAktualizacji" Color="#1F3A1F" />
+          <SolidColorBrush x:Key="TloZaznaczenia" Color="#2C4560" />
+          <SolidColorBrush x:Key="TloZaznaczeniaWskazanego" Color="#34506E" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- Wiersz ustawień: nagłówek i opis po lewej, kontrolka po prawej. -->
+      <ControlTheme x:Key="{x:Type local:KartaUstawien}" TargetType="local:KartaUstawien">
+        <Setter Property="Template">
+          <ControlTemplate>
+            <Border Classes="karta" Padding="16,12">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                  <TextBlock Text="{TemplateBinding Naglowek}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  <TextBlock Text="{TemplateBinding Opis}" Classes="drugi" TextWrapping="Wrap"
+                             IsVisible="{TemplateBinding Opis, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+                <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+          </ControlTemplate>
+        </Setter>
+      </ControlTheme>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+    <Style Selector="Window">
+      <Setter Property="Background" Value="{DynamicResource TloOkna}" />
+    </Style>
+    <Style Selector="Border.karta">
+      <Setter Property="Background" Value="{DynamicResource TloKarty}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource RamkaKarty}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="16" />
+    </Style>
+    <Style Selector="TextBlock.drugi">
+      <Setter Property="Foreground" Value="{DynamicResource TekstDrugi}" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.sekcja">
+      <Setter Property="Foreground" Value="{DynamicResource TekstDrugi}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="LetterSpacing" Value="0.6" />
+    </Style>
+    <Style Selector="TextBlock.tytul">
+      <Setter Property="FontSize" Value="24" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <!-- Zaznaczenie na listach: zaokrąglone i spokojniejsze niż domyślne Fluent. -->
+    <Style Selector="ListBoxItem">
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Margin" Value="0,1" />
+    </Style>
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource TloZaznaczenia}" />
+    </Style>
+    <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource TloZaznaczeniaWskazanego}" />
+    </Style>
+    <Style Selector="ListBoxItem:selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource TloZaznaczeniaWskazanego}" />
+    </Style>
+    <Style Selector="Button">
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+  </Application.Styles>
+</Application>

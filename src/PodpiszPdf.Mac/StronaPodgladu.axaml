@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:PodpiszPdf.Mac"
+             x:Class="PodpiszPdf.Mac.StronaPodgladu"
+             Focusable="True">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <!-- Pasek: powiększenie -->
+    <StackPanel Orientation="Horizontal" Spacing="6" Margin="16,8,16,8">
+      <Button Content="−" Click="PrzyPomniejszeniu" ToolTip.Tip="Pomniejsz (⌘ −, ⌘ + kółko lub gest szczypania)" MinWidth="36"
+              HorizontalContentAlignment="Center" />
+      <TextBlock x:Name="Procent" Text="100%" Width="52" TextAlignment="Center" VerticalAlignment="Center" />
+      <Button Content="+" Click="PrzyPowiekszeniu" ToolTip.Tip="Powiększ (⌘ +)" MinWidth="36" HorizontalContentAlignment="Center" />
+      <Button Content="Dopasuj do szerokości" Click="PrzyDopasowaniu" Margin="8,0,0,0" />
+    </StackPanel>
+
+    <Grid Grid.Row="1" ColumnDefinitions="150,*">
+      <ListBox x:Name="Miniatury" SelectionMode="Single" SelectionChanged="PrzyWyborzeMiniatury" Background="Transparent"
+               BorderBrush="{DynamicResource RamkaKarty}" BorderThickness="0,1,1,1">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="local:MiniaturaStrony">
+            <StackPanel Spacing="6" HorizontalAlignment="Center" Margin="0,4">
+              <Border Width="{Binding Szerokosc}" Height="{Binding Wysokosc}" Background="White"
+                      BorderBrush="{DynamicResource RamkaKarty}" BorderThickness="1">
+                <Image Source="{Binding Obraz}" Stretch="Fill" />
+              </Border>
+              <TextBlock Text="{Binding Numer}" HorizontalAlignment="Center" Classes="drugi" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <Panel Grid.Column="1" Background="{DynamicResource TloPodgladu}">
+        <ScrollViewer x:Name="Przewijanie" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                      ScrollChanged="PrzyPrzewinieciu" SizeChanged="PrzyZmianieRozmiaru">
+          <Canvas x:Name="Plotno" Background="Transparent" HorizontalAlignment="Left" VerticalAlignment="Top" />
+        </ScrollViewer>
+
+        <!-- Podpowiedź (znika po pierwszym kliknięciu) -->
+        <Border x:Name="Podpowiedz" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="16,14,16,0" Padding="18,8"
+                CornerRadius="16" Background="#E6202020" IsHitTestVisible="False" MaxWidth="720">
+          <TextBlock x:Name="TekstPodpowiedzi" Foreground="White" TextWrapping="Wrap" TextAlignment="Center" />
+        </Border>
+      </Panel>
+    </Grid>
+
+    <!-- Stopka -->
+    <Border Grid.Row="2" Background="{DynamicResource TloStopki}" BorderBrush="{DynamicResource RamkaKarty}" BorderThickness="0,1,0,0"
+            Padding="24,12">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+        <TextBlock x:Name="Informacja" Classes="drugi" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <Button Grid.Column="1" Content="Anuluj" MinWidth="110" HorizontalContentAlignment="Center" Click="PrzyAnulowaniu" />
+        <Button x:Name="PrzyciskPodpisz" Grid.Column="2" Content="Podpisz" MinWidth="140" Classes="accent"
+                HorizontalContentAlignment="Center" Click="PrzyPodpisie" />
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

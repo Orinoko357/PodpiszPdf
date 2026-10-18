@@ -313,11 +313,88 @@ jobs:
             pakiet/wynik/PodpiszPdf.cer
           if-no-files-found: error
 
+  # PodpiszPdf dla macOS (Avalonia): testy logiki na macOS (PDFium, karta programowa SoftHSM), paczki .app
+  # dla procesorów Apple i Intel w obrazach DMG, próbny podpis i start okna z zamontowanego obrazu, zrzuty ekranu.
+  macos:
+    runs-on: macos-latest
+    env:
+      AVALONIA_TELEMETRY_OPTOUT: '1'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Karta programowa do testów (SoftHSM)
+        run: brew install softhsm
+
+      - name: Testy na macOS
+        run: dotnet test tests/PodpiszPdf.Tests -c Release --blame
+
+      - name: Publikacja i obrazy DMG
+        id: dmg
+        run: |
+          wersja=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/PodpiszPdf/PodpiszPdf.csproj | head -1)
+          echo "Wersja $wersja"
+          mkdir -p wynik
+          for para in "osx-arm64:AppleSilicon" "osx-x64:Intel"; do
+            rid="${para%%:*}"; nazwa="${para##*:}"
+            dotnet publish src/PodpiszPdf.Mac -c Release -r "$rid" -o "publikacja-$rid"
+            instalator/macos/zbuduj-app.sh "publikacja-$rid" "$wersja" "wynik/PodpiszPdf-macOS-$nazwa.dmg"
+          done
+          for f in wynik/*.dmg; do shasum -a 256 "$f" | sed 's: wynik/:  :' > "$f.sha256"; done
+          cat wynik/*.sha256
+
+      # Jak u użytkownika: obraz zamontowany, program uruchomiony z niego (próbny podpis PAdES, podgląd PDFium, okno).
+      - name: Test programu z obrazu DMG (Apple Silicon)
+        run: |
+          punkt=$(hdiutil attach -nobrowse -readonly wynik/PodpiszPdf-macOS-AppleSilicon.dmg | awk -F'\t' '/\/Volumes\//{print $NF}')
+          app="$punkt/PodpiszPdf.app"
+          codesign --verify --deep --strict "$app"
+          rm -f "$TMPDIR/PodpiszPdf-blad.txt"
+          if ! "$app/Contents/MacOS/PodpiszPdf" --sprawdz; then
+            cat "$TMPDIR/PodpiszPdf-blad.txt" 2>/dev/null || true
+            exit 1
+          fi
+          "$app/Contents/MacOS/PodpiszPdf" --zrzuty "$PWD/zrzuty-mac"
+          ls zrzuty-mac
+          hdiutil detach "$punkt"
+
+      - name: Test wersji dla Intela (Rosetta)
+        run: |
+          if ! arch -x86_64 /usr/bin/true 2>/dev/null; then echo "Bez Rosetty na tym komputerze — pomijam."; exit 0; fi
+          punkt=$(hdiutil attach -nobrowse -readonly wynik/PodpiszPdf-macOS-Intel.dmg | awk -F'\t' '/\/Volumes\//{print $NF}')
+          arch -x86_64 "$punkt/PodpiszPdf.app/Contents/MacOS/PodpiszPdf" --sprawdz || { cat "$TMPDIR/PodpiszPdf-blad.txt" 2>/dev/null; exit 1; }
+          hdiutil detach "$punkt"
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Zrzuty-ekranu-macOS
+          path: zrzuty-mac/*.png
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: PodpiszPdf-macOS
+          path: |
+            wynik/*.dmg
+            wynik/*.dmg.sha256
+          if-no-files-found: error
+
   # Wydanie z przetestowanego instalatora tego przebiegu, gdy wersja z PodpiszPdf.csproj nie ma jeszcze
   # znacznika v<wersja>. Środowisko „wydanie” wymaga zatwierdzenia przez właściciela repozytorium
   # (Settings → Environments) — dopiero wtedy zadanie dostaje klucz podpisu aktualizacji i token wydań.
   wydanie:
-    needs: build
+    needs: [build, macos]
     if: needs.build.outputs.nowa == 'tak'
     runs-on: ubuntu-latest
     environment: wydanie
@@ -351,6 +428,11 @@ jobs:
           name: PodpiszPdf
           path: wynik
 
+      - uses: actions/download-artifact@v7
+        with:
+          name: PodpiszPdf-macOS
+          path: wynik-mac
+
       - name: Kontrola plików
         run: |
           ls -la wynik wynik/* 2>/dev/null || true
@@ -359,6 +441,13 @@ jobs:
           oczekiwana=$(cut -d' ' -f1 "$sum"); faktyczna=$(sha256sum "$msi" | cut -d' ' -f1)
           [ "$oczekiwana" = "$faktyczna" ] || { echo "::error::Suma SHA-256 instalatora się nie zgadza"; exit 1; }
           mkdir -p pliki && cp "$msi" "$sum" "$cer" pliki/
+          # Wersja dla macOS: oba obrazy DMG z sumami kontrolnymi.
+          for nazwa in AppleSilicon Intel; do
+            dmg="wynik-mac/PodpiszPdf-macOS-$nazwa.dmg"
+            [ -f "$dmg" ] && [ -f "$dmg.sha256" ] || { echo "::error::Brak obrazu $dmg"; exit 1; }
+            [ "$(cut -d' ' -f1 "$dmg.sha256")" = "$(sha256sum "$dmg" | cut -d' ' -f1)" ] || { echo "::error::Suma SHA-256 $dmg się nie zgadza"; exit 1; }
+            cp "$dmg" "$dmg.sha256" pliki/
+          done
           ls -la pliki
 
       # Podpis wydania kluczem spoza GitHub Actions (sekret środowiska „wydanie”): program instaluje
@@ -404,6 +493,12 @@ jobs:
 
             Certyfikat **PodpiszPdf.cer** jest potrzebny tylko do pozycji w nowym menu kontekstowym Windows 11
             (instalator dodaje go sam).
+
+            **macOS** (14 Sonoma lub nowszy): **PodpiszPdf-macOS-AppleSilicon.dmg** (procesory M1–M4)
+            albo **PodpiszPdf-macOS-Intel.dmg**. Otwórz obraz i przeciągnij PodpiszPdf do folderu Aplikacje.
+            Program nie ma jeszcze podpisu Apple: przy pierwszym uruchomieniu otwórz go prawym przyciskiem → „Otwórz”
+            (albo Ustawienia systemowe → Prywatność i ochrona → „Otwórz mimo to”). Karta działa przez bibliotekę
+            PKCS#11 z oprogramowania karty (np. proCertum CardManager).
           files: pliki/*
 
       # Sprawdzenie tak, jak robi to program: najnowsze wydanie w repozytorium aktualizacji ma instalator i sumę.

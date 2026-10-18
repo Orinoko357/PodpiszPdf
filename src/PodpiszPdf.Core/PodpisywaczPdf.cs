@@ -45,7 +45,7 @@ public sealed class PodpisywaczPdf
     {
         if (!File.Exists(wejscie))
             throw new BladPodpisu($"Nie znaleziono pliku: {wejscie}");
-        if (!certyfikat.HasPrivateKey)
+        if (opcje.PodpisZewnetrzny == null && !certyfikat.HasPrivateKey)
             throw new BladPodpisu("Wybrany certyfikat nie ma klucza prywatnego.");
         // Lista certyfikatów mogła powstać wiele dni temu (program działa w zasobniku).
         if (CertyfikatInfo.PowodNiewaznosci(certyfikat, DateTime.Now) is { } niewazny)
@@ -54,7 +54,7 @@ public sealed class PodpisywaczPdf
         // Przed znacznikiem czasu: dokument, którego nie da się podpisać, nie wymaga połączenia z serwerem.
         var dokument = SprawdzDokument(wejscie);
 
-        var podpis = new PodpisKluczemCertyfikatu(certyfikat, opcje.PrzygotujKlucz);
+        var podpis = opcje.PodpisZewnetrzny ?? new PodpisKluczemCertyfikatu(certyfikat, opcje.PrzygotujKlucz);
         var czasSerwera = _czasSerwera();
         var czas = czasSerwera ?? DateTimeOffset.Now;
 
@@ -62,7 +62,7 @@ public sealed class PodpisywaczPdf
             CertyfikatInfo.PobierzImieNazwisko(certyfikat), opcje.Stanowisko, opcje.SciezkaLogo, czas,
             opcje.Motyw, CertyfikatInfo.CzyKwalifikowany(certyfikat));
         var (numerStrony, prostokat) = UstalMiejscePodpisu(dokument.Czytnik(), opcje, Wizualizacja.Rozmiar(dane));
-        var lancuch = ZbudujLancuch(certyfikat);
+        var lancuch = ZbudujLancuch(certyfikat, opcje.CertyfikatyWystawcow);
 
         var wyglad = Wizualizacja.Utworz(dane, opcje.Miejsce?.Skala ?? 1f, bezPrzezroczystosci: dokument.PdfA1);
 
@@ -221,11 +221,13 @@ public sealed class PodpisywaczPdf
     }
 
     /// <summary>Certyfikat podpisującego i (o ile system je zna) certyfikaty wystawców.</summary>
-    private static IX509Certificate[] ZbudujLancuch(X509Certificate2 certyfikat)
+    private static IX509Certificate[] ZbudujLancuch(X509Certificate2 certyfikat, X509Certificate2Collection? dodatkowe)
     {
         var certyfikaty = new List<X509Certificate2> { certyfikat };
         using (var lancuch = new X509Chain())
         {
+            if (dodatkowe != null)
+                lancuch.ChainPolicy.ExtraStore.AddRange(dodatkowe);
             lancuch.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
             lancuch.ChainPolicy.VerificationFlags = X509VerificationFlags.AllFlags;
             lancuch.Build(certyfikat);

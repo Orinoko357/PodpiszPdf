@@ -1,10 +1,31 @@
 # PodpiszPdf
 
-Mała aplikacja na Windows do składania **kwalifikowanego podpisu elektronicznego** pod dokumentami PDF
+Mała aplikacja na Windows i macOS do składania **kwalifikowanego podpisu elektronicznego** pod dokumentami PDF
 (format **PAdES Baseline B-T**: podpis ze znacznikiem czasu i widoczną wizualizacją na stronie).
 Typowe zastosowanie: podpisywanie wniosków z SZUP („Podpis kwalifikowany złożony poza systemem”).
 
 Specyfikacja: [docs/SPECYFIKACJA.md](docs/SPECYFIKACJA.md).
+
+## macOS
+
+Od wersji 4.3 PodpiszPdf działa też na macOS 14 (Sonoma) i nowszym: obraz **PodpiszPdf-macOS-AppleSilicon.dmg**
+(procesory M1–M4) albo **PodpiszPdf-macOS-Intel.dmg** z zakładki Releases. Otwórz obraz i przeciągnij PodpiszPdf
+do folderu Aplikacje.
+
+- **Pierwsze uruchomienie.** Program nie ma (jeszcze) podpisu Apple Developer ID, więc macOS go zablokuje.
+  Kliknij PodpiszPdf prawym przyciskiem → „Otwórz” albo: Ustawienia systemowe → Prywatność i ochrona →
+  „Otwórz mimo to”. Potrzebne tylko raz.
+- **Karta.** macOS nie udostępnia programom certyfikatów z kart przez pęk kluczy, dlatego PodpiszPdf korzysta
+  z biblioteki **PKCS#11** z oprogramowania karty (np. proCertum CardManager dla Certum, OpenSC). Program szuka jej
+  w typowych miejscach; gdy lista certyfikatów jest pusta — *Ustawienia → Karta → Wskaż bibliotekę…*.
+  PIN wpisuje się w okienku PodpiszPdf (czytnik z klawiaturą — na czytniku); program go nie zapisuje.
+  Sterownik tylko dla procesorów Intel wymaga wersji dla Intela (działa przez Rosettę).
+- **Otwieranie z Findera:** „Otwórz za pomocą → PodpiszPdf” albo przeciągnięcie pliku na ikonę w Docku — program
+  od razu przechodzi do podpisu.
+- Hasło do płatnego serwera znacznika czasu jest w pęku kluczy, ustawienia w
+  `~/Library/Application Support/PodpiszPdf`.
+- Aktualizacje: raz na dobę program sprawdza, czy jest nowsza wersja, i pokazuje odnośnik do obrazu DMG
+  (bez samodzielnej instalacji).
 
 ## Jak używać
 
@@ -115,13 +136,25 @@ Wynik: folder `publish` z programem (nie wymaga instalacji .NET ani Windows App 
 GitHub Actions buduje z niego instalator `PodpiszPdf.msi` (WiX 5, `instalator/PodpiszPdf.wxs`) przy każdym pushu
 (artefakt **PodpiszPdf** w zakładce *Actions*). Publikacja pomija nieużywane moduły Windows App SDK (AI/ML, widżety).
 
+macOS (Avalonia, .NET 10; kompiluje się też na Linuksie i Windows):
+
+```
+dotnet publish src/PodpiszPdf.Mac -c Release -r osx-arm64 -o publikacja   # albo osx-x64
+instalator/macos/zbuduj-app.sh publikacja 4.3.0.0 PodpiszPdf.dmg            # tylko na macOS
+```
+
+GitHub Actions (zadanie `macos`) buduje oba obrazy DMG, uruchamia testy na macOS (z kartą programową SoftHSM)
+i próbny podpis z zamontowanego obrazu.
+
 ## Struktura
 
 | Katalog | Zawartość |
 |---|---|
 | `src/PodpiszPdf.Core` | Logika: wybór certyfikatów, podpis PAdES (iText 9 + BouncyCastle), wizualizacja, znacznik czasu, podgląd stron (PDFium), komunikaty błędów |
 | `src/PodpiszPdf` | Interfejs WinUI 3 (Windows App SDK, .NET 10): strona główna, podgląd z wyborem miejsca, ustawienia, zasobnik, menu kontekstowe |
-| `tests/PodpiszPdf.Tests` | Testy na certyfikatach testowych (RSA i ECDSA) z lokalnym serwerem znacznika czasu — bez karty i bez sieci |
+| `src/PodpiszPdf.Mac` | Interfejs dla macOS (Avalonia, .NET 10): te same strony, karta przez PKCS#11, PIN, pęk kluczy |
+| `instalator/macos` | `Info.plist` i skrypt paczki `.app` + obraz DMG |
+| `tests/PodpiszPdf.Tests` | Testy na certyfikatach testowych (RSA i ECDSA) z lokalnym serwerem znacznika czasu — bez karty i bez sieci; podpis przez PKCS#11 na karcie programowej SoftHSM2, gdy jest zainstalowana |
 | `tools/PodpisTestowy` | Narzędzie deweloperskie: podpis certyfikatem z pliku PFX do sprawdzenia formatu w Adobe/EU DSS |
 | `docs/TESTY.md` | Lista kroków testu z prawdziwą kartą |
 
@@ -150,7 +183,8 @@ Program jest dostarczany „tak jak jest”, bez żadnej gwarancji (zob. punkty 
 - iText 9 — AGPL-3.0 (stąd licencja całego programu).
 - PDFium (BSD/Apache 2.0, kompilacje bblanchon/pdfium-binaries, pakiety bblanchon.PDFium.*, Apache 2.0) — podgląd stron.
 - Windows App SDK / WinUI 3, Windows Community Toolkit, H.NotifyIcon — MIT.
-- Czcionka Arial z systemu Windows; gdy jej brak — wbudowana Liberation Sans (metrycznie zgodna z Arialem), licencja SIL OFL 1.1, zob. `src/PodpiszPdf.Core/Zasoby/LiberationSans-LICENSE.txt`.
+- Avalonia (wersja dla macOS) — MIT; Pkcs11Interop (karta przez PKCS#11) — Apache 2.0; czcionka Inter (zrzuty ekranu) — SIL OFL 1.1.
+- Czcionka Arial z systemu Windows lub macOS; gdy jej brak — wbudowana Liberation Sans (metrycznie zgodna z Arialem), licencja SIL OFL 1.1, zob. `src/PodpiszPdf.Core/Zasoby/LiberationSans-LICENSE.txt`.
 
 ## Wydania
 
@@ -171,4 +205,5 @@ Wydanie powstaje w zadaniu `wydanie`, które czeka na zatwierdzenie w środowisk
 | `TOKEN_WYDANIA` | środowisko `wydanie` | Token z prawem zapisu (*Contents: Read and write*) tylko do `Orinoko357/PodpiszPdf-wydania`. Bez niego wydanie nie trafia do repozytorium aktualizacji. |
 
 Każde wydanie zawiera `PodpiszPdf.msi`, `PodpiszPdf.msi.sha256`, `PodpiszPdf.msi.sig` (podpis sprawdzany przez
-aktualizację) i `PodpiszPdf.cer`.
+aktualizację), `PodpiszPdf.cer` oraz obrazy dla macOS `PodpiszPdf-macOS-AppleSilicon.dmg` i `PodpiszPdf-macOS-Intel.dmg`
+(z sumami `.sha256`).

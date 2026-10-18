@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- PodpiszPdf dla macOS (Avalonia). Logika podpisu wspólna z wersją dla Windows (PodpiszPdf.Core);
+       karta przez bibliotekę PKCS#11 sterownika. Paczka .app i obraz DMG powstają w GitHub Actions
+       (instalator/macos/zbuduj-app.sh). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- Sprawdzenie kompilacji tam, gdzie jest tylko .NET 8 (-p:Net8=true); wydanie zawsze na .NET 10. -->
+    <TargetFramework Condition="'$(Net8)' == 'true'">net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>PodpiszPdf</AssemblyName>
+    <RootNamespace>PodpiszPdf.Mac</RootNamespace>
+    <Product>PodpiszPdf</Product>
+    <Description>Kwalifikowany podpis elektroniczny PAdES dla plików PDF</Description>
+    <!-- Jeden numer wersji dla obu systemów: z PodpiszPdf.csproj (wersja dla Windows). -->
+    <Version>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../PodpiszPdf/PodpiszPdf.csproj')), '&lt;Version&gt;([^&lt;]+)&lt;/Version&gt;').Groups[1].Value)</Version>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <RuntimeIdentifiers>osx-arm64;osx-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <!-- dotnet publish src/PodpiszPdf.Mac -c Release -r osx-arm64 (lub osx-x64) → folder do paczki .app. -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <SelfContained>true</SelfContained>
+    <DebugType>none</DebugType>
+    <UseAppHost>true</UseAppHost>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
+    <!-- Zrzuty ekranu bez okna (parametr zrzuty) i czcionka zastępcza poza macOS. -->
+    <PackageReference Include="Avalonia.Headless" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.22" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PodpiszPdf.Core\PodpiszPdf.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Zasoby\**" />
+  </ItemGroup>
+
+</Project>

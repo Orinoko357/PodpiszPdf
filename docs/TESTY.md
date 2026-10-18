@@ -104,3 +104,17 @@ Przed testem:
 - [ ] Podpisz już podpisany plik drugi raz (np. drugą osobą): oba podpisy są ważne.
 
 Wyniki (zrzuty ekranu z Adobe i z raportu weryfikatora) prosimy odesłać wraz z nazwą karty/usługi i wersją sterownika.
+
+## 7. macOS (karta i czytnik na Macu)
+
+- [ ] Zainstaluj oprogramowanie karty dla macOS (np. proCertum CardManager), włóż kartę. Otwórz
+      `PodpiszPdf-macOS-AppleSilicon.dmg` (albo `-Intel`), przeciągnij PodpiszPdf do Aplikacji, uruchom
+      (prawy przycisk → „Otwórz” przy pierwszym razie).
+- [ ] Lista certyfikatów: certyfikat kwalifikowany z karty z dopiskiem „karta …”. Gdy pusta — *Ustawienia → Karta*:
+      „Znalezione biblioteki” i ewentualnie *Wskaż bibliotekę…* (zanotuj ścieżkę biblioteki — dopiszemy ją do
+      wyszukiwania automatycznego).
+- [ ] Podpis: podgląd, wskazanie miejsca (kliknięcie, rysowanie, przesuwanie, 8 uchwytów), okno PIN-u, wynik
+      „Dokument został podpisany” → *Pokaż w Finderze*.
+- [ ] Zły PIN (raz!) → „Błędny PIN.” i ponowne okno PIN-u; *Anuluj* → „Podpisywanie anulowane.”
+- [ ] Finder: plik PDF → *Otwórz za pomocą → PodpiszPdf* → od razu podgląd do podpisu.
+- [ ] Podpisany plik w weryfikatorze (punkt 6) — PAdES-BASELINE-T, QES.

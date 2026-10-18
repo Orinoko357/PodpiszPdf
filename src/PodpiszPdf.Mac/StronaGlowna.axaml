@@ -1,0 +1,119 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:PodpiszPdf.Mac"
+             x:Class="PodpiszPdf.Mac.StronaGlowna"
+             DragDrop.AllowDrop="True">
+  <Grid RowDefinitions="*,Auto">
+    <Grid Margin="28,20,28,16" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="14">
+      <StackPanel Spacing="2">
+        <TextBlock Text="Podpisz dokument" Classes="tytul" />
+        <TextBlock Text="Kwalifikowany podpis elektroniczny PAdES ze znacznikiem czasu" Classes="drugi" FontSize="13" />
+      </StackPanel>
+
+      <!-- Dokument: miejsce na plik albo wybrany plik z miniaturą -->
+      <Border x:Name="KartaDokumentu" Grid.Row="1" Classes="karta" MinHeight="96">
+        <Panel>
+          <Grid x:Name="BezPliku" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+            <PathIcon Width="30" Height="30" Foreground="{DynamicResource SystemControlHighlightAccentBrush}" VerticalAlignment="Center"
+                      Data="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5L13 3.5zM8 13h8v1.5H8V13zm0 3.5h8V18H8v-1.5z" />
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+              <TextBlock Text="Przeciągnij tutaj plik PDF" FontWeight="SemiBold" />
+              <TextBlock Text="albo wybierz go z dysku. Plik można też otworzyć z Findera („Otwórz za pomocą” → PodpiszPdf)."
+                         Classes="drugi" TextWrapping="Wrap" />
+            </StackPanel>
+            <Button Grid.Column="2" Content="Wybierz plik…" Click="PrzyWyborzePliku" VerticalAlignment="Center" />
+          </Grid>
+
+          <Grid x:Name="ZPlikiem" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16" IsVisible="False">
+            <Border Width="52" Height="70" Background="White" BorderBrush="{DynamicResource RamkaKarty}" BorderThickness="1" CornerRadius="2">
+              <Image x:Name="Miniatura" Stretch="Uniform" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+              <TextBlock Text="DOKUMENT" Classes="sekcja" />
+              <TextBlock x:Name="NazwaPliku" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+              <TextBlock x:Name="OpisPliku" Classes="drugi" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Button x:Name="PrzyciskZmien" Content="Zmień plik…" Click="PrzyWyborzePliku" />
+              <Button x:Name="PrzyciskUsun" Content="✕" Click="PrzyUsunieciuPliku" ToolTip.Tip="Usuń plik" />
+            </StackPanel>
+          </Grid>
+        </Panel>
+      </Border>
+
+      <!-- Certyfikat -->
+      <Border Grid.Row="2" Classes="karta" Padding="12">
+        <Grid RowDefinitions="Auto,*" RowSpacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="CERTYFIKAT" Classes="sekcja" VerticalAlignment="Center" Margin="4,0,0,0" />
+            <Button x:Name="PrzyciskOdswiez" Grid.Column="1" Content="Odśwież" Click="PrzyOdswiezeniu" Padding="10,3" />
+          </Grid>
+          <ListBox x:Name="ListaCertyfikatow" Grid.Row="1" SelectionMode="Single" SelectionChanged="PrzyWyborzeCertyfikatu"
+                   DoubleTapped="PrzyDwukliku" Background="Transparent">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="local:ElementCertyfikatu">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" Margin="2,4">
+                  <PathIcon Width="22" Height="22" Foreground="{DynamicResource SystemControlHighlightAccentBrush}" VerticalAlignment="Center"
+                            Data="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-4.5l1.5 5-3.5-2-3.5 2 1.5-5H5a2 2 0 0 1-2-2V5zm4 2v1.5h10V7H7zm0 3.5V12h6v-1.5H7z" />
+                  <StackPanel Grid.Column="1" Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                      <TextBlock Text="{Binding Nazwa}" FontWeight="SemiBold" />
+                      <Border CornerRadius="9" Padding="8,1" VerticalAlignment="Center" IsVisible="{Binding Kwalifikowany}"
+                              Background="{DynamicResource TloZnaczkaKwalifikowany}">
+                        <TextBlock Text="Kwalifikowany" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TekstZnaczkaKwalifikowany}" />
+                      </Border>
+                      <Border CornerRadius="9" Padding="8,1" VerticalAlignment="Center" IsVisible="{Binding !Kwalifikowany}"
+                              Background="{DynamicResource TloZnaczka}">
+                        <TextBlock Text="Niekwalifikowany" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TekstDrugi}" />
+                      </Border>
+                    </StackPanel>
+                    <TextBlock Text="{Binding Opis}" Classes="drugi" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <StackPanel x:Name="BrakCertyfikatow" Grid.Row="1" IsVisible="False" VerticalAlignment="Center" HorizontalAlignment="Center"
+                      Spacing="6" MaxWidth="460">
+            <TextBlock Text="Nie znaleziono certyfikatu do podpisu" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            <TextBlock x:Name="OpisBrakuCertyfikatow" Classes="drugi" TextAlignment="Center" TextWrapping="Wrap" />
+          </StackPanel>
+          <ProgressBar x:Name="WczytywanieCertyfikatow" Grid.Row="1" IsIndeterminate="True" IsVisible="False"
+                       VerticalAlignment="Center" HorizontalAlignment="Center" Width="160" />
+        </Grid>
+      </Border>
+
+      <StackPanel Grid.Row="3" Spacing="8">
+        <Border x:Name="Aktualizacja" IsVisible="False" CornerRadius="8" Padding="14,10" Background="{DynamicResource TloAktualizacji}">
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <StackPanel VerticalAlignment="Center" Spacing="2">
+              <TextBlock x:Name="TytulAktualizacji" FontWeight="SemiBold" />
+              <TextBlock x:Name="OpisAktualizacji" Classes="drugi" TextWrapping="Wrap" />
+            </StackPanel>
+            <Button Grid.Column="1" Content="Pobierz" Classes="accent" Click="PrzyAktualizacji" VerticalAlignment="Center" />
+            <Button Grid.Column="2" Content="✕" Click="PrzyZamknieciuAktualizacji" VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+        <Border CornerRadius="8" Padding="14,10" Background="{DynamicResource TloInformacji}">
+          <StackPanel Spacing="2">
+            <TextBlock x:Name="TytulInformacji" FontWeight="SemiBold" />
+            <TextBlock x:Name="OpisInformacji" Classes="drugi" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </Grid>
+
+    <!-- Stopka -->
+    <Border Grid.Row="1" Background="{DynamicResource TloStopki}" BorderBrush="{DynamicResource RamkaKarty}" BorderThickness="0,1,0,0"
+            Padding="28,12">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+        <ProgressBar x:Name="Postep" IsIndeterminate="True" IsVisible="False" Width="60" VerticalAlignment="Center" Margin="0,0,4,0" />
+        <TextBlock x:Name="Status" Grid.Column="1" Classes="drugi" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <Button x:Name="PrzyciskUstawienia" Grid.Column="2" Content="Ustawienia" Click="PrzyUstawieniach" MinWidth="110"
+                HorizontalContentAlignment="Center" />
+        <Button x:Name="PrzyciskPodpisz" Grid.Column="3" Content="Podpisz…" Classes="accent" MinWidth="140"
+                HorizontalContentAlignment="Center" Click="PrzyPodpisie" IsEnabled="False" />
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

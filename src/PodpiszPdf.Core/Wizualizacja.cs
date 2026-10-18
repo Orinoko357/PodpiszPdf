@@ -490,25 +490,30 @@ public static class Wizualizacja
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte[]> DaneCzcionek = new();
 
     /// <summary>
-    /// Arial i Arial Bold z systemu Windows; gdzie ich brak (np. Linux w testach) — wbudowana Liberation Sans,
+    /// Arial i Arial Bold z systemu (Windows, macOS); gdzie ich brak (np. Linux w testach) — wbudowana Liberation Sans,
     /// metrycznie zgodna z Arialem (te same szerokości i wysokości znaków, więc ten sam układ).
     /// </summary>
     private static (PdfFont Zwykla, PdfFont Pogrubiona) Czcionki() =>
-        (UtworzCzcionke("arial.ttf", "PodpiszPdf.Core.LiberationSans-Regular.ttf"),
-         UtworzCzcionke("arialbd.ttf", "PodpiszPdf.Core.LiberationSans-Bold.ttf"));
+        (UtworzCzcionke("arial.ttf", "Arial.ttf", "PodpiszPdf.Core.LiberationSans-Regular.ttf"),
+         UtworzCzcionke("arialbd.ttf", "Arial Bold.ttf", "PodpiszPdf.Core.LiberationSans-Bold.ttf"));
+
+    /// <summary>Folder z Arialem w macOS (czcionki dołączone do systemu).</summary>
+    private const string FolderCzcionekMacOS = "/System/Library/Fonts/Supplemental";
 
     /// <summary>
     /// Nowa czcionka dla każdego dokumentu. Bez pamięci podręcznej iText: wspólny obiekt czcionki czyta
     /// plik ze wspólnego bufora i nie może być używany przez kilka wątków naraz (np. podpis i podgląd).
     /// </summary>
-    private static PdfFont UtworzCzcionke(string plikSystemowy, string zasob)
+    private static PdfFont UtworzCzcionke(string plikWindows, string plikMacOS, string zasob)
     {
-        var dane = DaneCzcionek.GetOrAdd(plikSystemowy, _ =>
+        var dane = DaneCzcionek.GetOrAdd(plikWindows, _ =>
         {
             try
             {
-                var sciezka = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), plikSystemowy);
-                if (OperatingSystem.IsWindows() && File.Exists(sciezka))
+                var sciezka = OperatingSystem.IsWindows()
+                    ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), plikWindows)
+                    : OperatingSystem.IsMacOS() ? Path.Combine(FolderCzcionekMacOS, plikMacOS) : null;
+                if (sciezka != null && File.Exists(sciezka))
                     return File.ReadAllBytes(sciezka);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)

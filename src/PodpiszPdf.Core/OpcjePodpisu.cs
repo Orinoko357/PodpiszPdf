@@ -62,4 +62,13 @@ public sealed class OpcjePodpisu
     /// dla okna PIN-u sterownika karty.
     /// </summary>
     public Action<System.Security.Cryptography.AsymmetricAlgorithm>? PrzygotujKlucz { get; set; }
+
+    /// <summary>
+    /// Podpis poza magazynem systemu (np. zalogowana sesja karty PKCS#11, <see cref="SesjaKarty"/>);
+    /// null — klucz prywatny certyfikatu z magazynu systemu.
+    /// </summary>
+    public iText.Signatures.IExternalSignature? PodpisZewnetrzny { get; set; }
+
+    /// <summary>Dodatkowe certyfikaty wystawców do łańcucha w podpisie (np. zapisane na karcie).</summary>
+    public System.Security.Cryptography.X509Certificates.X509Certificate2Collection? CertyfikatyWystawcow { get; set; }
 }

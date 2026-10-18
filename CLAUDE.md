@@ -1,6 +1,7 @@
 # PodpiszPdf — wskazówki dla Claude
 
-Aplikacja WinUI 3 (Windows App SDK, .NET 10; logika w `PodpiszPdf.Core` na .NET 8) do kwalifikowanego podpisu PAdES plików PDF.
+Aplikacja WinUI 3 (Windows App SDK, .NET 10; logika w `PodpiszPdf.Core` na .NET 8) do kwalifikowanego podpisu PAdES plików PDF,
+od 4.3 także na macOS (`src/PodpiszPdf.Mac`, Avalonia 11, .NET 10).
 Do wersji 3.1.0.x program nazywał się **PodpisPdf** (stąd CN=PodpisPdf certyfikatu pakietu menu — zostaje do czasu
 certyfikatu Certum; `Instalacja.PrzeniesZeStarejNazwy` przenosi ustawienia i usuwa starą integrację). Opis w `README.md`,
 wymagania w `docs/SPECYFIKACJA.md`, lista testów z kartą w `docs/TESTY.md`. Rozmowa z użytkownikiem po polsku.
@@ -18,7 +19,7 @@ w GitHub **Releases** — bez pytania użytkownika:
    `v<wersja>`, zadanie `wydanie` (środowisko GitHub `wydanie`) **czeka na zatwierdzenie przez użytkownika**
    („Review deployments” → „Approve”). Poproś go o to po zakończeniu budowania. Po zatwierdzeniu zadanie
    podpisuje aktualizację (`PodpiszPdf.msi.sig`, sekret `KLUCZ_AKTUALIZACJI`), tworzy znacznik, wydanie
-   z `PodpiszPdf.msi` i kopię w repozytorium aktualizacji.
+   z `PodpiszPdf.msi` (i obrazami DMG dla macOS z zadania `macos`) i kopię w repozytorium aktualizacji.
    (Wypychanie znaczników z sesji Claude Code bywa zablokowane — dlatego wydanie tworzy GitHub Actions;
    ręczne `workflow_dispatch` działa tylko dla workflowów z gałęzi `main`.)
 4. Sprawdź, że wydanie istnieje i ma plik `PodpiszPdf.msi`, i podaj użytkownikowi link.
@@ -39,6 +40,21 @@ Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagaj�
   z zainstalowanym w systemie Windows App Runtime.
 - CI uruchamia `PodpiszPdf.exe --sprawdz` (test startu) i `--zrzuty <folder>` (zrzuty stron w obu motywach);
   zrzuty trafiają na gałąź `zrzuty-ekranu` (pobranie: `git fetch origin zrzuty-ekranu`).
+
+## macOS (4.3)
+
+- `src/PodpiszPdf.Mac`: Avalonia 11.3 (Fluent), jedno okno (`OknoGlowne`) ze stronami `StronaGlowna`, `StronaPodgladu`
+  (logika 8 uchwytów jak w Windows — zmiany wprowadzać w obu), `StronaUstawien`; `OknoPin`. Wersja czytana z
+  `src/PodpiszPdf/PodpiszPdf.csproj` (jeden numer dla obu systemów).
+- Karta: `PodpiszPdf.Core/KartaPkcs11.cs` (Pkcs11Interop; .NET w macOS nie widzi certyfikatów z kart w pęku kluczy).
+  PIN w oknie programu, `CKA_ALWAYS_AUTHENTICATE` obsłużone (`Sign` z PIN-em kontekstowym). Testy: `KartaPkcs11Testy`
+  na SoftHSM2 (Linux: `apt install softhsm2`, macOS: `brew install softhsm`; bez niego testy karty nic nie sprawdzają).
+- Lokalnie (tylko .NET 8): `dotnet build src/PodpiszPdf.Mac -p:Net8=true`; zrzuty bez okna:
+  `src/PodpiszPdf.Mac/bin/Debug/net8.0/PodpiszPdf --zrzuty <folder>` (Avalonia.Headless + Skia) — oglądać przed wypchnięciem.
+  Ustaw `AVALONIA_TELEMETRY_OPTOUT=1` (telemetria budowania Avalonii jest blokowana przez proxy).
+- CI (zadanie `macos`, macos-latest): testy, `dotnet publish -r osx-arm64/osx-x64`, `instalator/macos/zbuduj-app.sh`
+  (Info.plist, ikona `PodpiszPdf.icns`, podpis ad hoc, DMG), `--sprawdz` i `--zrzuty` z zamontowanego obrazu
+  (artefakt `Zrzuty-ekranu-macOS`). Bez podpisu Apple Developer ID / notaryzacji (certyfikat Certum nie działa w macOS).
 
 ## Integracja z Windows (3.0)
 
