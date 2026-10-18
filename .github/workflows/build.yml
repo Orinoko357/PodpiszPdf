@@ -339,9 +339,6 @@ jobs:
         run: brew install softhsm
 
       - name: Testy na macOS
-        env:
-          # Wątki w macOS mają domyślnie tylko 512 KB stosu (Linux 8 MB) — sprawdzamy, czy awaria to przepełnienie stosu.
-          DOTNET_DefaultStackSize: '1000000'
         run: dotnet test tests/PodpiszPdf.Tests -c Release --blame --results-directory "$PWD/wyniki-testow" --logger "console;verbosity=normal"
 
       # Przy awarii procesu testów: które testy były wtedy wykonywane (plik --blame).

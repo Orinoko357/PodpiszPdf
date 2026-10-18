@@ -44,7 +44,7 @@ public sealed class KartaTestowa
         else
             setenv("SOFTHSM2_CONF", konfiguracja, 1);
 
-        using var lib = Fabryki.Pkcs11LibraryFactory.LoadPkcs11Library(Fabryki, Biblioteka, AppType.MultiThreaded);
+        var lib = KartaPkcs11.Wczytaj(Biblioteka); // ta sama biblioteka co w programie (jedno C_Initialize)
         var slot = lib.GetSlotList(SlotsType.WithTokenPresent).First();
         slot.InitToken(PinAdministratora, EtykietaTokenu);
         slot = lib.GetSlotList(SlotsType.WithTokenPresent).First(s => s.GetTokenInfo().Label.Trim() == EtykietaTokenu);
@@ -67,7 +67,7 @@ public sealed class KartaTestowa
     public byte[] Zapisz(X509Certificate2 certyfikat, bool pinPrzyKazdymPodpisie = false)
     {
         var id = new[] { (byte)Interlocked.Increment(ref _nastepneId) };
-        using var lib = Fabryki.Pkcs11LibraryFactory.LoadPkcs11Library(Fabryki, Biblioteka!, AppType.MultiThreaded);
+        var lib = KartaPkcs11.Wczytaj(Biblioteka!);
         var slot = lib.GetSlotList(SlotsType.WithTokenPresent).First(s => s.GetTokenInfo().Label.Trim() == EtykietaTokenu);
         using var sesja = slot.OpenSession(SessionType.ReadWrite);
         sesja.Login(CKU.CKU_USER, Pin);

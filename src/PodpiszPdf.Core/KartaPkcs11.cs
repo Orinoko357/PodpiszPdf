@@ -108,12 +108,26 @@ public static class KartaPkcs11
         }
     }
 
-    /// <summary>Wczytanie biblioteki sterownika z opisem błędu dla użytkownika (zła architektura, brak pliku).</summary>
-    private static IPkcs11Library Wczytaj(string biblioteka)
+    private static readonly Dictionary<string, IPkcs11Library> Wczytane = new();
+
+    /// <summary>
+    /// Biblioteka sterownika — wczytana raz i używana do końca pracy programu. Wiele sterowników źle znosi ponowne
+    /// C_Initialize/C_Finalize i zwolnienie biblioteki (awarie, także przy zamykaniu programu). Opis błędu dla
+    /// użytkownika (zła architektura, brak pliku).
+    /// </summary>
+    internal static IPkcs11Library Wczytaj(string biblioteka)
     {
         try
         {
-            return Fabryki.Pkcs11LibraryFactory.LoadPkcs11Library(Fabryki, biblioteka, AppType.MultiThreaded);
+            lock (Wczytane)
+            {
+                if (!Wczytane.TryGetValue(biblioteka, out var lib))
+                {
+                    lib = Fabryki.Pkcs11LibraryFactory.LoadPkcs11Library(Fabryki, biblioteka, AppType.MultiThreaded);
+                    Wczytane[biblioteka] = lib;
+                }
+                return lib;
+            }
         }
         catch (Exception e) when (e is not BladPodpisu)
         {
@@ -131,7 +145,7 @@ public static class KartaPkcs11
     /// </summary>
     public static IReadOnlyList<CertyfikatInfo> PobierzCertyfikaty(string biblioteka, DateTime teraz)
     {
-        using var lib = Wczytaj(biblioteka);
+        var lib = Wczytaj(biblioteka);
         var wynik = new List<CertyfikatInfo>();
         foreach (var slot in lib.GetSlotList(SlotsType.WithTokenPresent))
         {
@@ -201,38 +215,30 @@ public static class KartaPkcs11
     public static SesjaKarty Otworz(ZrodloPkcs11 zrodlo, X509Certificate2 certyfikat, string? pin)
     {
         var lib = Wczytaj(zrodlo.Biblioteka);
+        var slot = lib.GetSlotList(SlotsType.WithTokenPresent)
+            .FirstOrDefault(s => TokenInfo(s)?.SerialNumber.Trim() == zrodlo.NumerTokenu)
+            ?? throw new BladPodpisu($"Nie znaleziono karty „{zrodlo.EtykietaTokenu}”. Sprawdź, czy karta jest w czytniku.");
+        var sesja = slot.OpenSession(SessionType.ReadOnly);
         try
         {
-            var slot = lib.GetSlotList(SlotsType.WithTokenPresent)
-                .FirstOrDefault(s => TokenInfo(s)?.SerialNumber.Trim() == zrodlo.NumerTokenu)
-                ?? throw new BladPodpisu($"Nie znaleziono karty „{zrodlo.EtykietaTokenu}”. Sprawdź, czy karta jest w czytniku.");
-            var sesja = slot.OpenSession(SessionType.ReadOnly);
+            Zaloguj(sesja, CKU.CKU_USER, pin, slot);
+            var klucz = ZnajdzKlucz(sesja, zrodlo.IdKlucza)
+                        ?? throw new BladPodpisu("Na karcie nie ma klucza prywatnego dla wybranego certyfikatu.");
+            var zawszePin = false;
             try
             {
-                Zaloguj(sesja, CKU.CKU_USER, pin, slot);
-                var klucz = ZnajdzKlucz(sesja, zrodlo.IdKlucza)
-                            ?? throw new BladPodpisu("Na karcie nie ma klucza prywatnego dla wybranego certyfikatu.");
-                var zawszePin = false;
-                try
-                {
-                    zawszePin = sesja.GetAttributeValue(klucz, new List<CKA> { CKA.CKA_ALWAYS_AUTHENTICATE })[0].GetValueAsBool();
-                }
-                catch (Exception)
-                {
-                    // Atrybut nieobsługiwany — PIN tylko przy logowaniu.
-                }
-                return new SesjaKarty(lib, sesja, klucz, certyfikat, zawszePin ? pin ?? "" : null, zrodlo.CzytnikZKlawiatura,
-                    Fabryki.MechanismFactory);
+                zawszePin = sesja.GetAttributeValue(klucz, new List<CKA> { CKA.CKA_ALWAYS_AUTHENTICATE })[0].GetValueAsBool();
             }
-            catch
+            catch (Exception)
             {
-                sesja.Dispose();
-                throw;
+                // Atrybut nieobsługiwany — PIN tylko przy logowaniu.
             }
+            return new SesjaKarty(lib, sesja, klucz, certyfikat, zawszePin ? pin ?? "" : null, zrodlo.CzytnikZKlawiatura,
+                Fabryki.MechanismFactory);
         }
         catch
         {
-            lib.Dispose();
+            sesja.Dispose();
             throw;
         }
     }
@@ -240,7 +246,7 @@ public static class KartaPkcs11
     /// <summary>Stan licznika prób PIN-u tokenu (przed zapytaniem o PIN).</summary>
     public static StanPinu SprawdzPin(ZrodloPkcs11 zrodlo)
     {
-        using var lib = Wczytaj(zrodlo.Biblioteka);
+        var lib = Wczytaj(zrodlo.Biblioteka);
         var token = lib.GetSlotList(SlotsType.WithTokenPresent).Select(TokenInfo)
             .FirstOrDefault(t => t?.SerialNumber.Trim() == zrodlo.NumerTokenu);
         return token == null ? StanPinu.Zwykly : Stan(token);
@@ -340,7 +346,6 @@ public sealed class SesjaKarty : IExternalSignature, IDisposable
     private static readonly byte[] NaglowekSha256 =
         { 0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20 };
 
-    private readonly IPkcs11Library _lib;
     private readonly ISession _sesja;
     private readonly IObjectHandle _klucz;
     private readonly string? _pinKontekstowy;
@@ -351,7 +356,6 @@ public sealed class SesjaKarty : IExternalSignature, IDisposable
     internal SesjaKarty(IPkcs11Library lib, ISession sesja, IObjectHandle klucz, X509Certificate2 certyfikat, string? pinKontekstowy,
         bool czytnikZKlawiatura, IMechanismFactory mechanizmy)
     {
-        _lib = lib;
         _sesja = sesja;
         _klucz = klucz;
         _pinKontekstowy = pinKontekstowy;
@@ -434,7 +438,6 @@ public sealed class SesjaKarty : IExternalSignature, IDisposable
         {
             // Sesja mogła już wygasnąć (wyjęta karta).
         }
-        _sesja.Dispose();
-        _lib.Dispose();
+        _sesja.Dispose(); // biblioteka sterownika zostaje wczytana (KartaPkcs11.Wczytaj)
     }
 }
