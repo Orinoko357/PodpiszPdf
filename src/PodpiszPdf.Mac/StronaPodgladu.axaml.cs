@@ -494,7 +494,7 @@ public sealed partial class StronaPodgladu : UserControl
                     {
                         var pdf = _zadanie.Pdf;
                         var indeks = i;
-                        obraz = await Task.Run(() => DokumentPdf.Renderuj(pdf, indeks, skalaPikseli));
+                        obraz = await WatekRoboczy.Uruchom(() => DokumentPdf.Renderuj(pdf, indeks, skalaPikseli));
                     }
                     catch (Exception)
                     {
@@ -540,7 +540,7 @@ public sealed partial class StronaPodgladu : UserControl
                 var pdf = _zadanie.Pdf;
                 var indeks = i;
                 var skala = SzerokoscMiniatury * 2 / RozmiarWidoczny(_strony[i]).Width;
-                var obraz = await Task.Run(() => DokumentPdf.Renderuj(pdf, indeks, skala));
+                var obraz = await WatekRoboczy.Uruchom(() => DokumentPdf.Renderuj(pdf, indeks, skala));
                 if (!_zakonczono)
                     _miniatury[i].Obraz = Obrazy.NaObraz(obraz);
             }

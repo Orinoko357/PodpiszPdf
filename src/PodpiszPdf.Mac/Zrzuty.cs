@@ -69,7 +69,7 @@ internal static class Zrzuty
             glowna.PokazDanePrzykladowe(pdf, certyfikaty);
             await Zapisz(okno, Path.Combine(folder, $"mac-2-glowne-{nazwa}.png"), czekajMs: 1500);
 
-            var zadanie = await Task.Run(() => ZadaniePodgladu.Przygotuj(pdf, dane, new PolozenieWizualizacji(), 1f));
+            var zadanie = await WatekRoboczy.Uruchom(() => ZadaniePodgladu.Przygotuj(pdf, dane, new PolozenieWizualizacji(), 1f));
             okno.Width = 1100;
             okno.Height = 820;
             okno.PokazPodglad(new StronaPodgladu(okno, zadanie), pdf);

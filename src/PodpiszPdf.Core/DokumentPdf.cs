@@ -30,7 +30,7 @@ public static class DokumentPdf
         {
             foreach (var zadanie in Kolejka.GetConsumingEnumerable())
                 zadanie();
-        })
+        }, WatekRoboczy.RozmiarStosu)
         {
             IsBackground = true,
             Name = "PDFium",

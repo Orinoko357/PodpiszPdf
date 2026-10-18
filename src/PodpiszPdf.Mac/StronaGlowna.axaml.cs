@@ -67,7 +67,7 @@ public sealed partial class StronaGlowna : UserControl
             _plikZFindera = null;
             OtworzZFindera(plik);
         }
-        _ = Task.Run(() => Rozgrzewka.Wykonaj());
+        _ = WatekRoboczy.Uruchom(() => Rozgrzewka.Wykonaj());
         await SprawdzAktualizacje();
     }
 
@@ -162,7 +162,7 @@ public sealed partial class StronaGlowna : UserControl
         BrakCertyfikatow.IsVisible = false;
         OdswiezStan();
         var biblioteka = Ustawienia.BibliotekaPkcs11;
-        var (certyfikaty, bledy, biblioteki) = await Task.Run(() => OdczytajCertyfikaty(biblioteka));
+        var (certyfikaty, bledy, biblioteki) = await WatekRoboczy.Uruchom(() => OdczytajCertyfikaty(biblioteka));
         _wczytywanieCertyfikatow = false;
         WczytywanieCertyfikatow.IsVisible = false;
 
@@ -303,7 +303,7 @@ public sealed partial class StronaGlowna : UserControl
         try
         {
             var pikseli = 70 * (TopLevel.GetTopLevel(this)?.RenderScaling ?? 2) * 1.5;
-            var (obraz, strony) = await Task.Run(() =>
+            var (obraz, strony) = await WatekRoboczy.Uruchom(() =>
             {
                 var s = DokumentPdf.Strony(plik);
                 var skala = pikseli / Math.Max(1, s[0].Wysokosc);
@@ -419,7 +419,7 @@ public sealed partial class StronaGlowna : UserControl
         UstawStatus("Otwieranie podglądu…");
         var dane = new DaneWizualizacji(certyfikat.ImieNazwisko, ustawienia.Stanowisko, ustawienia.SciezkaLogo, DateTimeOffset.Now,
             ustawienia.MotywWizualizacji, certyfikat.Kwalifikowany);
-        var zadanie = await Task.Run(() => ZadaniePodgladu.Przygotuj(wejscie, dane, ustawienia.Polozenie, 1f));
+        var zadanie = await WatekRoboczy.Uruchom(() => ZadaniePodgladu.Przygotuj(wejscie, dane, ustawienia.Polozenie, 1f));
         UstawStatus("Wskaż na podglądzie miejsce podpisu.");
         _okno.PokazPodglad(new StronaPodgladu(_okno, zadanie), wejscie);
         var miejsce = await zadanie.Wynik.Task;
@@ -448,7 +448,7 @@ public sealed partial class StronaGlowna : UserControl
 
             UstawStatus(certyfikat.Karta == null ? "Podpisywanie… macOS może zapytać o dostęp do klucza w pęku kluczy." : "Podpisywanie…");
             _etapKrytyczny = true;
-            var wynik = await Task.Run(() =>
+            var wynik = await WatekRoboczy.Uruchom(() =>
             {
                 lock (BlokadaKarty)
                     return new PodpisywaczPdf(ustawienia.UtworzKlientaTsa()).Podpisz(wejscie, wyjscie, certyfikat.Certyfikat, opcje);
@@ -482,7 +482,7 @@ public sealed partial class StronaGlowna : UserControl
     /// </summary>
     private async Task<SesjaKarty?> ZalogujDoKarty(CertyfikatInfo certyfikat, ZrodloPkcs11 karta)
     {
-        var stan = await Task.Run(() =>
+        var stan = await WatekRoboczy.Uruchom(() =>
         {
             lock (BlokadaKarty)
                 return KartaPkcs11.SprawdzPin(karta);
@@ -512,7 +512,7 @@ public sealed partial class StronaGlowna : UserControl
             }
             try
             {
-                return await Task.Run(() =>
+                return await WatekRoboczy.Uruchom(() =>
                 {
                     lock (BlokadaKarty)
                         return KartaPkcs11.Otworz(karta, certyfikat.Certyfikat, pin);

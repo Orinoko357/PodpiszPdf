@@ -143,7 +143,7 @@ public sealed partial class StronaUstawien : UserControl
             await Task.Delay(_okno.TrybTestowy ? 0 : 250); // przy pisaniu odświeżamy dopiero po chwili
             if (numer != _numerPodgladu)
                 return;
-            var obraz = await Task.Run(() =>
+            var obraz = await WatekRoboczy.Uruchom(() =>
             {
                 var dane = new DaneWizualizacji("Imię Nazwisko", stanowisko, logo, DateTimeOffset.Now, motyw, Kwalifikowany: true);
                 var rozmiar = Wizualizacja.Rozmiar(dane);
@@ -200,7 +200,7 @@ public sealed partial class StronaUstawien : UserControl
         TestTsaPostep.IsVisible = true;
         try
         {
-            var czas = await Task.Run(() =>
+            var czas = await WatekRoboczy.Uruchom(() =>
             {
                 var klient = KlientZnacznikaCzasu.DlaAdresu(adres, login, haslo);
                 var skrot = klient.GetMessageDigest().Digest(Guid.NewGuid().ToByteArray());
@@ -250,7 +250,7 @@ public sealed partial class StronaUstawien : UserControl
             return;
         try
         {
-            var certyfikaty = await Task.Run(() =>
+            var certyfikaty = await WatekRoboczy.Uruchom(() =>
             {
                 lock (StronaGlowna.BlokadaKarty)
                     return KartaPkcs11.PobierzCertyfikaty(plik, DateTime.Now);
@@ -392,7 +392,7 @@ public sealed partial class StronaUstawien : UserControl
         {
             try
             {
-                await Task.Run(() => Wizualizacja.PodgladPdf(new DaneWizualizacji("Test", null, logo, DateTimeOffset.Now)));
+                await WatekRoboczy.Uruchom(() => Wizualizacja.PodgladPdf(new DaneWizualizacji("Test", null, logo, DateTimeOffset.Now)));
             }
             catch (Exception ex)
             {
