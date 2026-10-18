@@ -63,7 +63,8 @@ internal static class CertyfikatyTestowe
             doDnia ?? DateTimeOffset.UtcNow.AddYears(1));
         var pfx = cert.Export(X509ContentType.Pfx, "test");
         klucz.Dispose();
-        return new X509Certificate2(pfx, "test", PodpiszPdf.Core.KluczeTymczasowe.Flagi);
+        // Exportable: testy karty (SoftHSM) kopiują klucz na kartę — w macOS klucz z pęku kluczy jest inaczej nieeksportowalny.
+        return new X509Certificate2(pfx, "test", PodpiszPdf.Core.KluczeTymczasowe.Flagi | X509KeyStorageFlags.Exportable);
     }
 
     private static byte[] QcStatements()
