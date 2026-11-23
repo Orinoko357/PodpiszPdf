@@ -5,6 +5,12 @@ name: Build
 # Nowa wersja (<Version> bez znacznika v<wersja>) jest po udanym budowaniu od razu wydawana (zadanie „wydanie”).
 on:
   push:
+    # Zmiany samego Weryfikatora (osobny program, workflow weryfikator.yml) nie budują PodpisPdf.
+    paths-ignore:
+      - 'src/Weryfikator/**'
+      - 'tests/Weryfikator.Tests/**'
+      - '.github/workflows/weryfikator.yml'
+      - 'docs/WERYFIKATOR.md'
   workflow_dispatch:
 
 permissions:
