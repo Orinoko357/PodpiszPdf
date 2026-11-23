@@ -110,7 +110,9 @@ namespace Weryfikator.Logika
                 List<WpisListy>? wpisy = null; string? blad = null;
                 try
                 {
-                    var bajty = await http.GetByteArrayAsync(w.Adres).ConfigureAwait(false);
+                    byte[] bajty;
+                    try { bajty = await http.GetByteArrayAsync(w.Adres).ConfigureAwait(false); }
+                    catch (Exception) { await Task.Delay(1500).ConfigureAwait(false); bajty = await http.GetByteArrayAsync(w.Adres).ConfigureAwait(false); }
                     var doc = PodpisXml.Wczytaj(new MemoryStream(bajty));
                     blad = SprawdzPodpisListy(doc, w.Certy);
                     if (blad == null) wpisy = Uslugi(doc, w.Kraj);

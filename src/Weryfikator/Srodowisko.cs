@@ -21,7 +21,9 @@ namespace Weryfikator
 
         public static HttpClient Http()
         {
-            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+            // TLS 1.2 i 1.3 (wartość 12288 — nazwy Tls13 nie ma w starszych zestawach referencyjnych).
+            try { ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12 | (SecurityProtocolType)12288; }
+            catch (NotSupportedException) { ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12; }
             var h = new HttpClient(new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate })
             { Timeout = TimeSpan.FromSeconds(120) };
             h.DefaultRequestHeaders.UserAgent.ParseAdd("Weryfikator/1.0");

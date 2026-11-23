@@ -179,18 +179,18 @@ namespace Weryfikator.Tests
             string? obok = Path.Combine(_folder, "załącznik nr 1.pdf");
             File.WriteAllText(obok, "zawartość");
             var dane = "<ppZP:PodpisZP xmlns:ppZP=\"http://crd.gov.pl/xml/schematy/ppzp/\" xmlns:os=\"http://crd.gov.pl/xml/schematy/osoba/2009/03/06/\">" +
-                       "<os:Imie>Anna</os:Imie><os:Nazwisko>Nowak</os:Nazwisko><os:PESEL>" + Pliki.PeselB + "</os:PESEL></ppZP:PodpisZP>";
+                       "<os:Imie>Żaneta</os:Imie><os:Nazwisko>Nowak</os:Nazwisko><os:PESEL>" + Pliki.PeselB + "</os:PESEL></ppZP:PodpisZP>";
             var plik = PodpiszXades(pieczec, dane, obok);
             var w = Sprawdzanie.Plik(plik, Ust()).Single();
             Assert.True(w.Status == Status.Wazny, Opis(w));
             Assert.Equal(Rodzaj.Zaufany, w.Rodzaj);
             Assert.Equal(Pliki.PeselB, w.Pesel);
-            Assert.Equal("Anna Nowak", w.Podpisujacy);
+            Assert.Equal("Żaneta Nowak", w.Podpisujacy);
             Assert.False(w.NaLiscie);
 
             // Zmiana danych osoby (odwołanie wewnętrzne) albo pliku obok unieważnia podpis.
             var xml = File.ReadAllText(plik);
-            File.WriteAllText(plik, xml.Replace(">Anna<", ">Hanna<"));
+            File.WriteAllText(plik, xml.Replace(">Żaneta<", ">Hanna<"));
             Assert.Equal(Status.Niewazny, Sprawdzanie.Plik(plik, Ust()).Single().Status);
             File.WriteAllText(plik, xml);
             Assert.Equal(Status.Wazny, Sprawdzanie.Plik(plik, Ust()).Single().Status);

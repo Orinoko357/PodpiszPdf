@@ -70,8 +70,10 @@ namespace Weryfikator
             _siatka.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
             _siatka.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             Kolumna("Wynik", 70); Kolumna("Plik", 230); Kolumna("Nr", 32); Kolumna("Ważność podpisu", 115); Kolumna("Rodzaj podpisu", 120);
-            Kolumna("Podpisujący", 170); Kolumna("PESEL", 95); Kolumna("Na liście", 65); Kolumna("Czas podpisu", 180);
-            Kolumna("Uwagi", 100).AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            Kolumna("Podpisujący", 170); Kolumna("PESEL", 95); Kolumna("Na liście", 65); Kolumna("Czas podpisu", 150);
+            var uwagi = Kolumna("Uwagi", 100);
+            uwagi.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            uwagi.MinimumWidth = 220 * DeviceDpi / 96;
 
             var pasek = new StatusStrip();
             pasek.Items.Add(_stan);

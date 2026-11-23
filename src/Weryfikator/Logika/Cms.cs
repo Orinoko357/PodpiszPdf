@@ -28,6 +28,8 @@ namespace Weryfikator.Logika
         public string? UwagaZnacznika;
         /// <summary>Atrybuty podpisane jako tekst (do wyszukania danych podpisu zaufanego).</summary>
         public string TekstAtrybutow = "";
+        /// <summary>true — tekst to surowe bajty (CMS, UTF-8 czytane jako Latin-1); false — zwykły tekst (XML).</summary>
+        public bool TekstToBajty = true;
     }
 
     internal static class Cms

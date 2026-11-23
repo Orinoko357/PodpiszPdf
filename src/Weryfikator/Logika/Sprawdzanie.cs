@@ -270,6 +270,7 @@ namespace Weryfikator.Logika
                 }
                 catch (Exception e) { wc.Blad = "Nie udało się sprawdzić podpisu XML: " + e.Message; }
                 wc.TekstAtrybutow = tekstPodpisu;
+                wc.TekstToBajty = false;
                 wyniki.Add(Ocen(wc, u, ""));
             }
             return wyniki;
@@ -406,7 +407,7 @@ namespace Weryfikator.Logika
             if (w.Rodzaj == Rodzaj.Zaufany || (w.Pesel == null && dc.Pieczec))
             {
                 var tekst = wc.TekstAtrybutow;
-                var utf = Encoding.UTF8.GetString(Encoding.GetEncoding(28591).GetBytes(tekst));
+                var utf = wc.TekstToBajty ? Encoding.UTF8.GetString(Encoding.GetEncoding(28591).GetBytes(tekst)) : tekst;
                 var pesel = Pesel.ZEtykiety(tekst) ?? Pesel.ZEtykiety(slownikPdf);
                 if (pesel == null && w.Rodzaj == Rodzaj.Zaufany)
                 {
