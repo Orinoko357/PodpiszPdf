@@ -38,6 +38,40 @@ namespace Weryfikator.Tests
             return wyjscie;
         }
 
+        /// <summary>PDF podpisany jak podpisem zaufanym: pieczęć, a dane osoby we wpisie /Reason słownika podpisu.</summary>
+        private string PodpiszPdfZPowodem(X509Certificate2 cert, string powod, string nazwa)
+        {
+            var wejscie = Tsa.UtworzPdf(_folder, nazwa);
+            var wyjscie = Path.Combine(_folder, Path.GetFileNameWithoutExtension(wejscie) + "_p.pdf");
+            var lancuch = new[] { iText.Bouncycastleconnector.BouncyCastleFactoryCreator.GetFactory().CreateX509Certificate(new MemoryStream(cert.RawData)) };
+            using var czytnik = new iText.Kernel.Pdf.PdfReader(wejscie);
+            using var strumien = new FileStream(wyjscie, FileMode.Create, FileAccess.Write);
+            new iText.Signatures.PdfPadesSigner(czytnik, strumien).SignWithBaselineTProfile(
+                new iText.Signatures.SignerProperties().SetReason(powod).SetSignatureCreator("Test"), lancuch, new PodpisRsa(cert), _tsa);
+            return wyjscie;
+        }
+
+        [Fact]
+        public void PdfPodpisZaufanyPeselWePowodzie()
+        {
+            using var pieczec = _urzad.Wystaw("Minister do spraw informatyzacji - pieczęć podpisu zaufanego", null, pieczec: true);
+            var plik = PodpiszPdfZPowodem(pieczec, PowodZp, "zaufany.pdf");
+            var w = Sprawdzanie.Plik(plik, Ust()).Single();
+            Assert.True(w.Status == Status.Wazny, Opis(w));
+            Assert.Equal(Rodzaj.Zaufany, w.Rodzaj);
+            Assert.Equal(Pliki.PeselA, w.Pesel);
+            Assert.Equal("ZAŻÓŁĆ GĘŚLĄ-JAŹŃ", w.Podpisujacy);
+            Assert.True(w.WPorzadku);
+        }
+
+        private const string PowodZp = "Opatrzono pieczęcią ministra właściwego do spraw informatyzacji w imieniu: ZAŻÓŁĆ GĘŚLĄ-JAŹŃ, PESEL: " + Pliki.PeselA + ", PZ ID: zaz_ges";
+
+        [Theory]
+        [InlineData("<< /Reason (w imieniu: JAN \\(X\\) NOWAK, PESEL: 44051401359\\054 PZ) /Name (Jan) >>", "w imieniu: JAN (X) NOWAK, PESEL: 44051401359, PZ")]
+        [InlineData("/Reason<FEFF005A0061017C00F3014201070020>", "Zażółć ")]
+        [InlineData("/Reason << /Inny true >>", "")]
+        public void NapisZeSlownikaPdf(string slownik, string oczekiwany) => Assert.Equal(oczekiwany, Sprawdzanie.NapisPdf(slownik, "/Reason", 0));
+
         private static string Opis(WynikPodpisu w) => w.StatusTekst + ": " + string.Join(" | ", w.Uwagi);
 
         [Theory]
@@ -241,6 +275,7 @@ namespace Weryfikator.Tests
             File.WriteAllBytes(zaufany, PodpisyTesty.PodpiszCms(Encoding.UTF8.GetBytes("pismo"), pieczec, false, s =>
                 s.SignedAttributes.Add(new AsnEncodedData(new Oid("1.2.616.1.999.1"), PodpisyTesty.OctetString(Encoding.UTF8.GetBytes(PodpisyTesty.DaneZp))))));
             Dodaj(zaufany, "08 podpis zaufany.p7m", "WAŻNY", "TAK");
+            Dodaj(PodpiszPdfZPowodem(pieczec, PowodZp, "zaufany.pdf"), "13 podpis zaufany.pdf", "WAŻNY", "TAK");
             Dodaj(PodpisyTesty.PodpiszXades(_folder, janEc, null, null, "x1.xml"), "09 XAdES ECDSA.xml", "WAŻNY", "TAK");
             Dodaj(PodpisyTesty.PodpiszXades(_folder, pieczec, PodpisyTesty.DaneZp, null, "x2.xml"), "10 XAdES podpis zaufany.xml", "WAŻNY", "TAK");
             var dok = Path.Combine(pliki, "11 umowa.docx");

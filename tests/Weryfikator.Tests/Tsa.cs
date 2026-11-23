@@ -1,3 +1,4 @@
+#nullable enable
 #if NET8_0_OR_GREATER
 using System;
 using System.IO;
@@ -63,6 +64,21 @@ namespace Weryfikator.Tests
             using var doc = new Document(pdf);
             doc.Add(new Paragraph("Wniosek testowy"));
             return sciezka;
+        }
+    }
+
+    /// <summary>Podpis kluczem RSA certyfikatu (dla iText).</summary>
+    internal sealed class PodpisRsa : IExternalSignature
+    {
+        private readonly X509Certificate2 _cert;
+        public PodpisRsa(X509Certificate2 cert) { _cert = cert; }
+        public string GetDigestAlgorithmName() => "SHA-256";
+        public string GetSignatureAlgorithmName() => "RSA";
+        public ISignatureMechanismParams? GetSignatureMechanismParameters() => null;
+        public byte[] Sign(byte[] message)
+        {
+            using var rsa = System.Security.Cryptography.X509Certificates.RSACertificateExtensions.GetRSAPrivateKey(_cert)!;
+            return rsa.SignData(message, System.Security.Cryptography.HashAlgorithmName.SHA256, System.Security.Cryptography.RSASignaturePadding.Pkcs1);
         }
     }
 

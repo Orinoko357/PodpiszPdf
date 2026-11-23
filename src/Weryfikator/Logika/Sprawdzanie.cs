@@ -121,6 +121,8 @@ namespace Weryfikator.Logika
                     }
                     czasM = tm; odleglosc = Math.Abs(mm.Index - pozWSlowniku);
                 }
+                // Wpisy tekstowe słownika podpisu; w podpisie zaufanym /Reason zawiera „…w imieniu: IMIĘ NAZWISKO, PESEL: …”.
+                slownik = "Reason: " + NapisPdf(slownik, "/Reason", pozWSlowniku) + "\nName: " + NapisPdf(slownik, "/Name", pozWSlowniku) + "\n";
                 foreach (var wc in Cms.Sprawdz(cms, tresc))
                 {
                     if (wc.CzasDeklarowany == null) wc.CzasDeklarowany = czasM;
@@ -138,6 +140,66 @@ namespace Weryfikator.Logika
                     p.Value.Uwagi.Add("Po złożeniu podpisu do pliku dopisano dane, których podpis nie obejmuje — sprawdź dokument w programie Adobe Reader.");
                 }
             return wyniki.OrderBy(w => podpisy.First(p => p.Value == w).Key).ToList();
+        }
+
+        /// <summary>Wartość wpisu tekstowego słownika PDF (napis w nawiasach albo szesnastkowy), najbliższego podanej pozycji.</summary>
+        internal static string NapisPdf(string tekst, string klucz, int blisko)
+        {
+            int najlepszy = -1;
+            for (int i = tekst.IndexOf(klucz, StringComparison.Ordinal); i >= 0; i = tekst.IndexOf(klucz, i + 1, StringComparison.Ordinal))
+            {
+                int k = i + klucz.Length;
+                while (k < tekst.Length && char.IsWhiteSpace(tekst[k])) k++;
+                if (k >= tekst.Length || (tekst[k] != '(' && tekst[k] != '<') || (tekst[k] == '<' && k + 1 < tekst.Length && tekst[k + 1] == '<')) continue;
+                if (najlepszy < 0 || Math.Abs(i - blisko) < Math.Abs(najlepszy - blisko)) najlepszy = i;
+            }
+            if (najlepszy < 0) return "";
+            int p = najlepszy + klucz.Length;
+            while (char.IsWhiteSpace(tekst[p])) p++;
+            var b = new List<byte>();
+            if (tekst[p] == '<')
+            {
+                int pol = -1;
+                for (p++; p < tekst.Length && tekst[p] != '>'; p++)
+                {
+                    int v = Uri.IsHexDigit(tekst[p]) ? Convert.ToInt32(tekst[p].ToString(), 16) : -1;
+                    if (v < 0) continue;
+                    if (pol < 0) pol = v; else { b.Add((byte)(pol * 16 + v)); pol = -1; }
+                }
+            }
+            else
+            {
+                int glebokosc = 1;
+                for (p++; p < tekst.Length && glebokosc > 0; p++)
+                {
+                    char z = tekst[p];
+                    if (z == '\\' && p + 1 < tekst.Length)
+                    {
+                        z = tekst[++p];
+                        if (z >= '0' && z <= '7')
+                        {
+                            int w = z - '0';
+                            for (int n = 0; n < 2 && p + 1 < tekst.Length && tekst[p + 1] >= '0' && tekst[p + 1] <= '7'; n++) w = w * 8 + (tekst[++p] - '0');
+                            b.Add((byte)w);
+                        }
+                        else if (z == 'n') b.Add(10);
+                        else if (z == 'r') b.Add(13);
+                        else if (z == 't') b.Add(9);
+                        else if (z == 'b') b.Add(8);
+                        else if (z == 'f') b.Add(12);
+                        else if (z == '\r') { if (p + 1 < tekst.Length && tekst[p + 1] == '\n') p++; }
+                        else if (z != '\n') b.Add((byte)z);
+                    }
+                    else if (z == '(') { glebokosc++; b.Add((byte)z); }
+                    else if (z == ')') { if (--glebokosc > 0) b.Add((byte)z); }
+                    else b.Add((byte)z);
+                }
+            }
+            var bajty = b.ToArray();
+            if (bajty.Length >= 2 && bajty[0] == 0xFE && bajty[1] == 0xFF) return Encoding.BigEndianUnicode.GetString(bajty, 2, bajty.Length - 2);
+            if (bajty.Length >= 2 && bajty[0] == 0xFF && bajty[1] == 0xFE) return Encoding.Unicode.GetString(bajty, 2, bajty.Length - 2);
+            if (bajty.Length >= 3 && bajty[0] == 0xEF && bajty[1] == 0xBB && bajty[2] == 0xBF) return Encoding.UTF8.GetString(bajty, 3, bajty.Length - 3);
+            return Encoding.GetEncoding(28591).GetString(bajty);
         }
 
         private static bool SameBialeZnaki(byte[] d, long od)
@@ -420,8 +482,10 @@ namespace Weryfikator.Logika
                 if (mi.Success && mn.Success) w.Podpisujacy = mi.Groups[1].Value + " " + mn.Groups[1].Value;
                 else if (w.Rodzaj == Rodzaj.Zaufany)
                 {
-                    var mName = Regex.Match(slownikPdf, @"/Name\s*\(([^)]{1,200})\)");
-                    w.Podpisujacy = mName.Success ? mName.Groups[1].Value : "(podpis zaufany)";
+                    // PDF: „…w imieniu: IMIĘ NAZWISKO, PESEL: …” we wpisie /Reason, w ostateczności wpis /Name.
+                    var mPowod = Regex.Match(slownikPdf, @"w imieniu:?\s*([^,\r\n]{2,120}?)\s*,", RegexOptions.IgnoreCase);
+                    var mName = Regex.Match(slownikPdf, @"^Name: (.{1,200})$", RegexOptions.Multiline);
+                    w.Podpisujacy = mPowod.Success ? mPowod.Groups[1].Value.Trim() : mName.Success ? mName.Groups[1].Value.Trim() : "(podpis zaufany)";
                 }
             }
             if (w.Pesel == null)

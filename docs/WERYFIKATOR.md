@@ -24,7 +24,7 @@ Dwuklik na wierszu otwiera plik. Bez listy PESEL program sprawdza samą ważnoś
 | Rodzaj podpisu | Jak rozpoznawany | Skąd PESEL |
 |---|---|---|
 | **Kwalifikowany** | certyfikat kwalifikowany wystawiony przez urząd z listy zaufania UE | pole `serialNumber` certyfikatu (`PNOPL-…`, dawniej `PESEL: …`) |
-| **Zaufany** (profil zaufany) | kwalifikowana pieczęć „…pieczęć podpisu zaufanego” (urząd z listy zaufania UE) | dane osoby w podpisanej części podpisu (imię, nazwisko, PESEL) |
+| **Zaufany** (profil zaufany) | kwalifikowana pieczęć „…pieczęć podpisu zaufanego” (urząd z listy zaufania UE) | PDF: wpis „Powód” podpisu („…w imieniu: IMIĘ NAZWISKO, PESEL: …”); XML: dane osoby w podpisanej części podpisu |
 | **Osobisty** (e-dowód) | certyfikat z urzędu e-dowodu (pl.ID), zaufany certyfikat główny | pole `serialNumber` certyfikatu |
 
 Formaty: **PDF** (PAdES — także wiele podpisów w jednym pliku), **XML/XAdES** (`.xml`, `.xades`, również podpis
@@ -70,9 +70,9 @@ Kod wyjścia: 0 — wszystko w porządku, 1 — są pozycje do sprawdzenia, 2 �
 
 - Program jest pomocą przy wstępnej kontroli dokumentów, nie kwalifikowaną usługą walidacji. Wynik „WAŻNY” oznacza
   pozytywny wynik opisanych wyżej sprawdzeń. W razie sporu rozstrzyga kwalifikowana usługa walidacji.
-- Odczyt danych osoby z **podpisu zaufanego** i rozpoznawanie **podpisu osobistego** przetestowano na plikach
-  testowych o takiej samej budowie, nie na dokumentach podpisanych prawdziwym profilem zaufanym i e-dowodem —
-  przed użyciem warto sprawdzić po jednym prawdziwym dokumencie każdego rodzaju.
+- Podpis zaufany w PDF potwierdzono na prawdziwym dokumencie. Podpis zaufany w XML oraz **podpis osobisty**
+  przetestowano tylko na plikach testowych o przyjętej budowie — przed użyciem warto sprawdzić po jednym
+  prawdziwym dokumencie.
 - Unieważnienie sprawdzane jest według stanu bieżącego: certyfikat unieważniony po złożeniu podpisu daje wynik
   „DO WYJAŚNIENIA” (ze znacznikiem czasu) albo „NIEWAŻNY” (bez znacznika).
 - Podpis LOTL sprawdzany jest względem certyfikatów wskazanych w samej liście (pobranej po HTTPS z serwera Komisji).
