@@ -47,6 +47,40 @@ namespace Weryfikator.Tests
         }
 
         [Fact]
+        public void ListaPeselWybranaKolumna()
+        {
+            var folder = Pliki.Folder();
+            // Kolumna A: numery (tekst i liczby), kolumna B: „Jan”; dodatkowo PESEL w kolumnie C pierwszego wiersza danych.
+            var plik = Pliki.Xlsx(folder, new[] { Pliki.PeselA }, new[] { "2070803628" }, "<c r=\"C2\" t=\"inlineStr\"><is><t>81100216357</t></is></c>");
+            var l = ListaPesel.Wczytaj(plik);
+            Assert.Equal(3, l.Numery.Count);
+            var a = l.Arkusze.Single();
+            Assert.Equal(3, a.LiczbaKolumn);
+            Assert.Equal("PESEL", a.Wiersze[0][0].Tekst);
+            Assert.Equal("Jan", a.Wiersze[1][1].Tekst);
+            Assert.Equal("2070803628", a.Wiersze[2][0].Tekst);
+
+            l.Wybierz(0, 0);
+            Assert.Equal(new[] { Pliki.PeselB, Pliki.PeselA }, l.Numery.OrderBy(x => x));
+            l.Wybierz(-1, ListaPesel.NumerKolumny("C"));
+            Assert.Equal(new[] { "81100216357" }, l.Numery);
+            l.Wybierz(0, 1);
+            Assert.Empty(l.Numery);
+
+            Assert.Equal("A", ListaPesel.NazwaKolumny(0));
+            Assert.Equal("AA", ListaPesel.NazwaKolumny(26));
+            Assert.Equal(27, ListaPesel.NumerKolumny("AB"));
+            Assert.Equal(1, ListaPesel.NumerKolumny("2"));
+
+            var csv = Path.Combine(folder, "lista.csv");
+            File.WriteAllText(csv, "Nazwisko;PESEL\nKowalski;" + Pliki.PeselA + "\nNowak;" + Pliki.PeselB + "\n");
+            var t = ListaPesel.Wczytaj(csv);
+            Assert.Equal(2, t.Numery.Count);
+            t.Wybierz(0, 0);
+            Assert.Empty(t.Numery);
+        }
+
+        [Fact]
         public void DaneZCertyfikatu()
         {
             var urzad = new Urzad();

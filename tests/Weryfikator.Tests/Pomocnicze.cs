@@ -88,7 +88,7 @@ namespace Weryfikator.Tests
         }
 
         /// <summary>Minimalny arkusz xlsx: komórki tekstowe (wspólne napisy) i liczbowe.</summary>
-        public static string Xlsx(string folder, string[] teksty, string[] liczby)
+        public static string Xlsx(string folder, string[] teksty, string[] liczby, string dodatkowaKomorka = "")
         {
             var p = Path.Combine(folder, "lista.xlsx");
             File.Delete(p);
@@ -102,7 +102,7 @@ namespace Weryfikator.Tests
             for (int i = 0; i < teksty.Length; i++)
             {
                 ss.Append("<si><r><t>").Append(teksty[i]).Append("</t></r></si>");
-                sh.Append($"<row r=\"{++w}\"><c r=\"A{w}\" t=\"s\"><v>{i + 1}</v></c><c r=\"B{w}\" t=\"inlineStr\"><is><t>Jan</t></is></c></row>");
+                sh.Append($"<row r=\"{++w}\"><c r=\"A{w}\" t=\"s\"><v>{i + 1}</v></c><c r=\"B{w}\" t=\"inlineStr\"><is><t>Jan</t></is></c>{(i == 0 ? dodatkowaKomorka : "")}</row>");
             }
             foreach (var l in liczby) sh.Append($"<row r=\"{++w}\"><c r=\"A{w}\"><v>{l}</v></c></row>");
             ss.Append("</sst>"); sh.Append("</sheetData></worksheet>");

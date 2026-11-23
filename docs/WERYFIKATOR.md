@@ -13,6 +13,9 @@ Korzysta z .NET Framework 4.8, który jest częścią Windows 10 i 11, więc nic
 2. **Lista PESEL (xlsx)…** — arkusz z numerami PESEL. Program czyta wszystkie arkusze i wszystkie komórki,
    więc układ kolumn jest dowolny; radzi sobie z numerami zapisanymi jako liczby (zgubione zero na początku).
    Numery z błędną sumą kontrolną są pomijane i zgłaszane. Ostatnio użyta lista jest pamiętana.
+   **Podgląd listy…** pokazuje zawartość arkusza i pozwala wskazać arkusz oraz kolumnę z numerami PESEL
+   (lista rozwijana albo kliknięcie nagłówka kolumny) — wtedy numery z innych kolumn nie są brane pod uwagę.
+   Zielone komórki to numery użyte do porównania, czerwone — 11 cyfr z błędną sumą kontrolną.
 3. **Sprawdź podpisy** — każdy podpis to jeden wiersz: ważność, rodzaj podpisu, podpisujący, PESEL,
    czy PESEL jest na liście, czas podpisu i uwagi. Kolumna „Wynik”: **OK** = podpis ważny i PESEL na liście.
 4. **Zapisz raport…** — plik CSV otwierany w Excelu.
@@ -61,7 +64,7 @@ Wersja przenośna: te same pliki mogą leżeć w folderze `certyfikaty` obok `We
 ## Tryb bez okna
 
 ```
-Weryfikator.exe --sprawdz <folder lub pliki…> [--pesel lista.xlsx] [--raport raport.csv] [--bez-crl]
+Weryfikator.exe --sprawdz <folder lub pliki…> [--pesel lista.xlsx] [--kolumna B] [--raport raport.csv] [--bez-crl]
 ```
 
 Kod wyjścia: 0 — wszystko w porządku, 1 — są pozycje do sprawdzenia, 2 — błąd.

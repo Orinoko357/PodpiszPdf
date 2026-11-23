@@ -25,6 +25,7 @@ namespace Weryfikator
         private readonly Button _btnFolder = Przycisk("Dodaj folder…");
         private readonly Button _btnWyczysc = Przycisk("Wyczyść");
         private readonly Button _btnPesel = Przycisk("Lista PESEL (xlsx)…");
+        private readonly Button _btnPodglad = Przycisk("Podgląd listy…");
         private readonly Button _btnSprawdz = Przycisk("Sprawdź podpisy");
         private readonly Button _btnRaport = Przycisk("Zapisz raport…");
         private readonly Label _lblPesel = new Label { AutoSize = true, Margin = new Padding(3, 9, 12, 0), Text = "Nie wybrano listy PESEL" };
@@ -53,7 +54,7 @@ namespace Weryfikator
 
             _btnSprawdz.Font = new Font(Font, FontStyle.Bold);
             var gora = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(6, 6, 6, 0), WrapContents = true };
-            gora.Controls.AddRange(new Control[] { _btnPliki, _btnFolder, _btnWyczysc, _btnPesel, _lblPesel, _btnSprawdz, _btnRaport });
+            gora.Controls.AddRange(new Control[] { _btnPliki, _btnFolder, _btnWyczysc, _btnPesel, _btnPodglad, _lblPesel, _btnSprawdz, _btnRaport });
             var opcje = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(6, 0, 6, 6), WrapContents = true };
             opcje.Controls.AddRange(new Control[] { _chkOnline, _lnkLista, _lnkCerty });
 
@@ -89,6 +90,8 @@ namespace Weryfikator
             _btnFolder.Click += (s, e) => WybierzFolder();
             _btnWyczysc.Click += (s, e) => { _pliki.Clear(); _wyniki.Clear(); Odswiez(); };
             _btnPesel.Click += (s, e) => WybierzListePesel();
+            _btnPodglad.Click += (s, e) => PodgladListy();
+            _btnPodglad.Enabled = false;
             _btnSprawdz.Click += async (s, e) => await Sprawdz();
             _btnRaport.Click += (s, e) => ZapiszRaport();
             _lnkLista.LinkClicked += (s, e) => PobierzListe(true);
@@ -117,7 +120,7 @@ namespace Weryfikator
             okno._pliki.AddRange(wyniki.Select(w => w.Plik).Distinct());
             okno._pesele = pesele;
             okno._lista = lista;
-            if (pesele != null) okno._lblPesel.Text = $"{Path.GetFileName(pesele.Plik)}: {pesele.Numery.Count} numerów PESEL";
+            if (pesele != null) { okno._lblPesel.Text = $"{Path.GetFileName(pesele.Plik)}: {pesele.Numery.Count} numerów PESEL"; okno._btnPodglad.Enabled = true; }
             okno.Show();
             okno.OpisListy(null);
             okno.Odswiez();
@@ -125,6 +128,13 @@ namespace Weryfikator
             using var bmp = new Bitmap(okno.Width, okno.Height);
             okno.DrawToBitmap(bmp, new Rectangle(Point.Empty, okno.Size));
             bmp.Save(plik, System.Drawing.Imaging.ImageFormat.Png);
+            if (pesele == null) return;
+            using var podglad = new OknoListy(pesele) { StartPosition = FormStartPosition.Manual, Location = new Point(40, 40) };
+            podglad.Show();
+            Application.DoEvents();
+            using var bmp2 = new Bitmap(podglad.Width, podglad.Height);
+            podglad.DrawToBitmap(bmp2, new Rectangle(Point.Empty, podglad.Size));
+            bmp2.Save(Path.Combine(Path.GetDirectoryName(plik)!, "lista.png"), System.Drawing.Imaging.ImageFormat.Png);
         }
 
         private DataGridViewColumn Kolumna(string naglowek, int szerokosc)
@@ -141,8 +151,13 @@ namespace Weryfikator
             {
                 if (File.Exists(Srodowisko.PlikUstawien))
                 {
-                    var p = File.ReadAllText(Srodowisko.PlikUstawien).Trim();
-                    if (File.Exists(p)) WczytajListePesel(p, false);
+                    var u = File.ReadAllLines(Srodowisko.PlikUstawien);
+                    if (u.Length > 0 && File.Exists(u[0].Trim()))
+                    {
+                        int a = -1, k = -1;
+                        if (u.Length > 2) { int.TryParse(u[1], out a); int.TryParse(u[2], out k); }
+                        WczytajListePesel(u[0].Trim(), false, a, k);
+                    }
                 }
             }
             catch (Exception) { }
@@ -230,36 +245,64 @@ namespace Weryfikator
             if (d.ShowDialog(this) == DialogResult.OK) WczytajListePesel(d.FileName, true);
         }
 
-        private void WczytajListePesel(string plik, bool komunikaty)
+        private void WczytajListePesel(string plik, bool komunikaty, int arkusz = -1, int kolumna = -1)
         {
             try
             {
                 var l = ListaPesel.Wczytaj(plik);
+                // Zapamiętany wybór kolumny stosujemy tylko, gdy nadal daje jakieś numery.
+                if (arkusz >= 0 || kolumna >= 0)
+                {
+                    l.Wybierz(arkusz, kolumna);
+                    if (l.Numery.Count == 0) l.Wybierz(-1, -1);
+                }
                 if (l.Numery.Count == 0)
                 {
                     if (komunikaty) Blad("W pliku nie znaleziono żadnego numeru PESEL.");
                     return;
                 }
                 _pesele = l;
-                _lblPesel.Text = $"{Path.GetFileName(plik)}: {l.Numery.Count} numerów PESEL";
-                try { Directory.CreateDirectory(Srodowisko.FolderDanych); File.WriteAllText(Srodowisko.PlikUstawien, plik); } catch (Exception) { }
+                ListaZmieniona();
                 if (komunikaty && l.Bledne.Count > 0)
                     MessageBox.Show(this, "Na liście są numery o błędnej sumie kontrolnej (pominięto je — sprawdź, czy to nie literówki):\n\n" +
                                           string.Join("\n", l.Bledne.Take(20)) + (l.Bledne.Count > 20 ? "\n…" : ""), Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                if (_wyniki.Count > 0)
-                {
-                    // Lista zmieniona po sprawdzeniu — wystarczy ponownie porównać numery.
-                    foreach (var w in _wyniki)
-                    {
-                        w.Uwagi.Remove("Numeru PESEL podpisującego nie ma na liście.");
-                        w.BezListyPesel = false;
-                        w.NaLiscie = w.Pesel == null ? (bool?)null : l.Zawiera(w.Pesel);
-                        if (w.NaLiscie == false) w.Uwagi.Add("Numeru PESEL podpisującego nie ma na liście.");
-                    }
-                    Odswiez();
-                }
             }
             catch (Exception e) { if (komunikaty) Blad("Nie można wczytać listy PESEL:\n" + e.Message); }
+        }
+
+        private void PodgladListy()
+        {
+            if (_pesele == null) return;
+            using var okno = new OknoListy(_pesele);
+            if (okno.ShowDialog(this) != DialogResult.OK) return;
+            _pesele.Wybierz(okno.WybranyArkusz, okno.WybranaKolumna);
+            if (_pesele.Numery.Count == 0)
+                Blad("W wybranej kolumnie nie ma żadnego numeru PESEL — żaden podpisujący nie zostanie uznany za obecnego na liście.");
+            ListaZmieniona();
+        }
+
+        /// <summary>Opis listy, zapamiętanie wyboru i ponowne porównanie numerów w już sprawdzonych podpisach.</summary>
+        private void ListaZmieniona()
+        {
+            var l = _pesele!;
+            _btnPodglad.Enabled = true;
+            _lblPesel.Text = $"{Path.GetFileName(l.Plik)}: {l.Numery.Count} numerów PESEL" +
+                             (l.WybranaKolumna >= 0 ? $" (kolumna {ListaPesel.NazwaKolumny(l.WybranaKolumna)})" : "");
+            try
+            {
+                Directory.CreateDirectory(Srodowisko.FolderDanych);
+                File.WriteAllLines(Srodowisko.PlikUstawien, new[] { l.Plik, l.WybranyArkusz.ToString(), l.WybranaKolumna.ToString() });
+            }
+            catch (Exception) { }
+            if (_wyniki.Count == 0) return;
+            foreach (var w in _wyniki)
+            {
+                w.Uwagi.Remove("Numeru PESEL podpisującego nie ma na liście.");
+                w.BezListyPesel = false;
+                w.NaLiscie = w.Pesel == null ? (bool?)null : l.Zawiera(w.Pesel);
+                if (w.NaLiscie == false) w.Uwagi.Add("Numeru PESEL podpisującego nie ma na liście.");
+            }
+            Odswiez();
         }
 
         // ---------- sprawdzanie
@@ -323,6 +366,7 @@ namespace Weryfikator
         private void Zablokuj(bool trwa)
         {
             foreach (var b in new[] { _btnPliki, _btnFolder, _btnWyczysc, _btnPesel, _btnRaport }) b.Enabled = !trwa;
+            _btnPodglad.Enabled = !trwa && _pesele != null;
             _btnSprawdz.Text = trwa ? "Przerwij" : "Sprawdź podpisy";
             AllowDrop = !trwa;
             if (!trwa) _btnRaport.Enabled = _wyniki.Count > 0;

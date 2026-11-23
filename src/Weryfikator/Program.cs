@@ -42,7 +42,7 @@ namespace Weryfikator
         }
 
         /// <summary>
-        /// Tryb bez okna: Weryfikator.exe --sprawdz &lt;folder lub pliki…&gt; [--pesel lista.xlsx] [--raport raport.csv]
+        /// Tryb bez okna: Weryfikator.exe --sprawdz &lt;folder lub pliki…&gt; [--pesel lista.xlsx] [--kolumna B] [--raport raport.csv]
         /// [--lista plik] [--bez-crl] [--zrzut okno.png]. Kod wyjścia: 0 — wszystko w porządku, 1 — są pozycje do sprawdzenia, 2 — błąd.
         /// </summary>
         private static int BezOkna(string[] args)
@@ -53,15 +53,18 @@ namespace Weryfikator
                 var u = new Ustawienia { CertyfikatyUzytkownika = Srodowisko.CertyfikatyUzytkownika() };
                 var pliki = new List<string>();
                 string? plikListy = null;
+                int kolumna = -1;
                 for (int i = 1; i < args.Length; i++)
                 {
                     if (args[i] == "--pesel") u.Pesele = ListaPesel.Wczytaj(args[++i]);
+                    else if (args[i] == "--kolumna") kolumna = ListaPesel.NumerKolumny(args[++i]);
                     else if (args[i] == "--raport") raport = args[++i];
                     else if (args[i] == "--lista") plikListy = args[++i];
                     else if (args[i] == "--bez-crl") u.Online = false;
                     else if (args[i] == "--zrzut") i++;
                     else pliki.AddRange(Srodowisko.PlikiZ(args[i]));
                 }
+                if (kolumna >= 0) u.Pesele?.Wybierz(-1, kolumna);
                 if (plikListy != null) u.Lista = ListaZaufania.Wczytaj(plikListy) ?? throw new InvalidDataException("Nie można wczytać listy zaufania z pliku " + plikListy);
                 else
                 {
