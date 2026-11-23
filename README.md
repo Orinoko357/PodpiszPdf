@@ -97,6 +97,12 @@ dopiero po podpisie, więc tuż przed podpisem program pobiera aktualny czas z s
 (dodatkowe żądanie do TSA) i to on trafia na wizualizację; gdy serwer nie odpowie — czas komputera.
 Wiążący czas zawsze zawiera znacznik czasu w podpisie.
 
+## Weryfikator
+
+W repozytorium jest też osobny, mały program **Weryfikator** (`Weryfikator.exe`, bez instalacji): sprawdza ważność
+podpisów (kwalifikowany, zaufany, osobisty) w grupie plików i to, czy numery PESEL podpisujących są na liście z pliku
+`.xlsx`; pobiera aktualną listę zaufania UE. Opis: [`docs/WERYFIKATOR.md`](docs/WERYFIKATOR.md).
+
 ## Budowanie
 
 Wymagane .NET 10 SDK (i .NET 8 dla testów) na Windows.

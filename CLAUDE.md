@@ -23,6 +23,15 @@ w GitHub **Releases** — bez pytania użytkownika:
 
 Zmiany niewpływające na program (tylko dokumentacja, `CLAUDE.md`) nie wymagają wydania.
 
+## Weryfikator (osobny program)
+
+`src/Weryfikator` — WinForms na .NET Framework 4.8, jeden plik `Weryfikator.exe` bez bibliotek zewnętrznych (nie dodawać
+pakietów NuGet: mały plik przenośny to wymaganie). Sprawdza podpisy (PAdES/XAdES/CAdES: kwalifikowany, zaufany, osobisty)
+i numery PESEL z listy xlsx; pobiera listę zaufania UE. Opis w `docs/WERYFIKATOR.md`. Logika w `src/Weryfikator/Logika`
+(testy `tests/Weryfikator.Tests` kompilują te same pliki dla .NET 8; na Windows także dla net48). Workflow
+`weryfikator.yml`; wydania ze znacznikiem `weryfikator-v<wersja>` (podnieś `<Version>` w `Weryfikator.csproj` po każdej
+zmianie programu) — także po zatwierdzeniu w środowisku `wydanie`. Zrzut okna z CI: gałąź `zrzuty-weryfikator`.
+
 ## Budowanie i testy
 
 - Testy (Linux i Windows): `dotnet test tests/PodpisPdf.Tests` — logika podpisu na certyfikatach testowych

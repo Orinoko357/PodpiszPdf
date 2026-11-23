@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- .NET Framework 4.8 jest częścią Windows 10 i 11 — program to jeden mały plik exe, bez instalatora
+       i bez dołączanych bibliotek (podpisy CMS/XML, zip i HTTP są w samym systemie). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Weryfikator</RootNamespace>
+    <AssemblyName>Weryfikator</AssemblyName>
+    <Version>1.0.0.0</Version>
+    <Product>Weryfikator</Product>
+    <Description>Sprawdzanie podpisów elektronicznych i numerów PESEL</Description>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Weryfikator.ico</ApplicationIcon>
+    <GenerateSupportedRuntime>false</GenerateSupportedRuntime>
+    <Prefer32Bit>false</Prefer32Bit>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Weryfikator.Tests" />
+  </ItemGroup>
+
+</Project>

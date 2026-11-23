@@ -1,0 +1,144 @@
+name: Weryfikator
+
+# Osobny program (src/Weryfikator): sprawdzanie podpisów i numerów PESEL. Jeden plik Weryfikator.exe
+# dla .NET Framework 4.8 (jest w każdym Windows 10/11) — bez instalatora.
+on:
+  push:
+    paths:
+      - 'src/Weryfikator/**'
+      - 'tests/Weryfikator.Tests/**'
+      - '.github/workflows/weryfikator.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      wersja: ${{ steps.wersja.outputs.wersja }}
+      nowa: ${{ steps.wersja.outputs.nowa }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Wersja i czy jest już wydana
+        id: wersja
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          wersja=$(grep -oP '(?<=<Version>)[^<]+' src/Weryfikator/Weryfikator.csproj)
+          if gh api "repos/${{ github.repository }}/git/ref/tags/weryfikator-v$wersja" > /dev/null 2>&1; then nowa=nie; else nowa=tak; fi
+          echo "Wersja $wersja, nowa: $nowa"
+          echo "wersja=$wersja" >> "$GITHUB_OUTPUT"
+          echo "nowa=$nowa" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-weryfikator-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-weryfikator-${{ runner.os }}-
+
+      # Testy na .NET 8 i na .NET Framework 4.8 (jak w programie); przy okazji powstaje zestaw próbek
+      # (podpisane pliki, lista PESEL, lista zaufania) do testu gotowego pliku exe.
+      - name: Testy
+        env:
+          WERYFIKATOR_PROBKI: ${{ runner.temp }}\probki
+        run: dotnet test tests/Weryfikator.Tests -c Release --blame
+
+      - name: Budowanie Weryfikator.exe
+        shell: pwsh
+        run: |
+          dotnet build src/Weryfikator -c Release -o wynik
+          if ($LASTEXITCODE -ne 0) { throw "dotnet build: $LASTEXITCODE" }
+          Get-ChildItem wynik | Format-Table Name, Length
+
+      - name: Test Weryfikator.exe na próbkach
+        shell: pwsh
+        run: |
+          $p = "$env:RUNNER_TEMP\probki"
+          Copy-Item "$p\certyfikaty" wynik -Recurse
+          New-Item -ItemType Directory -Force zrzut | Out-Null
+          $proc = Start-Process wynik\Weryfikator.exe -PassThru -Wait -ArgumentList '--sprawdz', "$p\pliki", '--pesel', "$p\pesele.xlsx",
+            '--lista', "$p\lista.txt", '--raport', "$p\raport.csv", '--bez-crl', '--zrzut', "$PWD\zrzut\okno.png"
+          "Kod wyjścia: $($proc.ExitCode)"
+          Get-Content "$p\raport.csv.blad.txt" -ErrorAction SilentlyContinue
+          Get-Content "$p\raport.csv" -Encoding UTF8
+          $jest = Import-Csv "$p\raport.csv" -Delimiter ';' -Encoding UTF8 |
+            ForEach-Object { "$($_.Plik);$($_.'Ważność podpisu');$($_.'PESEL na liście')" } | Sort-Object
+          $ma = Get-Content "$p\oczekiwane.csv" -Encoding UTF8 | Sort-Object
+          $roznice = Compare-Object $ma $jest
+          if ($roznice) { $roznice | Format-Table -AutoSize | Out-String -Width 300; throw "Wyniki programu różnią się od oczekiwanych" }
+          if ($proc.ExitCode -ne 1) { throw "Oczekiwano kodu wyjścia 1 (są pozycje do sprawdzenia), jest $($proc.ExitCode)" }
+          Remove-Item wynik\certyfikaty -Recurse
+          "Wyniki zgodne z oczekiwanymi ($($jest.Count) podpisów)"
+
+      # Prawdziwa lista zaufania UE (LOTL z serwera Komisji Europejskiej + listy krajowe) — z kontrolą podpisów list.
+      - name: Test pobierania listy zaufania UE
+        shell: pwsh
+        run: |
+          $proc = Start-Process wynik\Weryfikator.exe -PassThru -Wait -ArgumentList '--test-listy', "$env:RUNNER_TEMP\lista-ue.txt"
+          Get-Content "$env:RUNNER_TEMP\lista-ue.txt" -Encoding UTF8
+          if ($proc.ExitCode -ne 0) { throw "Pobieranie listy zaufania: kod $($proc.ExitCode)" }
+
+      - name: Test zwykłego startu
+        shell: pwsh
+        run: |
+          $p = Start-Process wynik\Weryfikator.exe -PassThru
+          Start-Sleep -Seconds 10
+          $dziala = -not $p.HasExited
+          Get-Process Weryfikator -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not $dziala) { throw "Program zakończył się przy starcie (kod $($p.ExitCode))" }
+          "Zwykły start: program działa"
+
+      - name: Zrzut okna na gałąź zrzuty-weryfikator
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          if (-not (Test-Path zrzut/okno.png)) { "Brak zrzutu"; exit 0 }
+          New-Item -ItemType Directory -Force -Path ../zrzuty-galaz | Out-Null
+          Copy-Item zrzut/*.png ../zrzuty-galaz/
+          Copy-Item "$env:RUNNER_TEMP\probki\raport.csv" ../zrzuty-galaz/ -ErrorAction SilentlyContinue
+          Copy-Item "$env:RUNNER_TEMP\lista-ue.txt" ../zrzuty-galaz/ -ErrorAction SilentlyContinue
+          Set-Location ../zrzuty-galaz
+          git init -q -b zrzuty-weryfikator
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -q -m "Zrzut okna Weryfikatora (${{ github.sha }})"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" zrzuty-weryfikator
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Weryfikator
+          path: wynik/Weryfikator.exe
+          if-no-files-found: error
+
+  # Nowa wersja (<Version> bez znacznika weryfikator-v<wersja>) — wydanie po zatwierdzeniu przez właściciela
+  # repozytorium (środowisko „wydanie”, tak jak wydania PodpisPdf).
+  wydanie:
+    needs: build
+    if: needs.build.outputs.nowa == 'tak'
+    runs-on: ubuntu-latest
+    environment: wydanie
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: Weryfikator
+
+      - name: Wydanie
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WERSJA: ${{ needs.build.outputs.wersja }}
+        run: |
+          sha256sum Weryfikator.exe | tee Weryfikator.exe.sha256
+          gh release create "weryfikator-v$WERSJA" Weryfikator.exe Weryfikator.exe.sha256 \
+            --repo "${{ github.repository }}" --target "${{ github.sha }}" --latest=false \
+            --title "Weryfikator $WERSJA" \
+            --notes "Weryfikator — sprawdzanie podpisów elektronicznych (kwalifikowany, zaufany, osobisty) i numerów PESEL z listy xlsx. Jeden plik \`Weryfikator.exe\`, bez instalacji (Windows 10/11)."
