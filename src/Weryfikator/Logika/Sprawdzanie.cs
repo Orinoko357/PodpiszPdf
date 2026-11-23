@@ -241,7 +241,10 @@ namespace Weryfikator.Logika
                     if (certy.Count == 0) wc.Blad = "Podpis nie zawiera certyfikatu podpisującego.";
                     else
                     {
-                        wc.Cert = PodpisXml.Sprawdz(sx, certy, out var blad);
+                        string? blad;
+                        wc.Cert = PodpisXmlZPlikami.MaOdwolaniaDoPlikow(sx)
+                            ? PodpisXmlZPlikami.Sprawdz(doc, el, sx, certy, Path.GetDirectoryName(pelna)!, d => new SignedXmlXades(d), out blad)
+                            : PodpisXml.Sprawdz(sx, certy, out blad);
                         wc.Poprawny = wc.Cert != null;
                         if (!wc.Poprawny) { wc.Blad = blad; wc.Cert = certy[0]; }
                     }
@@ -283,14 +286,9 @@ namespace Weryfikator.Logika
                 var z = Cms.CzytajZnacznik(Convert.FromBase64String(enc.InnerText), out var blad);
                 if (z == null) { wc.UwagaZnacznika = "Znacznik czasu jest nieprawidłowy: " + blad; continue; }
                 var metoda = ts.GetElementsByTagName("CanonicalizationMethod", PodpisXml.NsDs).Cast<XmlElement>().FirstOrDefault()?.GetAttribute("Algorithm");
-                Transform tr = metoda != null && metoda.Contains("xml-exc-c14n") ? (Transform)new XmlDsigExcC14NTransform(metoda.EndsWith("#WithComments")) : new XmlDsigC14NTransform(metoda != null && metoda.EndsWith("#WithComments"));
-                // Kanonikalizacja elementu w kontekście przestrzeni nazw przodków.
-                var wezly = wartosc.SelectNodes("descendant-or-self::node() | descendant-or-self::*/@* | descendant-or-self::*/namespace::*")!;
-                tr.LoadInput(wezly);
                 using (var h = Cms.Skrot(z.OidSkrotu))
-                using (var s = (Stream)tr.GetOutput(typeof(Stream)))
                 {
-                    if (h == null || !h.ComputeHash(s).SequenceEqual(z.Odcisk)) { wc.UwagaZnacznika = "Znacznik czasu nie dotyczy tego podpisu."; continue; }
+                    if (h == null || !h.ComputeHash(PodpisXmlZPlikami.Kanonicznie(wartosc, metoda)).SequenceEqual(z.Odcisk)) { wc.UwagaZnacznika = "Znacznik czasu nie dotyczy tego podpisu."; continue; }
                 }
                 if (wc.Znacznik == null || z.Czas < wc.Znacznik.Czas) wc.Znacznik = z;
             }

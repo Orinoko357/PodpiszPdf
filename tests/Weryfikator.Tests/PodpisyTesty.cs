@@ -111,11 +111,6 @@ namespace Weryfikator.Tests
                                 "</xades:SignedProperties></xades:QualifyingProperties>");
             sx.AddObject(new DataObject { Data = wlasciwosci.ChildNodes, Id = "obj1" });
             sx.AddReference(new Reference("#obj1") { DigestMethod = "http://www.w3.org/2001/04/xmlenc#sha256" });
-            if (plikObok != null)
-            {
-                sx.Resolver = new ResolverLokalny(_folder);
-                sx.AddReference(new Reference(Uri.EscapeDataString(Path.GetFileName(plikObok))) { DigestMethod = "http://www.w3.org/2001/04/xmlenc#sha256" });
-            }
             var ki = new KeyInfo();
             ki.AddClause(new KeyInfoX509Data(cert));
             sx.KeyInfo = ki;
@@ -125,7 +120,28 @@ namespace Weryfikator.Tests
             zBaza.Load(sciezka);
             sx = PrzeniesNa(_folder, zBaza, sx, klucz);
             sx.ComputeSignature();
-            zBaza.DocumentElement!.AppendChild(zBaza.ImportNode(sx.GetXml(), true));
+            var podpis = (XmlElement)zBaza.DocumentElement!.AppendChild(zBaza.ImportNode(sx.GetXml(), true))!;
+            if (plikObok != null)
+            {
+                // SignedXml nie liczy skrótów plików zewnętrznych: odwołanie dopisywane ręcznie, a wartość podpisu
+                // liczona od nowa nad kanoniczną postacią SignedInfo.
+                var si = (XmlElement)podpis.GetElementsByTagName("SignedInfo", PodpisXml.NsDs)[0]!;
+                var r2 = zBaza.CreateElement("Reference", PodpisXml.NsDs);
+                r2.SetAttribute("URI", Uri.EscapeDataString(Path.GetFileName(plikObok)));
+                var dm = zBaza.CreateElement("DigestMethod", PodpisXml.NsDs);
+                dm.SetAttribute("Algorithm", "http://www.w3.org/2001/04/xmlenc#sha256");
+                var dv = zBaza.CreateElement("DigestValue", PodpisXml.NsDs);
+                using (var sha = SHA256.Create()) dv.InnerText = Convert.ToBase64String(sha.ComputeHash(File.ReadAllBytes(plikObok)));
+                r2.AppendChild(dm); r2.AppendChild(dv); si.AppendChild(r2);
+                var osobny = new XmlDocument { PreserveWhitespace = true };
+                osobny.LoadXml(si.OuterXml);
+                var c14n = new XmlDsigC14NTransform();
+                c14n.LoadInput(osobny);
+                byte[] kanon;
+                using (var ms = new MemoryStream()) { ((Stream)c14n.GetOutput(typeof(Stream))).CopyTo(ms); kanon = ms.ToArray(); }
+                var wartosc = klucz is RSA rsa ? rsa.SignData(kanon, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1) : ((ECDsa)klucz).SignData(kanon, HashAlgorithmName.SHA384);
+                podpis.GetElementsByTagName("SignatureValue", PodpisXml.NsDs)[0]!.InnerText = Convert.ToBase64String(wartosc);
+            }
             zBaza.Save(sciezka);
             return sciezka;
         }
@@ -160,13 +176,8 @@ namespace Weryfikator.Tests
         public void XadesPodpisZaufanyIPlikObok()
         {
             using var pieczec = _urzad.Wystaw("Minister do spraw informatyzacji - pieczęć podpisu zaufanego", null, pieczec: true);
-#if NET48
-            // Odwołania do pliku obok podpisu obsługuje tylko SignedXml z .NET Framework (czyli sam program).
             string? obok = Path.Combine(_folder, "załącznik nr 1.pdf");
             File.WriteAllText(obok, "zawartość");
-#else
-            string? obok = null;
-#endif
             var dane = "<ppZP:PodpisZP xmlns:ppZP=\"http://crd.gov.pl/xml/schematy/ppzp/\" xmlns:os=\"http://crd.gov.pl/xml/schematy/osoba/2009/03/06/\">" +
                        "<os:Imie>Anna</os:Imie><os:Nazwisko>Nowak</os:Nazwisko><os:PESEL>" + Pliki.PeselB + "</os:PESEL></ppZP:PodpisZP>";
             var plik = PodpiszXades(pieczec, dane, obok);
@@ -177,11 +188,16 @@ namespace Weryfikator.Tests
             Assert.Equal("Anna Nowak", w.Podpisujacy);
             Assert.False(w.NaLiscie);
 
-            if (obok != null)
-            {
-                File.WriteAllText(obok, "podmieniona");
-                Assert.Equal(Status.Niewazny, Sprawdzanie.Plik(plik, Ust()).Single().Status);
-            }
+            // Zmiana danych osoby (odwołanie wewnętrzne) albo pliku obok unieważnia podpis.
+            var xml = File.ReadAllText(plik);
+            File.WriteAllText(plik, xml.Replace(">Anna<", ">Hanna<"));
+            Assert.Equal(Status.Niewazny, Sprawdzanie.Plik(plik, Ust()).Single().Status);
+            File.WriteAllText(plik, xml);
+            Assert.Equal(Status.Wazny, Sprawdzanie.Plik(plik, Ust()).Single().Status);
+            File.WriteAllText(obok, "podmieniona");
+            var zly = Sprawdzanie.Plik(plik, Ust()).Single();
+            Assert.Equal(Status.Niewazny, zly.Status);
+            Assert.Contains(zly.Uwagi, x => x.Contains("zmieniony po podpisaniu"));
         }
 
         [Fact]
