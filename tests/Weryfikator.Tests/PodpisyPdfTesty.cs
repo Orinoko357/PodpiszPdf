@@ -286,6 +286,12 @@ namespace Weryfikator.Tests
             Dodaj(dwa, "12 dwa podpisy.pdf", "WAŻNY", "TAK");
             oczekiwane.Add("12 dwa podpisy.pdf;WAŻNY;NIE");
 
+            // Raport PDF z tych samych próbek (do obejrzenia; czcionka Liberation Sans z repozytorium).
+            var ust = Ust();
+            ust.Pesele = ListaPesel.Wczytaj(Pliki.Xlsx(_folder, new[] { Pliki.PeselA, "81100216357" }, new string[0]));
+            var wyniki = Directory.GetFiles(pliki).Where(Sprawdzanie.Obslugiwany).OrderBy(p => p).SelectMany(p => Sprawdzanie.Plik(p, ust)).ToList();
+            RaportPdfTesty.Zapisz(Path.Combine(folder, "raport-test.pdf"), wyniki);
+
             File.WriteAllLines(Path.Combine(folder, "oczekiwane.csv"), oczekiwane, new UTF8Encoding(false));
             File.Copy(Pliki.Xlsx(_folder, new[] { Pliki.PeselA, "81100216357" }, new string[0]), Path.Combine(folder, "pesele.xlsx"), true);
             Ust().Lista!.Zapisz(Path.Combine(folder, "lista.txt"));

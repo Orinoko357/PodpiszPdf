@@ -3,7 +3,7 @@
 Osobny, mały program dla Windows 10/11: sprawdza, czy podpisy elektroniczne w grupie plików są ważne
 i czy numery PESEL podpisujących są na liście z arkusza `.xlsx`.
 
-Jeden plik `Weryfikator.exe` (ok. 120 KB), **bez instalacji** — wystarczy go skopiować i uruchomić.
+Jeden plik `Weryfikator.exe` (ok. 160 KB), **bez instalacji** — wystarczy go skopiować i uruchomić.
 Korzysta z .NET Framework 4.8, który jest częścią Windows 10 i 11, więc niczego nie trzeba doinstalowywać.
 (Instalator nie dawałby tu żadnej korzyści: program nie ma bibliotek, usług ani wpisów w rejestrze.)
 
@@ -18,7 +18,7 @@ Korzysta z .NET Framework 4.8, który jest częścią Windows 10 i 11, więc nic
    Zielone komórki to numery użyte do porównania, czerwone — 11 cyfr z błędną sumą kontrolną.
 3. **Sprawdź podpisy** — każdy podpis to jeden wiersz: ważność, rodzaj podpisu, podpisujący, PESEL,
    czy PESEL jest na liście, czas podpisu i uwagi. Kolumna „Wynik”: **OK** = podpis ważny i PESEL na liście.
-4. **Zapisz raport…** — plik CSV otwierany w Excelu.
+4. **Zapisz raport…** — raport PDF (podsumowanie i tabela podpisów z uwagami, kolory jak w oknie) albo plik CSV dla Excela.
 
 Dwuklik na wierszu otwiera plik. Bez listy PESEL program sprawdza samą ważność podpisów.
 
@@ -64,7 +64,7 @@ Wersja przenośna: te same pliki mogą leżeć w folderze `certyfikaty` obok `We
 ## Tryb bez okna
 
 ```
-Weryfikator.exe --sprawdz <folder lub pliki…> [--pesel lista.xlsx] [--kolumna B] [--raport raport.csv] [--bez-crl]
+Weryfikator.exe --sprawdz <folder lub pliki…> [--pesel lista.xlsx] [--kolumna B] [--raport raport.pdf|raport.csv] [--bez-crl]
 ```
 
 Kod wyjścia: 0 — wszystko w porządku, 1 — są pozycje do sprawdzenia, 2 — błąd.

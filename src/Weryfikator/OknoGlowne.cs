@@ -433,9 +433,17 @@ namespace Weryfikator
 
         private void ZapiszRaport()
         {
-            using var d = new SaveFileDialog { Title = "Zapisz raport", Filter = "Plik CSV dla Excela (*.csv)|*.csv", FileName = $"Weryfikator-raport-{DateTime.Now:yyyy-MM-dd-HHmm}.csv" };
+            using var d = new SaveFileDialog
+            {
+                Title = "Zapisz raport", DefaultExt = "pdf", Filter = "Raport PDF (*.pdf)|*.pdf|Plik CSV dla Excela (*.csv)|*.csv",
+                FileName = $"Weryfikator-raport-{DateTime.Now:yyyy-MM-dd-HHmm}"
+            };
             if (d.ShowDialog(this) != DialogResult.OK) return;
-            try { Raport.ZapiszCsv(d.FileName, _wyniki); Process.Start(d.FileName); }
+            try
+            {
+                Raport.Zapisz(d.FileName, _wyniki, Srodowisko.Naglowek(_pesele, _lista), Srodowisko.Czcionki);
+                Process.Start(d.FileName);
+            }
             catch (Exception e) { Blad("Nie udało się zapisać raportu:\n" + e.Message); }
         }
 

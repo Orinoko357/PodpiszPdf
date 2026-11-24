@@ -75,6 +75,12 @@ jobs:
           $roznice = Compare-Object $ma $jest
           if ($roznice) { $roznice | Format-Table -AutoSize | Out-String -Width 300; throw "Wyniki programu różnią się od oczekiwanych" }
           if ($proc.ExitCode -ne 1) { throw "Oczekiwano kodu wyjścia 1 (są pozycje do sprawdzenia), jest $($proc.ExitCode)" }
+          # Raport PDF z tych samych próbek (czcionka Arial z systemu) — do obejrzenia na gałęzi zrzutów.
+          $pdf = Start-Process wynik\Weryfikator.exe -PassThru -Wait -ArgumentList '--sprawdz', "$p\pliki", '--pesel', "$p\pesele.xlsx",
+            '--lista', "$p\lista.txt", '--raport', "$PWD\zrzut\raport.pdf", '--bez-crl'
+          Get-Content "$PWD\zrzut\raport.pdf.blad.txt" -ErrorAction SilentlyContinue
+          if ($pdf.ExitCode -ne 1 -or -not (Test-Path zrzut\raport.pdf)) { throw "Raport PDF: kod $($pdf.ExitCode)" }
+          "Raport PDF: $((Get-Item zrzut\raport.pdf).Length) bajtów"
           Remove-Item wynik\certyfikaty -Recurse
           "Wyniki zgodne z oczekiwanymi ($($jest.Count) podpisów)"
 
@@ -104,6 +110,7 @@ jobs:
           if (-not (Test-Path zrzut/okno.png)) { "Brak zrzutu"; exit 0 }
           New-Item -ItemType Directory -Force -Path ../zrzuty-galaz | Out-Null
           Copy-Item zrzut/*.png ../zrzuty-galaz/
+          Copy-Item zrzut/*.pdf ../zrzuty-galaz/ -ErrorAction SilentlyContinue
           Copy-Item "$env:RUNNER_TEMP\probki\raport.csv" ../zrzuty-galaz/ -ErrorAction SilentlyContinue
           Copy-Item "$env:RUNNER_TEMP\lista-ue.txt" ../zrzuty-galaz/ -ErrorAction SilentlyContinue
           Set-Location ../zrzuty-galaz

@@ -71,6 +71,30 @@ namespace Weryfikator
             return l;
         }
 
+        /// <summary>Czcionki raportu PDF (zwykła i pogrubiona) z folderu czcionek Windows.</summary>
+        public static byte[][] Czcionki()
+        {
+            var folder = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+            foreach (var para in new[] { new[] { "arial.ttf", "arialbd.ttf" }, new[] { "segoeui.ttf", "segoeuib.ttf" }, new[] { "tahoma.ttf", "tahomabd.ttf" }, new[] { "verdana.ttf", "verdanab.ttf" } })
+            {
+                string a = Path.Combine(folder, para[0]), b = Path.Combine(folder, para[1]);
+                if (File.Exists(a) && File.Exists(b)) return new[] { File.ReadAllBytes(a), File.ReadAllBytes(b) };
+            }
+            throw new FileNotFoundException("Nie znaleziono czcionki Arial ani Segoe UI w folderze czcionek Windows — zapisz raport jako CSV.");
+        }
+
+        /// <summary>Nagłówek raportu: wersja programu, użyta lista PESEL i lista zaufania.</summary>
+        public static Raport.Naglowek Naglowek(ListaPesel? pesele, ListaZaufania? lista)
+        {
+            var n = new Raport.Naglowek { Wersja = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "" };
+            if (pesele != null)
+                n.ListaPesel = Path.GetFileName(pesele.Plik) + " (" + (pesele.WybranaKolumna >= 0 ? "kolumna " + ListaPesel.NazwaKolumny(pesele.WybranaKolumna) + ", " : "") +
+                               "numerów: " + pesele.Numery.Count + ")";
+            if (lista != null)
+                n.ListaZaufania = (lista.Pobrano.Year > 2000 ? "pobrana " + lista.Pobrano.ToLocalTime().ToString("dd.MM.yyyy HH:mm") + ", " : "") + "krajów: " + lista.Kraje.Count;
+            return n;
+        }
+
         public static IEnumerable<string> PlikiZ(string sciezka)
         {
             if (Directory.Exists(sciezka))

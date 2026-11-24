@@ -42,7 +42,7 @@ namespace Weryfikator
         }
 
         /// <summary>
-        /// Tryb bez okna: Weryfikator.exe --sprawdz &lt;folder lub pliki…&gt; [--pesel lista.xlsx] [--kolumna B] [--raport raport.csv]
+        /// Tryb bez okna: Weryfikator.exe --sprawdz &lt;folder lub pliki…&gt; [--pesel lista.xlsx] [--kolumna B] [--raport raport.pdf albo raport.csv]
         /// [--lista plik] [--bez-crl] [--zrzut okno.png]. Kod wyjścia: 0 — wszystko w porządku, 1 — są pozycje do sprawdzenia, 2 — błąd.
         /// </summary>
         private static int BezOkna(string[] args)
@@ -76,7 +76,7 @@ namespace Weryfikator
                 }
                 var wyniki = pliki.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                     .SelectMany(p => Sprawdzanie.Plik(p, u)).ToList();
-                Raport.ZapiszCsv(raport, wyniki);
+                Raport.Zapisz(raport, wyniki, Srodowisko.Naglowek(u.Pesele, u.Lista), Srodowisko.Czcionki);
                 int z = Array.IndexOf(args, "--zrzut");
                 if (z >= 0)
                 {
