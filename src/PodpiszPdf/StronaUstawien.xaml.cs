@@ -280,26 +280,15 @@ public sealed partial class StronaUstawien : Page
 
     private async void PrzyUstawieniuDomyslnej(object sender, RoutedEventArgs e)
     {
-        try
+        if (DomyslnaAplikacja.JestDomyslna)
         {
-            if (!Okno.TrybTestowy)
-            {
-                DomyslnaAplikacja.Zarejestruj(Okno.Ustawienia);
-                _ustawienia.PoprzedniaAplikacjaPdf = Okno.Ustawienia.PoprzedniaAplikacjaPdf;
-                Okno.ZapiszUstawienia();
-            }
-            if (!DomyslnaAplikacja.JestDomyslna)
-            {
-                await Dialogi.PokazAsync(XamlRoot, "Wybierz PodpiszPdf w Ustawieniach Windows",
-                    "Windows nie pozwala programom samodzielnie zostać aplikacją domyślną.\n\n" +
-                    "W oknie, które się otworzy, kliknij pozycję „.pdf” i wybierz „PodpiszPdf”.");
-            }
-            DomyslnaAplikacja.OtworzUstawieniaWindows();
+            // Przycisk „Ustawienia Windows…” — od razu strona aplikacji domyślnych.
+            try { DomyslnaAplikacja.OtworzUstawieniaWindows(); } catch (Exception) { /* bez Ustawień Windows */ }
+            return;
         }
-        catch (Exception ex)
-        {
-            await Dialogi.BladAsync(XamlRoot, "Nie udało się zarejestrować PodpiszPdf jako aplikacji do PDF.\n\n" + KomunikatyBledow.Opisz(ex));
-        }
+        await Okno.UstawJakoDomyslnaAsync();
+        _ustawienia.PoprzedniaAplikacjaPdf = Okno.Ustawienia.PoprzedniaAplikacjaPdf;
+        OdswiezStanIntegracji();
     }
 
     private async void PrzyMenu11(object sender, RoutedEventArgs e)

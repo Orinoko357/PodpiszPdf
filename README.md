@@ -43,6 +43,9 @@ do folderu Aplikacje.
 *Pokaż więcej opcji*). Program otwiera od razu podgląd do wskazania miejsca podpisu. Jeśli program już działa
 (np. w zasobniku), plik trafia do działającego okna.
 
+**Ikona w zasobniku** (prawy przycisk): *Otwórz PodpiszPdf*, *Podpisz plik PDF…*, *Ustawienia…*,
+*Ustaw jako domyślną aplikację do PDF…* (prowadzi do Ustawień Windows → Aplikacje domyślne) i *Zakończ*.
+
 **Nowe menu Windows 11:** pozycja **Podpisz w PodpiszPdf** może być od razu w menu (bez *Pokaż więcej opcji*) —
 *Ustawienia → Program → Nowe menu kontekstowe Windows 11 → Dodaj do menu*. Wymaga to certyfikatu PodpiszPdf
 w magazynie *Zaufane osoby* komputera — dodaje go instalator MSI (w sieci firmowej można go też rozesłać zasadami

@@ -282,6 +282,16 @@ public sealed partial class OknoGlowne : Window
                 StronaGlowna?.OtworzUstawienia();
             }),
         });
+        menu.Items.Add(new MenuFlyoutItem
+        {
+            Text = "Ustaw jako domyślną aplikację do PDF…",
+            Command = new Polecenie(async () =>
+            {
+                Przywroc();
+                if (StronaGlowna?.Zajeta != true)
+                    await UstawJakoDomyslnaAsync();
+            }),
+        });
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(new MenuFlyoutItem { Text = "Zakończ", Command = new Polecenie(ZamknijNaZadanie) });
 
@@ -297,6 +307,40 @@ public sealed partial class OknoGlowne : Window
         if (File.Exists(ikona))
             _zasobnik.IconSource = new BitmapImage(new Uri(ikona));
         _zasobnik.ForceCreate(enablesEfficiencyMode: false);
+    }
+
+    /// <summary>
+    /// PodpiszPdf jako aplikacja do PDF (menu ikony w zasobniku i ustawienia): rejestracja w Windows, a potem
+    /// Ustawienia Windows → Aplikacje domyślne, bo Windows nie pozwala programom samodzielnie zostać domyślnymi.
+    /// </summary>
+    internal async Task UstawJakoDomyslnaAsync()
+    {
+        var korzen = Korzen.XamlRoot;
+        try
+        {
+            if (DomyslnaAplikacja.JestDomyslna)
+            {
+                var odpowiedz = await Dialogi.PokazAsync(korzen, "PodpiszPdf jest już domyślny",
+                    "Pliki PDF otwierane dwuklikiem trafiają już do PodpiszPdf. Inną aplikację do PDF można wybrać " +
+                    "w Ustawieniach Windows → Aplikacje domyślne.", "Zamknij", "Ustawienia Windows…", domyslnieGlowny: false);
+                if (odpowiedz == ContentDialogResult.Primary)
+                    DomyslnaAplikacja.OtworzUstawieniaWindows();
+                return;
+            }
+            if (!TrybTestowy)
+            {
+                DomyslnaAplikacja.Zarejestruj(Ustawienia);
+                ZapiszUstawienia();
+            }
+            await Dialogi.PokazAsync(korzen, "Wybierz PodpiszPdf w Ustawieniach Windows",
+                "Windows nie pozwala programom samodzielnie zostać aplikacją domyślną.\n\n" +
+                "W oknie, które się otworzy, kliknij pozycję „.pdf” i wybierz „PodpiszPdf”.");
+            DomyslnaAplikacja.OtworzUstawieniaWindows();
+        }
+        catch (Exception ex)
+        {
+            await Dialogi.BladAsync(korzen, "Nie udało się zarejestrować PodpiszPdf jako aplikacji do PDF.\n\n" + KomunikatyBledow.Opisz(ex));
+        }
     }
 
     /// <summary>Czy jest ikona w zasobniku, do której chowa się zminimalizowane okno.</summary>
